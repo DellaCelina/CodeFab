@@ -1,4 +1,4 @@
-#include "RunPromptShell.h"
+﻿#include "RunPromptShell.h"
 
 #include <cctype>
 #include <string>
@@ -51,6 +51,9 @@ void RunPromptShell::Run(std::istream& in, std::ostream& out) {
             continue;
         }
 
+        // TODO(tokenizer 병합 후 refactor): IsInputComplete는 Tokenizer가 스캐닝 중
+        // 판단할 내용(괄호/문자열 미종결)을 미리 중복 검사하는 임시 로직이다.
+        // 자세한 대체 방향은 InputBuffer.h 참고.
         if (!IsInputComplete(buffer)) {
             out << kContinuationPrompt;
             continue;

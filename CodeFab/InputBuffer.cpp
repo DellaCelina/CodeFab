@@ -1,4 +1,4 @@
-#include "InputBuffer.h"
+﻿#include "InputBuffer.h"
 
 namespace {
 
