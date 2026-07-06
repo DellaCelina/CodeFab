@@ -47,8 +47,3 @@ TEST_F(TokenizerFixture, TokenOrigins) {
 TEST_F(TokenizerFixture, TokenCount) {
     EXPECT_EQ(tokens.size(), 8u); // 7개 + END_OF_FILE
 }
-
-int main(int argc, char** argv) {
-    ::testing::InitGoogleMock(&argc, argv);
-    return RUN_ALL_TESTS();
-}
