@@ -145,11 +145,15 @@
     <ClInclude Include="Token.h" />
     <ClInclude Include="Tokenizer.h" />
     <ClInclude Include="syntax_tree.h" />
+    <ClInclude Include="assembler.h" />
+    <ClInclude Include="assembler_interface.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp" />
     <ClCompile Include="Tokenizer.cpp" />
     <ClCompile Include="Tokenizer_test.cpp" />
+    <ClCompile Include="assembler_test.cpp" />
+    <ClCompile Include="assembler.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
