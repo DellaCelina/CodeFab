@@ -34,13 +34,10 @@ TEST_F(AssemblerTester, PrintWithExpressionTest) {
     NumberExpression one({ tokens[1] }, 1);
     NumberExpression two({ tokens[3] }, 2);
     NumberExpression three({ tokens[5] }, 3);
-    MultExpression mult({ tokens[3], tokens[4], tokens[5] }, &two, &three);
-    AddExpression add({ tokens[1], tokens[2], tokens[3], tokens[4], tokens[5] }, &one, &mult);
-    PrintStatement golden(tokens, &add);
+    MultExpression mult({ tokens[4] }, &two, &three);
+    AddExpression add({ tokens[2] }, &one, &mult);
+    PrintStatement golden({ tokens[0], tokens[6] }, &add);
 
     EXPECT_EQ(*root, golden);
 }
-
-
-
 
