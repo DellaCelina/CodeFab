@@ -7,13 +7,8 @@ using ::testing::ElementsAre;
 class TokenizerFixture : public ::testing::Test {
 protected:
     Tokenizer tokenizer;
-    std::vector<Token> tokens;
 
-    void SetUp() override {
-        tokens = tokenizer.tokenize("print 1 + 2 * 3;");
-    }
-
-    std::vector<TokenType> getTypes() {
+    std::vector<TokenType> getTypes(const std::vector<Token>& tokens) {
         std::vector<TokenType> result;
         for (const auto& tok : tokens)
             result.push_back(tok.type);
@@ -22,7 +17,8 @@ protected:
 };
 
 TEST_F(TokenizerFixture, TokenTypes) {
-    EXPECT_THAT(getTypes(), ElementsAre(
+    auto tokens = tokenizer.tokenize("print 1 + 2 * 3;");
+    EXPECT_THAT(getTypes(tokens), ElementsAre(
         TokenType::PRINT,
         TokenType::NUMBER,
         TokenType::PLUS,
@@ -35,6 +31,7 @@ TEST_F(TokenizerFixture, TokenTypes) {
 }
 
 TEST_F(TokenizerFixture, TokenOrigins) {
+    auto tokens = tokenizer.tokenize("print 1 + 2 * 3;");
     EXPECT_EQ(tokens[0].origin, "print");
     EXPECT_EQ(tokens[1].origin, "1");
     EXPECT_EQ(tokens[2].origin, "+");
@@ -45,5 +42,6 @@ TEST_F(TokenizerFixture, TokenOrigins) {
 }
 
 TEST_F(TokenizerFixture, TokenCount) {
+    auto tokens = tokenizer.tokenize("print 1 + 2 * 3;");
     EXPECT_EQ(tokens.size(), 8u); // 7개 + END_OF_FILE
 }
