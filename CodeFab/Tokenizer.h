@@ -40,6 +40,7 @@ private:
     void scanNumber();
     void scanIdentifier();
 
+    void reset(const std::string& src);
     bool isDigit(char c);
     bool isAlpha(char c);
     bool isAlphaNumeric(char c);

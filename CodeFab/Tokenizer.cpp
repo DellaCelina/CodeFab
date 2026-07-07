@@ -14,7 +14,7 @@ static const std::unordered_map<std::string, TokenType> KEYWORDS = {
     { "false", TokenType::FALSE },
 };
 
-std::vector<Token> Tokenizer::tokenize(const std::string& src) {
+void Tokenizer::reset(const std::string& src) {
     source     = src;
     start      = 0;
     current    = 0;
@@ -22,6 +22,10 @@ std::vector<Token> Tokenizer::tokenize(const std::string& src) {
     parenDepth = 0;
     braceDepth = 0;
     tokens.clear();
+}
+
+std::vector<Token> Tokenizer::tokenize(const std::string& src) {
+    reset(src);
 
     while (!isAtEnd()) {
         start = current;
