@@ -1,5 +1,5 @@
 #include "gmock/gmock.h"
-#include "checker.h"
+#include "Checker.h"
 
 // ---------------------------------------------------------------------------
 // 테스트용 mock 트리 생성 헬퍼

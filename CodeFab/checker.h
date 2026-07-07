@@ -2,7 +2,7 @@
 #include <string>
 #include <vector>
 #include <unordered_set>
-#include "syntax_tree.h"
+#include "SyntaxTree.h"
 
 using namespace std;
 

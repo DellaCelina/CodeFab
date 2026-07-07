@@ -146,13 +146,13 @@
     <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="checker.cpp" />
+    <ClCompile Include="Checker.cpp" />
     <ClCompile Include="checker_test.cpp" />
     <ClCompile Include="main.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="checker.h" />
-    <ClInclude Include="syntax_tree.h" />
+    <ClInclude Include="Checker.h" />
+    <ClInclude Include="SyntaxTree.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
