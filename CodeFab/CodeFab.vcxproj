@@ -148,8 +148,23 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp" />
+    <ClCompile Include="SyntaxTree.cpp" />
+    <ClCompile Include="RunPromptShell.cpp" />
+    <ClCompile Include="RunPromptShellTest.cpp" />
     <ClCompile Include="Tokenizer.cpp" />
     <ClCompile Include="Tokenizer_test.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="Token.h" />
+    <ClInclude Include="Tokenizer.h" />
+    <ClInclude Include="ShellErrors.h" />
+    <ClInclude Include="SyntaxNode.h" />
+    <ClInclude Include="SyntaxTree.h" />
+    <ClInclude Include="TokenizeInterface.h" />
+    <ClInclude Include="AssemblerInterface.h" />
+    <ClInclude Include="CheckerInterface.h" />
+    <ClInclude Include="ExecuteInterface.h" />
+    <ClInclude Include="RunPromptShell.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
