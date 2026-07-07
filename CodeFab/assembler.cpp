@@ -1,4 +1,4 @@
-#include "assembler.h"
+﻿#include "assembler.h"
 
 #include <algorithm>
 #include <stdexcept>
@@ -7,12 +7,14 @@
 
 namespace {
 
-// Binary operator precedence, lowest to highest. parseExpression(level) consumes
-// operators at kOperatorPrecedence[level], recursing into level + 1 for its operands;
-// once level runs past the table, it falls through to unary/primary parsing.
+// Binary operator precedence table, lowest to highest. parseExpression(level) consumes
+// operators at operatorPriority[level], recursing into level + 1 for its operands; once
+// level runs past the table, it falls through to unary/primary parsing.
 // EQUAL (assignment) sits at the lowest level and is right-associative: its right
 // operand recurses back into the SAME level instead of level + 1.
-const std::vector<std::vector<TokenType>> kOperatorPrecedence = {
+using OperatorPriority = std::vector<std::vector<TokenType>>;
+
+const OperatorPriority kDefaultOperatorPriority = {
     { TokenType::EQUAL },
     { TokenType::EQUAL_EQUAL, TokenType::BANG_EQUAL },
     { TokenType::LESS, TokenType::LESS_EQUAL, TokenType::GREATER, TokenType::GREATER_EQUAL },
@@ -28,13 +30,14 @@ const std::vector<std::vector<TokenType>> kOperatorPrecedence = {
 //   ifStmt       -> IF LEFT_PAREN expression(0) RIGHT_PAREN statement (ELSE statement)?
 //   forStmt      -> FOR LEFT_PAREN expression(0) SEMICOLON expression(0) SEMICOLON expression(0) RIGHT_PAREN statement
 //   exprStmt     -> expression(0) SEMICOLON
-//   expression(level) -> expression(level + 1) (kOperatorPrecedence[level] expression(level or level + 1))*
-//   expression(kOperatorPrecedence.size()) -> unary
+//   expression(level) -> expression(level + 1) (operatorPriority[level] expression(level or level + 1))*
+//   expression(operatorPriority.size()) -> unary
 //   unary        -> (MINUS | BANG) unary | primary
 //   primary      -> NUMBER | STRING | TRUE | FALSE | IDENTIFIER | LEFT_PAREN expression(0) RIGHT_PAREN
 class Parser {
 public:
-    Parser(const std::vector<Token>& tokens, SyntaxTree& tree) : tokens(tokens), tree(tree) {}
+    Parser(const std::vector<Token>& tokens, SyntaxTree& tree, const OperatorPriority& operatorPriority)
+        : tokens(tokens), tree(tree), operatorPriority(operatorPriority) {}
 
     SyntaxNode* parseStatement() {
         if (!isAtEnd()) {
@@ -119,11 +122,11 @@ private:
 
     // ---- Expressions ----
 
-    // Consumes operators at kOperatorPrecedence[level], recursing into level + 1 for its
+    // Consumes operators at operatorPriority[level], recursing into level + 1 for its
     // operands; past the end of the table, falls to parseUnary(). EQUAL is right-associative,
     // so its right operand recurses back into the same level instead of level + 1.
     Expression* parseExpression(size_t level) {
-        if (level >= kOperatorPrecedence.size())
+        if (level >= operatorPriority.size())
             return parseUnary();
 
         Expression* left = parseExpression(level + 1);
@@ -182,8 +185,8 @@ private:
 
     // ---- Helpers ----
 
-    static bool isOperatorAtLevel(size_t level, TokenType type) {
-        const auto& operators = kOperatorPrecedence[level];
+    bool isOperatorAtLevel(size_t level, TokenType type) const {
+        const auto& operators = operatorPriority[level];
         return std::find(operators.begin(), operators.end(), type) != operators.end();
     }
 
@@ -236,6 +239,7 @@ private:
 
     const std::vector<Token>& tokens;
     SyntaxTree& tree;
+    const OperatorPriority& operatorPriority;
     size_t pos = 0;
 };
 
@@ -243,7 +247,7 @@ private:
 
 std::unique_ptr<SyntaxTree> Assembler::assemble(const std::vector<Token> tokens) {
     auto tree = std::make_unique<SyntaxTree>();
-    Parser parser(tokens, *tree);
+    Parser parser(tokens, *tree, kDefaultOperatorPriority);
     tree->setRoot(parser.parseStatement());
     return tree;
 }
