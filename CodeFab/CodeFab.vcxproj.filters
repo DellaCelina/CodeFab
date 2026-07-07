@@ -33,6 +33,9 @@
     <ClCompile Include="ExecutorVariableTest.cpp">
       <Filter>소스 파일</Filter>
     </ClCompile>
+    <ClCompile Include="ExecutorControlFlowTest.cpp">
+      <Filter>소스 파일</Filter>
+    </ClCompile>
     <ClCompile Include="Executor.cpp">
       <Filter>소스 파일</Filter>
     </ClCompile>
