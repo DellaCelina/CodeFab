@@ -100,10 +100,15 @@ void Executor::registerDefaultHandlers() {
         return Value(evaluate(greaterEqual->left).asNumber() >= evaluate(greaterEqual->right).asNumber());
     };
 
+    expressionHandlers_[std::type_index(typeid(NotExpression))] = [this](Expression* expr) {
+        auto* notExpr = static_cast<NotExpression*>(expr);
+        return Value(!evaluate(notExpr->operand).isTruthy());
+    };
+
     // TODO(remaining operators & runtime errors): register handlers for
+    //   NotExpression -> done
     //   EqualExpression, NotEqualExpression, LessEqualExpression,
-    //     GreaterEqualExpression (same shape as Less/GreaterExpression above)
-    //   NotExpression -> Value(!evaluate(operand).isTruthy())
+    //     GreaterEqualExpression -> done
     //   DivideExpression: add divide-by-zero check, throw RuntimeCodeFabError
     //   Add/Sub/Mult/Divide/comparisons: wrap asNumber()/asString() mismatches
     //     (currently a raw std::bad_variant_access) into a clear

@@ -128,6 +128,20 @@ TEST_F(ExecutorTester, Evaluate_GreaterEqualExpression_ReturnsBoolean) {
     EXPECT_EQ(executor.evaluate(&greaterEqual).asBoolean(), true);
 }
 
+TEST_F(ExecutorTester, Evaluate_NotExpression_NegatesTrue) {
+    BooleanExpression trueLiteral({}, true);
+    NotExpression notTrue({}, &trueLiteral);
+
+    EXPECT_EQ(executor.evaluate(&notTrue).asBoolean(), false);
+}
+
+TEST_F(ExecutorTester, Evaluate_NotExpression_NegatesFalse) {
+    BooleanExpression falseLiteral({}, false);
+    NotExpression notFalse({}, &falseLiteral);
+
+    EXPECT_EQ(executor.evaluate(&notFalse).asBoolean(), true);
+}
+
 TEST_F(ExecutorTester, Evaluate_AddExpression_ConcatenatesStrings) {
     StringExpression hello({}, "Hello, ");
     StringExpression codefab({}, "CodeFab!");
