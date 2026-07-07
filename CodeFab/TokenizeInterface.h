@@ -13,5 +13,5 @@ class TokenizeInterface {
 public:
     virtual ~TokenizeInterface() = default;
 
-    virtual std::vector<Token> Tokenize(const std::string& source) = 0;
+    virtual std::vector<Token> tokenize(const std::string& source) = 0;
 };

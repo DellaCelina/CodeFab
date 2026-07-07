@@ -21,7 +21,7 @@
     <ClCompile Include="Tokenizer.cpp">
       <Filter>소스 파일</Filter>
     </ClCompile>
-    <ClCompile Include="Tokenizer_test.cpp">
+    <ClCompile Include="Tokenizer_Test.cpp">
       <Filter>소스 파일</Filter>
     </ClCompile>
     <ClCompile Include="main.cpp">

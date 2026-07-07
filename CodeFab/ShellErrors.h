@@ -11,7 +11,7 @@ public:
         : std::runtime_error(message), line_(line) {
     }
 
-    int Line() const { return line_; }
+    int line() const { return line_; }
 
 private:
     int line_;

@@ -14,6 +14,7 @@ static const std::unordered_map<std::string, TokenType> KEYWORDS = {
     { "false", TokenType::FALSE },
 };
 
+
 void Tokenizer::reset(const std::string& src) {
     source     = src;
     start      = 0;
@@ -24,7 +25,7 @@ void Tokenizer::reset(const std::string& src) {
     tokens.clear();
 }
 
-std::vector<Token> Tokenizer::tokenize(const std::string& src) {
+std::vector<Token> Tokenizer::scanTokens(const std::string& src) {
     reset(src);
 
     while (!isAtEnd()) {
@@ -43,9 +44,9 @@ std::vector<Token> Tokenizer::tokenize(const std::string& src) {
     return tokens;
 }
 
-std::vector<Token> Tokenizer::Tokenize(const std::string& src) {
+std::vector<Token> Tokenizer::tokenize(const std::string& src) {
     try {
-        return tokenize(src);
+        return scanTokens(src);
     } catch (const TokenizerIncompleteError& e) {
         throw IncompleteInputError(line, e.what());
     } catch (const std::runtime_error& e) {
@@ -104,6 +105,7 @@ void Tokenizer::scanToken() {
         case '-': addToken(TokenType::MINUS);       break;
         case '*': addToken(TokenType::STAR);        break;
         case '/': addToken(TokenType::SLASH);       break;
+
         case '=': addToken(match('=') ? TokenType::EQUAL_EQUAL   : TokenType::EQUAL);   break;
         case '!': addToken(match('=') ? TokenType::BANG_EQUAL    : TokenType::BANG);    break;
         case '<': addToken(match('=') ? TokenType::LESS_EQUAL    : TokenType::LESS);    break;
@@ -119,6 +121,7 @@ void Tokenizer::scanToken() {
             scanString();
             break;
         default:
+
             scanDefault(c);
             break;
     }
@@ -145,6 +148,7 @@ void Tokenizer::scanDefault(char c) {
 }
 
 void Tokenizer::scanNumber() {
+
     while (isDigit(peek())) advance();
 
     if (peek() == '.' && isDigit(peekNext())) {
@@ -155,7 +159,7 @@ void Tokenizer::scanNumber() {
 }
 
 void Tokenizer::scanIdentifier() {
-    while (isAlphaNumeric(peek())) advance();
+   while (isAlphaNumeric(peek())) advance();
 
     std::string text = source.substr(start, current - start);
     auto it = KEYWORDS.find(text);
