@@ -39,4 +39,8 @@ private:
     void scanString();
     void scanNumber();
     void scanIdentifier();
+
+    bool isDigit(char c);
+    bool isAlpha(char c);
+    bool isAlphaNumeric(char c);
 };
