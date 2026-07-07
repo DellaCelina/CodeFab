@@ -1,6 +1,7 @@
 ﻿#include "RunPromptShell.h"
 
 #include <cctype>
+#include <stdexcept>
 #include <string>
 
 #include "ShellErrors.h"
@@ -64,6 +65,9 @@ void RunPromptShell::run(std::istream& in, std::ostream& out) {
             continue;
         } catch (const CodeFabError& e) {
             out << "[" << e.line() << "번째 줄] " << e.what() << "\n";
+        } catch (const std::invalid_argument& e) {
+            // Assembler가 문법 오류를 std::invalid_argument로 던진다 (line() 정보 없음).
+            out << e.what() << "\n";
         }
 
         buffer.clear();
