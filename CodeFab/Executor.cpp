@@ -80,6 +80,26 @@ void Executor::registerDefaultHandlers() {
     //   ForStatement   -> execute(init-as-statement or evaluate as expr);
     //     while (evaluate(compare).isTruthy()) { execute(loop); evaluate(next); }
 
+    expressionHandlers_[std::type_index(typeid(EqualExpression))] = [this](Expression* expr) {
+        auto* equal = static_cast<EqualExpression*>(expr);
+        return Value(evaluate(equal->left) == evaluate(equal->right));
+    };
+
+    expressionHandlers_[std::type_index(typeid(NotEqualExpression))] = [this](Expression* expr) {
+        auto* notEqual = static_cast<NotEqualExpression*>(expr);
+        return Value(!(evaluate(notEqual->left) == evaluate(notEqual->right)));
+    };
+
+    expressionHandlers_[std::type_index(typeid(LessEqualExpression))] = [this](Expression* expr) {
+        auto* lessEqual = static_cast<LessEqualExpression*>(expr);
+        return Value(evaluate(lessEqual->left).asNumber() <= evaluate(lessEqual->right).asNumber());
+    };
+
+    expressionHandlers_[std::type_index(typeid(GreaterEqualExpression))] = [this](Expression* expr) {
+        auto* greaterEqual = static_cast<GreaterEqualExpression*>(expr);
+        return Value(evaluate(greaterEqual->left).asNumber() >= evaluate(greaterEqual->right).asNumber());
+    };
+
     // TODO(remaining operators & runtime errors): register handlers for
     //   EqualExpression, NotEqualExpression, LessEqualExpression,
     //     GreaterEqualExpression (same shape as Less/GreaterExpression above)
