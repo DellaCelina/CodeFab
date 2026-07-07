@@ -48,4 +48,8 @@ struct Token {
     TokenType   type;
     std::string origin; // 원본 문자열 (STRING은 따옴표 제거된 값)
     int         line;
+
+    bool operator==(const Token& op) const {
+        return type == op.type && origin == op.origin && line == op.line;
+    }
 };

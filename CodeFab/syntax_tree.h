@@ -4,24 +4,7 @@
 #include <vector>
 #include <string>
 
-// Temporal Token
-enum class TokenType {
-    NUMBER,
-    PLUS,
-    STAR,
-    PRINT,
-    SEMICOLON,
-};
-
-struct Token {
-    TokenType type;
-    std::string orign;
-    int line;
-
-    bool operator==(const Token& op) const {
-        return type == op.type && orign == op.orign && line == op.line;
-    }
-};
+#include "Token.h"
 
 // Syntax tree
 class SyntaxNode {
