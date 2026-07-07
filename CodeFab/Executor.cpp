@@ -1,6 +1,7 @@
 #include "Executor.h"
 
 #include <stdexcept>
+#include "ShellErrors.h"
 
 Executor::Executor(std::ostream& out) : out_(out) {
     registerDefaultHandlers();
@@ -46,7 +47,10 @@ void Executor::registerDefaultHandlers() {
 
     expressionHandlers_[std::type_index(typeid(DivideExpression))] = [this](Expression* expr) {
         auto* divide = static_cast<DivideExpression*>(expr);
-        return Value(evaluate(divide->left).asNumber() / evaluate(divide->right).asNumber());
+        double right = evaluate(divide->right).asNumber();
+        if (right == 0.0)
+            throw RuntimeCodeFabError(0, "0으로 나눌 수 없습니다");
+        return Value(evaluate(divide->left).asNumber() / right);
     };
 
     expressionHandlers_[std::type_index(typeid(NegativeExpression))] = [this](Expression* expr) {

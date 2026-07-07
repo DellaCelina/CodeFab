@@ -3,6 +3,7 @@
 
 #include "gmock/gmock.h"
 #include "Executor.h"
+#include "ShellErrors.h"
 #include "SyntaxTree.h"
 
 struct ExecutorTester : public testing::Test {
@@ -57,6 +58,14 @@ TEST_F(ExecutorTester, Evaluate_DivideExpression_LeftAssociative) {
     DivideExpression result({}, &eightDivTwo, &twoAgain);
 
     EXPECT_EQ(executor.evaluate(&result).asNumber(), 2.0);
+}
+
+TEST_F(ExecutorTester, Evaluate_DivideByZero_ThrowsRuntimeError) {
+    NumberExpression three({}, 3);
+    NumberExpression zero({}, 0);
+    DivideExpression div({}, &three, &zero);
+
+    EXPECT_THROW(executor.evaluate(&div), RuntimeCodeFabError);
 }
 
 TEST_F(ExecutorTester, Evaluate_ParenthesizedExpression_OverridesPrecedence) {
