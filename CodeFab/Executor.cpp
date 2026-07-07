@@ -8,6 +8,30 @@ namespace {
 // TODO: replace with the offending node's own line once
 // SyntaxNode::getLine() (added in PR #5) lands on this branch.
 constexpr int kUnknownLine = 0;
+
+RuntimeCodeFabError undefinedVariableError(const std::string& name) {
+    return RuntimeCodeFabError(kUnknownLine, "'" + name + "' 변수가 정의되지 않았습니다.");
+}
+
+// Pushes a new scope on construction and guarantees it's popped when the
+// block ends, whether that's normal control flow or an exception unwinding
+// through it (e.g. a statement inside the block throwing).
+class ScopeGuard {
+public:
+    explicit ScopeGuard(Environment& environment) : environment_(environment) {
+        environment_.pushScope();
+    }
+
+    ~ScopeGuard() {
+        environment_.popScope();
+    }
+
+    ScopeGuard(const ScopeGuard&) = delete;
+    ScopeGuard& operator=(const ScopeGuard&) = delete;
+
+private:
+    Environment& environment_;
+};
 }  // namespace
 
 Executor::Executor(std::ostream& out) : out_(out) {
@@ -76,7 +100,7 @@ void Executor::registerDefaultHandlers() {
         auto* identifier = static_cast<IdentifierExpression*>(expr);
         auto value = environment_.lookup(identifier->name);
         if (!value) {
-            throw RuntimeCodeFabError(kUnknownLine, "'" + identifier->name + "' 변수가 정의되지 않았습니다.");
+            throw undefinedVariableError(identifier->name);
         }
         return *value;
     };
@@ -85,7 +109,7 @@ void Executor::registerDefaultHandlers() {
         auto* assign = static_cast<AssignExpression*>(expr);
         Value value = evaluate(assign->value);
         if (!environment_.assign(assign->identifier->name, value)) {
-            throw RuntimeCodeFabError(kUnknownLine, "'" + assign->identifier->name + "' 변수가 정의되지 않았습니다.");
+            throw undefinedVariableError(assign->identifier->name);
         }
         return value;
     };
@@ -102,16 +126,10 @@ void Executor::registerDefaultHandlers() {
 
     statementHandlers_[std::type_index(typeid(BlockStatement))] = [this](Statement* stmt) {
         auto* block = static_cast<BlockStatement*>(stmt);
-        environment_.pushScope();
-        try {
-            for (Statement* inner : block->statements) {
-                execute(inner);
-            }
-        } catch (...) {
-            environment_.popScope();
-            throw;
+        ScopeGuard guard(environment_);
+        for (Statement* inner : block->statements) {
+            execute(inner);
         }
-        environment_.popScope();
     };
 
     // TODO(control flow): register handlers for
