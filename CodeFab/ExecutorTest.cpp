@@ -1,3 +1,5 @@
+#include <sstream>
+
 #include "gmock/gmock.h"
 #include "Executor.h"
 #include "MockSyntaxTree.h"
@@ -32,4 +34,21 @@ TEST_F(ExecutorTester, Evaluate_MultExpression_ReturnsProduct) {
     Value result = executor.evaluate(&mult);
 
     EXPECT_EQ(result.asNumber(), 6.0);
+}
+
+// Goal case: print 1 + 2 * 3; // expect: 7
+TEST(ExecutorPrintTest, Execute_PrintStatement_WritesEvaluatedValueToOutput) {
+    std::ostringstream out;
+    Executor executor(out);
+
+    NumberExpression one(1);
+    NumberExpression two(2);
+    NumberExpression three(3);
+    MultExpression mult(&two, &three);
+    AddExpression add(&one, &mult);
+    PrintStatement print(&add);
+
+    executor.execute(&print);
+
+    EXPECT_EQ(out.str(), "7\n");
 }
