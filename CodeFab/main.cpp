@@ -4,42 +4,14 @@
 
 #include <iostream>
 
-#include "AssemblerInterface.h"
-#include "CheckerInterface.h"
-#include "ExecuteInterface.h"
-#include "ShellErrors.h"
 #include "Tokenizer.h"
-
-namespace {
-
-// TODO: 각 담당자(Assembler/Checker/Executor)의 실제 구현으로 교체 예정.
-// 지금은 Shell 통합 골격이 빌드/실행되는 것을 보여주기 위한 임시 구현이다.
-class NotImplementedAssembler : public AssemblerInterface {
-public:
-    SyntaxTree assemble(const std::vector<Token>&) override {
-        throw AssemblyError(0, "Assembler가 아직 구현되지 않았습니다.");
-    }
-};
-
-class NotImplementedChecker : public CheckerInterface {
-public:
-    bool check(SyntaxTree&) override {
-        throw CheckError(0, "Checker가 아직 구현되지 않았습니다.");
-    }
-};
-
-class NotImplementedExecutor : public ExecuteInterface {
-public:
-    void execute(SyntaxTree&) override {
-        throw RuntimeCodeFabError(0, "Executor가 아직 구현되지 않았습니다.");
-    }
-};
-
-}  // namespace
+#include "Assembler.h"
+#include "Checker.h"
+#include "Executor.h"
+#include "ShellErrors.h"
+#include "RunPromptShell.h"
 
 #endif
-
-#include "RunPromptShell.h"
 
 int main() {
 #ifdef _DEBUG
@@ -47,9 +19,9 @@ int main() {
     return RUN_ALL_TESTS();
 #else
     Tokenizer tokenizer;
-    NotImplementedAssembler assembler;
-    NotImplementedChecker checker;
-    NotImplementedExecutor executor;
+    Assembler assembler;
+    Checker checker;
+    Executor executor;
 
     RunPromptShell shell(tokenizer, assembler, checker, executor);
     shell.run(std::cin, std::cout);

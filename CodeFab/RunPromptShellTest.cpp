@@ -197,7 +197,7 @@ TEST_F(RunPromptShellTest, CheckErrorThrown_IsReportedAndExecutorIsSkipped) {
     EXPECT_CALL(tokenizer, tokenize(_)).WillOnce(Return(std::vector<Token>{}));
     EXPECT_CALL(assembler, assemble(_)).WillOnce(Return(ByMove(SyntaxTree())));
     EXPECT_CALL(checker, check(_))
-        .WillOnce(Throw(CheckError(2, "'a'에러: 이미 해당 변수는 현재 스코프에서 사용중입니다.")));
+        .WillOnce(Throw(CheckerError(2, "'a'에러: 이미 해당 변수는 현재 스코프에서 사용중입니다.")));
     EXPECT_CALL(executor, execute(_)).Times(0);
 
     std::ostringstream out;

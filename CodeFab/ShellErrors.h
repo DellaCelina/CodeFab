@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include <stdexcept>
 #include <string>
@@ -31,7 +31,7 @@ public:
 };
 
 // CheckerInterface: 의미 오류 (변수 중복 선언, 자기 참조 등)
-class CheckError : public CodeFabError {
+class CheckerError : public CodeFabError {
 public:
     using CodeFabError::CodeFabError;
 };
