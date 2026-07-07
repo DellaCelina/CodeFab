@@ -115,9 +115,7 @@ void Tokenizer::scanToken() {
             scanString();
             break;
         default:
-            if (isDigit(c))      scanNumber();
-            else if (isAlpha(c)) scanIdentifier();
-            else throw std::runtime_error(std::string("알 수 없는 문자: '") + c + "'");
+            scanDefault(c);
             break;
     }
 }
@@ -134,6 +132,12 @@ void Tokenizer::scanString() {
     // 따옴표를 제거한 실제 문자열 값을 origin에 저장
     std::string value = source.substr(start + 1, current - start - 2);
     tokens.push_back({ TokenType::STRING, value, line });
+}
+
+void Tokenizer::scanDefault(char c) {
+    if (isDigit(c))      scanNumber();
+    else if (isAlpha(c)) scanIdentifier();
+    else throw std::runtime_error(std::string("알 수 없는 문자: '") + c + "'");
 }
 
 void Tokenizer::scanNumber() {

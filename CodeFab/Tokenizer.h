@@ -43,4 +43,5 @@ private:
     bool isDigit(char c);
     bool isAlpha(char c);
     bool isAlphaNumeric(char c);
+    void scanDefault(char c);
 };
