@@ -50,6 +50,9 @@
     <ClInclude Include="Token.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
+    <ClInclude Include="Tokenizer.h">
+      <Filter>헤더 파일</Filter>
+    </ClInclude>
     <ClInclude Include="SyntaxNode.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
