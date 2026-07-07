@@ -63,6 +63,31 @@ void Executor::registerDefaultHandlers() {
         auto* greater = static_cast<GreaterExpression*>(expr);
         return Value(evaluate(greater->left).asNumber() > evaluate(greater->right).asNumber());
     };
+
+    // TODO(variables & assignment): register handlers for
+    //   IdentifierExpression -> environment_.lookup(name); throw
+    //     RuntimeCodeFabError(node->getLine(), "...") if undefined.
+    //   DeclareStatement      -> environment_.define(identifier->name, evaluate(expr))
+    //   AssignExpression      -> value = evaluate(value); if (!environment_.assign(...))
+    //     throw RuntimeCodeFabError(...) for undefined target; return value.
+
+    // TODO(block scope & control flow): register handlers for
+    //   BlockStatement -> environment_.pushScope(); execute each statement;
+    //     environment_.popScope() (use try/finally-style RAII or catch+rethrow
+    //     so scope still pops if a statement throws).
+    //   IfStatement    -> evaluate(expr).isTruthy() ? execute(thenBranch)
+    //                      : (elseBranch ? execute(elseBranch) : void).
+    //   ForStatement   -> execute(init-as-statement or evaluate as expr);
+    //     while (evaluate(compare).isTruthy()) { execute(loop); evaluate(next); }
+
+    // TODO(remaining operators & runtime errors): register handlers for
+    //   EqualExpression, NotEqualExpression, LessEqualExpression,
+    //     GreaterEqualExpression (same shape as Less/GreaterExpression above)
+    //   NotExpression -> Value(!evaluate(operand).isTruthy())
+    //   DivideExpression: add divide-by-zero check, throw RuntimeCodeFabError
+    //   Add/Sub/Mult/Divide/comparisons: wrap asNumber()/asString() mismatches
+    //     (currently a raw std::bad_variant_access) into a clear
+    //     RuntimeCodeFabError("피연산자는 반드시 숫자여야 합니다", node->getLine())
 }
 
 void Executor::execute(SyntaxTree& tree) {
