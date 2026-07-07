@@ -15,6 +15,11 @@ void Executor::registerDefaultHandlers() {
         auto* add = static_cast<AddExpression*>(expr);
         return Value(evaluate(add->left).asNumber() + evaluate(add->right).asNumber());
     };
+
+    expressionHandlers_[std::type_index(typeid(MultExpression))] = [this](Expression* expr) {
+        auto* mult = static_cast<MultExpression*>(expr);
+        return Value(evaluate(mult->left).asNumber() * evaluate(mult->right).asNumber());
+    };
 }
 
 Value Executor::evaluate(Expression* expr) {
