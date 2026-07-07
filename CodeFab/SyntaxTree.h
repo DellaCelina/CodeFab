@@ -16,10 +16,10 @@ public:
     SyntaxTree(SyntaxTree&&) = default;
     SyntaxTree& operator=(SyntaxTree&&) = default;
 
-    void Add(std::unique_ptr<SyntaxNode> node);
+    void add(std::unique_ptr<SyntaxNode> node);
 
-    void SetRoot(SyntaxNode* root) { root_ = root; }
-    SyntaxNode* GetRoot() const { return root_; }
+    void setRoot(SyntaxNode* root) { root_ = root; }
+    SyntaxNode* getRoot() const { return root_; }
 
 private:
     std::vector<std::unique_ptr<SyntaxNode>> nodes_;

@@ -13,11 +13,11 @@ class SyntaxNode {
 public:
     virtual ~SyntaxNode() = default;
 
-    virtual void Execute() = 0;
-    virtual bool Check() = 0;
+    virtual void execute() = 0;
+    virtual bool check() = 0;
 
-    void AddChild(SyntaxNode* child) { childs_.push_back(child); }
-    const std::vector<SyntaxNode*>& GetChilds() const { return childs_; }
+    void addChild(SyntaxNode* child) { childs_.push_back(child); }
+    const std::vector<SyntaxNode*>& getChilds() const { return childs_; }
 
 protected:
     std::vector<SyntaxNode*> childs_;

@@ -11,5 +11,5 @@ class AssemblerInterface {
 public:
     virtual ~AssemblerInterface() = default;
 
-    virtual SyntaxTree Assemble(const std::vector<Token>& tokens) = 0;
+    virtual SyntaxTree assemble(const std::vector<Token>& tokens) = 0;
 };

@@ -2,7 +2,7 @@
 
 #include <utility>
 
-void SyntaxTree::Add(std::unique_ptr<SyntaxNode> node) {
+void SyntaxTree::add(std::unique_ptr<SyntaxNode> node) {
     if (nodes_.empty()) {
         root_ = node.get();
     }
