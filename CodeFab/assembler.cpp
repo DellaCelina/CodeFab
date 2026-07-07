@@ -1,25 +1,37 @@
 #include "assembler.h"
 
+#include <algorithm>
 #include <stdexcept>
 #include <utility>
+#include <vector>
 
 namespace {
 
+// Binary operator precedence, lowest to highest. parseExpression(level) consumes
+// operators at kOperatorPrecedence[level], recursing into level + 1 for its operands;
+// once level runs past the table, it falls through to unary/primary parsing.
+// EQUAL (assignment) sits at the lowest level and is right-associative: its right
+// operand recurses back into the SAME level instead of level + 1.
+const std::vector<std::vector<TokenType>> kOperatorPrecedence = {
+    { TokenType::EQUAL },
+    { TokenType::EQUAL_EQUAL, TokenType::BANG_EQUAL },
+    { TokenType::LESS, TokenType::LESS_EQUAL, TokenType::GREATER, TokenType::GREATER_EQUAL },
+    { TokenType::PLUS, TokenType::MINUS },
+    { TokenType::STAR, TokenType::SLASH },
+};
+
 // Grammar (lowest to highest precedence):
 //   statement    -> printStmt | declareStmt | blockStmt | ifStmt | forStmt | exprStmt
-//   printStmt    -> PRINT assignment SEMICOLON
-//   declareStmt  -> VAR IDENTIFIER EQUAL assignment SEMICOLON
+//   printStmt    -> PRINT expression(0) SEMICOLON
+//   declareStmt  -> VAR IDENTIFIER EQUAL expression(0) SEMICOLON
 //   blockStmt    -> LEFT_BRACE statement* RIGHT_BRACE
-//   ifStmt       -> IF LEFT_PAREN assignment RIGHT_PAREN statement (ELSE statement)?
-//   forStmt      -> FOR LEFT_PAREN assignment SEMICOLON assignment SEMICOLON assignment RIGHT_PAREN statement
-//   exprStmt     -> assignment SEMICOLON
-//   assignment   -> IDENTIFIER EQUAL assignment | equality
-//   equality     -> comparison ((EQUAL_EQUAL | BANG_EQUAL) comparison)*
-//   comparison   -> addition ((LESS | LESS_EQUAL | GREATER | GREATER_EQUAL) addition)*
-//   addition     -> multiplication ((PLUS | MINUS) multiplication)*
-//   multiplication -> unary ((STAR | SLASH) unary)*
+//   ifStmt       -> IF LEFT_PAREN expression(0) RIGHT_PAREN statement (ELSE statement)?
+//   forStmt      -> FOR LEFT_PAREN expression(0) SEMICOLON expression(0) SEMICOLON expression(0) RIGHT_PAREN statement
+//   exprStmt     -> expression(0) SEMICOLON
+//   expression(level) -> expression(level + 1) (kOperatorPrecedence[level] expression(level or level + 1))*
+//   expression(kOperatorPrecedence.size()) -> unary
 //   unary        -> (MINUS | BANG) unary | primary
-//   primary      -> NUMBER | STRING | TRUE | FALSE | IDENTIFIER | LEFT_PAREN assignment RIGHT_PAREN
+//   primary      -> NUMBER | STRING | TRUE | FALSE | IDENTIFIER | LEFT_PAREN expression(0) RIGHT_PAREN
 class Parser {
 public:
     Parser(const std::vector<Token>& tokens, SyntaxTree& tree) : tokens(tokens), tree(tree) {}
@@ -43,7 +55,7 @@ private:
 
     PrintStatement* parsePrintStatement() {
         Token printToken = advance();
-        Expression* expr = parseAssignment();
+        Expression* expr = parseExpression(0);
         Token semicolonToken = expectToken(TokenType::SEMICOLON, "Expect ';' after value.");
         return addNode<PrintStatement>(std::vector<Token>{ printToken, semicolonToken }, expr);
     }
@@ -53,7 +65,7 @@ private:
         Token nameToken = expectToken(TokenType::IDENTIFIER, "Expect variable name.");
         IdentifierExpression* identifier = addNode<IdentifierExpression>(std::vector<Token>{ nameToken }, nameToken.origin);
         Token equalToken = expectToken(TokenType::EQUAL, "Expect '=' after variable name.");
-        Expression* expr = parseAssignment();
+        Expression* expr = parseExpression(0);
         Token semicolonToken = expectToken(TokenType::SEMICOLON, "Expect ';' after value.");
         return addNode<DeclareStatement>(std::vector<Token>{ varToken, equalToken, semicolonToken }, identifier, expr);
     }
@@ -70,7 +82,7 @@ private:
     IfStatement* parseIfStatement() {
         Token ifToken = advance();
         Token leftParen = expectToken(TokenType::LEFT_PAREN, "Expect '(' after 'if'.");
-        Expression* expr = parseAssignment();
+        Expression* expr = parseExpression(0);
         Token rightParen = expectToken(TokenType::RIGHT_PAREN, "Expect ')' after if condition.");
         Statement* thenBranch = static_cast<Statement*>(parseStatement());
 
@@ -86,11 +98,11 @@ private:
     ForStatement* parseForStatement() {
         Token forToken = advance();
         Token leftParen = expectToken(TokenType::LEFT_PAREN, "Expect '(' after 'for'.");
-        Expression* init = parseAssignment();
+        Expression* init = parseExpression(0);
         Token firstSemicolon = expectToken(TokenType::SEMICOLON, "Expect ';' after for-loop initializer.");
-        Expression* compare = parseAssignment();
+        Expression* compare = parseExpression(0);
         Token secondSemicolon = expectToken(TokenType::SEMICOLON, "Expect ';' after for-loop condition.");
-        Expression* next = parseAssignment();
+        Expression* next = parseExpression(0);
         Token rightParen = expectToken(TokenType::RIGHT_PAREN, "Expect ')' after for-loop clauses.");
         Statement* loop = static_cast<Statement*>(parseStatement());
 
@@ -100,72 +112,27 @@ private:
     }
 
     ExpressionStatement* parseExpressionStatement() {
-        Expression* expr = parseAssignment();
+        Expression* expr = parseExpression(0);
         Token semicolonToken = expectToken(TokenType::SEMICOLON, "Expect ';' after expression.");
         return addNode<ExpressionStatement>(std::vector<Token>{ semicolonToken }, expr);
     }
 
     // ---- Expressions ----
 
-    Expression* parseAssignment() {
-        Expression* expr = parseEquality();
+    // Consumes operators at kOperatorPrecedence[level], recursing into level + 1 for its
+    // operands; past the end of the table, falls to parseUnary(). EQUAL is right-associative,
+    // so its right operand recurses back into the same level instead of level + 1.
+    Expression* parseExpression(size_t level) {
+        if (level >= kOperatorPrecedence.size())
+            return parseUnary();
 
-        if (!isAtEnd() && peek().type == TokenType::EQUAL) {
-            IdentifierExpression* identifier = dynamic_cast<IdentifierExpression*>(expr);
-            if (!identifier)
-                throw std::invalid_argument("Invalid assignment target.");
-
-            Token equalToken = advance();
-            Expression* value = parseAssignment();
-
-            return addNode<AssignExpression>(std::vector<Token>{ equalToken }, identifier, value);
-        }
-
-        return expr;
-    }
-
-    Expression* parseEquality() {
-        Expression* left = parseComparison();
-        while (!isAtEnd() && (peek().type == TokenType::EQUAL_EQUAL || peek().type == TokenType::BANG_EQUAL)) {
+        Expression* left = parseExpression(level + 1);
+        while (!isAtEnd() && isOperatorAtLevel(level, peek().type)) {
             Token opToken = advance();
-            Expression* right = parseComparison();
-            left = opToken.type == TokenType::EQUAL_EQUAL
-                ? static_cast<Expression*>(addNode<EqualExpression>(std::vector<Token>{ opToken }, left, right))
-                : static_cast<Expression*>(addNode<NotEqualExpression>(std::vector<Token>{ opToken }, left, right));
-        }
-        return left;
-    }
-
-    Expression* parseComparison() {
-        Expression* left = parseAddition();
-        while (!isAtEnd() && isComparisonOperator(peek().type)) {
-            Token opToken = advance();
-            Expression* right = parseAddition();
-            left = makeComparisonExpression(opToken, left, right);
-        }
-        return left;
-    }
-
-    Expression* parseAddition() {
-        Expression* left = parseMultiplication();
-        while (!isAtEnd() && (peek().type == TokenType::PLUS || peek().type == TokenType::MINUS)) {
-            Token opToken = advance();
-            Expression* right = parseMultiplication();
-            left = opToken.type == TokenType::PLUS
-                ? static_cast<Expression*>(addNode<AddExpression>(std::vector<Token>{ opToken }, left, right))
-                : static_cast<Expression*>(addNode<SubExpression>(std::vector<Token>{ opToken }, left, right));
-        }
-        return left;
-    }
-
-    Expression* parseMultiplication() {
-        Expression* left = parseUnary();
-        while (!isAtEnd() && (peek().type == TokenType::STAR || peek().type == TokenType::SLASH)) {
-            Token opToken = advance();
-            Expression* right = parseUnary();
-            left = opToken.type == TokenType::STAR
-                ? static_cast<Expression*>(addNode<MultExpression>(std::vector<Token>{ opToken }, left, right))
-                : static_cast<Expression*>(addNode<DivideExpression>(std::vector<Token>{ opToken }, left, right));
+            Expression* right = opToken.type == TokenType::EQUAL
+                ? parseExpression(level)
+                : parseExpression(level + 1);
+            left = makeBinaryExpression(opToken, left, right);
         }
         return left;
     }
@@ -204,7 +171,7 @@ private:
                 return addNode<IdentifierExpression>(std::vector<Token>{ token }, token.origin);
             case TokenType::LEFT_PAREN: {
                 advance();
-                Expression* expr = parseAssignment();
+                Expression* expr = parseExpression(0);
                 expectToken(TokenType::RIGHT_PAREN, "Expect ')' after expression.");
                 return expr;
             }
@@ -215,17 +182,29 @@ private:
 
     // ---- Helpers ----
 
-    static bool isComparisonOperator(TokenType type) {
-        return type == TokenType::LESS || type == TokenType::LESS_EQUAL
-            || type == TokenType::GREATER || type == TokenType::GREATER_EQUAL;
+    static bool isOperatorAtLevel(size_t level, TokenType type) {
+        const auto& operators = kOperatorPrecedence[level];
+        return std::find(operators.begin(), operators.end(), type) != operators.end();
     }
 
-    Expression* makeComparisonExpression(const Token& opToken, Expression* left, Expression* right) {
+    Expression* makeBinaryExpression(const Token& opToken, Expression* left, Expression* right) {
         switch (opToken.type) {
+            case TokenType::EQUAL: {
+                IdentifierExpression* identifier = dynamic_cast<IdentifierExpression*>(left);
+                if (!identifier)
+                    throw std::invalid_argument("Invalid assignment target.");
+                return addNode<AssignExpression>(std::vector<Token>{ opToken }, identifier, right);
+            }
+            case TokenType::EQUAL_EQUAL: return addNode<EqualExpression>(std::vector<Token>{ opToken }, left, right);
+            case TokenType::BANG_EQUAL: return addNode<NotEqualExpression>(std::vector<Token>{ opToken }, left, right);
             case TokenType::LESS: return addNode<LessExpression>(std::vector<Token>{ opToken }, left, right);
             case TokenType::LESS_EQUAL: return addNode<LessEqualExpression>(std::vector<Token>{ opToken }, left, right);
             case TokenType::GREATER: return addNode<GreaterExpression>(std::vector<Token>{ opToken }, left, right);
-            default: return addNode<GreaterEqualExpression>(std::vector<Token>{ opToken }, left, right);
+            case TokenType::GREATER_EQUAL: return addNode<GreaterEqualExpression>(std::vector<Token>{ opToken }, left, right);
+            case TokenType::PLUS: return addNode<AddExpression>(std::vector<Token>{ opToken }, left, right);
+            case TokenType::MINUS: return addNode<SubExpression>(std::vector<Token>{ opToken }, left, right);
+            case TokenType::STAR: return addNode<MultExpression>(std::vector<Token>{ opToken }, left, right);
+            default: return addNode<DivideExpression>(std::vector<Token>{ opToken }, left, right);
         }
     }
 
