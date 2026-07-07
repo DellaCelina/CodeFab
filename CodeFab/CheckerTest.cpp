@@ -45,7 +45,7 @@ TEST(CheckerTest, PrintExpressionWithNoErrorsPasses) {
     tree.setRoot(rootRaw);
 
     Checker checker;
-    CheckResult result = checker.check(tree);
+    CheckResult result = checker.checkDetailed(tree);
 
     EXPECT_TRUE(result.passed);
     EXPECT_EQ(0u, result.errors.size());
@@ -81,7 +81,7 @@ TEST(CheckerTest, DuplicateDeclarationInSameScopeReportsError) {
     tree.setRoot(rootRaw);
 
     Checker checker;
-    CheckResult result = checker.check(tree);
+    CheckResult result = checker.checkDetailed(tree);
 
     EXPECT_FALSE(result.passed);
     ASSERT_EQ(1u, result.errors.size());
@@ -115,7 +115,7 @@ TEST(CheckerTest, SelfReferenceInInitializerReportsError) {
     tree.setRoot(rootRaw);
 
     Checker checker;
-    CheckResult result = checker.check(tree);
+    CheckResult result = checker.checkDetailed(tree);
 
     EXPECT_FALSE(result.passed);
     ASSERT_EQ(1u, result.errors.size());

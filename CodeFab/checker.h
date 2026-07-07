@@ -4,6 +4,7 @@
 #include <unordered_set>
 
 #include "SyntaxTree.h"
+#include "CheckerInterface.h"
 
 using namespace std;
 
@@ -24,11 +25,15 @@ struct CheckResult {
     }
 };
 
-class Checker {
+class Checker : public CheckerInterface {
 
 public:
-    // syntax tree 전체를 DFS(재귀호출)로 순회하며 의미상 오류를 검사하는 진입점.
-    CheckResult check(SyntaxTree& tree);
+    // CheckerInterface 구현체. Shell 등 외부에는 통과 여부(bool)만 노출한다.
+    bool check(SyntaxTree& tree) override;
+
+    // syntax tree 전체를 DFS(재귀호출)로 순회하며 의미상 오류를 검사하는 상세 진입점.
+    // 에러 메시지 목록까지 필요할 때(테스트 등) 이 메서드를 사용한다.
+    CheckResult checkDetailed(SyntaxTree& tree);
 
 private:
     vector<unordered_set<string>> scopes; // 블록 검사를 위한 scope. 블록 진입 push, 블록 종료 pop

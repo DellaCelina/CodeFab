@@ -136,7 +136,7 @@ void Checker::checkBinary(BinaryExpression* bin) {
 }
 
 
-CheckResult Checker::check(SyntaxTree& tree) {
+CheckResult Checker::checkDetailed(SyntaxTree& tree) {
     errors.clear();
     scopes.clear();
     currentlyDeclaring.clear();
@@ -153,4 +153,10 @@ CheckResult Checker::check(SyntaxTree& tree) {
     result.passed = errors.empty();
     result.errors = errors;
     return result;
+}
+
+bool Checker::check(SyntaxTree& tree) {
+    // CheckerInterface 계약: 상세 에러 목록 없이 통과 여부만 알려줘도 된다(주석 참고).
+    // 상세 메시지가 필요한 호출부는 checkDetailed()를 직접 사용한다.
+    return checkDetailed(tree).passed;
 }
