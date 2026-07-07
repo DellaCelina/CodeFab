@@ -52,3 +52,30 @@ TEST(ExecutorPrintTest, Execute_PrintStatement_WritesEvaluatedValueToOutput) {
 
     EXPECT_EQ(out.str(), "7\n");
 }
+
+// The real entry point: Executor receives a SyntaxTree and must start
+// executing from getRoot(), not from a hand-picked node.
+TEST(ExecutorRunTest, Run_ExecutesFromTreeRoot) {
+    std::ostringstream out;
+    Executor executor(out);
+
+    SyntaxTree tree;
+    auto one = std::make_unique<NumberExpression>(1);
+    auto two = std::make_unique<NumberExpression>(2);
+    auto three = std::make_unique<NumberExpression>(3);
+    auto mult = std::make_unique<MultExpression>(two.get(), three.get());
+    auto add = std::make_unique<AddExpression>(one.get(), mult.get());
+    auto print = std::make_unique<PrintStatement>(add.get());
+
+    tree.setRoot(print.get());
+    tree.add(std::move(one));
+    tree.add(std::move(two));
+    tree.add(std::move(three));
+    tree.add(std::move(mult));
+    tree.add(std::move(add));
+    tree.add(std::move(print));
+
+    executor.run(tree);
+
+    EXPECT_EQ(out.str(), "7\n");
+}
