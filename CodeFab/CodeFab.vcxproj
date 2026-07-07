@@ -146,16 +146,8 @@
     <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
-<<<<<<< HEAD
     <ClCompile Include="Checker.cpp" />
     <ClCompile Include="CheckerTest.cpp" />
-    <ClCompile Include="Main.cpp" />
-  </ItemGroup>
-  <ItemGroup>
-    <ClInclude Include="Checker.h" />
-    <ClInclude Include="SyntaxTree.h" />
-    <ClInclude Include="Token.h" />
-=======
     <ClCompile Include="main.cpp" />
     <ClCompile Include="RunPromptShell.cpp" />
     <ClCompile Include="RunPromptShellTest.cpp" />
@@ -168,6 +160,7 @@
     <ClCompile Include="Value.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Checker.h" />
     <ClInclude Include="Token.h" />
     <ClInclude Include="Tokenizer.h" />
     <ClInclude Include="ShellErrors.h" />
@@ -180,7 +173,6 @@
     <ClInclude Include="Assembler.h" />
     <ClInclude Include="Executor.h" />
     <ClInclude Include="Value.h" />
->>>>>>> origin/master
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

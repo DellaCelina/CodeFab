@@ -18,19 +18,6 @@
     <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
-<<<<<<< HEAD
-    <ClCompile Include="Main.cpp">
-      <Filter>소스 파일</Filter>
-    </ClCompile>
-    <ClCompile Include="Checker.cpp">
-      <Filter>소스 파일</Filter>
-    </ClCompile>
-    <ClCompile Include="CheckerTest.cpp">
-      <Filter>소스 파일</Filter>
-    </ClCompile>
-  </ItemGroup>
-</Project>
-=======
     <ClCompile Include="Tokenizer.cpp">
       <Filter>소스 파일</Filter>
     </ClCompile>
@@ -59,6 +46,12 @@
       <Filter>소스 파일</Filter>
     </ClCompile>
     <ClCompile Include="AssemblerTest.cpp">
+      <Filter>소스 파일</Filter>
+    </ClCompile>
+    <ClCompile Include="Checker.cpp">
+      <Filter>소스 파일</Filter>
+    </ClCompile>
+    <ClCompile Include="CheckerTest.cpp">
       <Filter>소스 파일</Filter>
     </ClCompile>
   </ItemGroup>
@@ -99,6 +92,8 @@
     <ClInclude Include="Value.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
+    <ClInclude Include="Checker.h">
+      <Filter>헤더 파일</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>
->>>>>>> origin/master

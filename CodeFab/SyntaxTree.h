@@ -1,8 +1,4 @@
-<<<<<<< HEAD
-#pragma once
-=======
 ﻿#pragma once
->>>>>>> origin/master
 
 #include <memory>
 #include <vector>
@@ -17,15 +13,12 @@ public:
     virtual ~SyntaxNode() = default;
 
     virtual bool operator==(const SyntaxNode& op) const = 0;
-<<<<<<< HEAD
 
     // checker 등에서 에러 메시지에 줄 번호를 표기하기 위해 추가.
     int getLine() const {
         return tokens.empty() ? -1 : tokens.front().line;
     }
 
-=======
->>>>>>> origin/master
 private:
     const std::vector<Token> tokens;
 };
