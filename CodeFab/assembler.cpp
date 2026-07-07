@@ -22,6 +22,11 @@ const OperatorPriority kDefaultOperatorPriority = {
     { TokenType::STAR, TokenType::SLASH },
 };
 
+// Prefix operators parseUnary() recognizes, e.g. -x, !x.
+using UnaryOperator = std::vector<TokenType>;
+
+const UnaryOperator kDefaultUnaryOperator = { TokenType::MINUS, TokenType::BANG };
+
 // Grammar (lowest to highest precedence):
 //   statement    -> printStmt | declareStmt | blockStmt | ifStmt | forStmt | exprStmt
 //   printStmt    -> PRINT expression(0) SEMICOLON
@@ -36,8 +41,9 @@ const OperatorPriority kDefaultOperatorPriority = {
 //   primary      -> NUMBER | STRING | TRUE | FALSE | IDENTIFIER | LEFT_PAREN expression(0) RIGHT_PAREN
 class Parser {
 public:
-    Parser(const std::vector<Token>& tokens, SyntaxTree& tree, const OperatorPriority& operatorPriority)
-        : tokens(tokens), tree(tree), operatorPriority(operatorPriority) {}
+    Parser(const std::vector<Token>& tokens, SyntaxTree& tree, const OperatorPriority& operatorPriority,
+        const UnaryOperator& unaryOperator)
+        : tokens(tokens), tree(tree), operatorPriority(operatorPriority), unaryOperator(unaryOperator) {}
 
     SyntaxNode* parseStatement() {
         if (!isAtEnd()) {
@@ -141,12 +147,10 @@ private:
     }
 
     Expression* parseUnary() {
-        if (!isAtEnd() && (peek().type == TokenType::MINUS || peek().type == TokenType::BANG)) {
+        if (!isAtEnd() && isUnaryOperator(peek().type)) {
             Token opToken = advance();
             Expression* operand = parseUnary();
-            return opToken.type == TokenType::MINUS
-                ? static_cast<Expression*>(addNode<NegativeExpression>(std::vector<Token>{ opToken }, operand))
-                : static_cast<Expression*>(addNode<NotExpression>(std::vector<Token>{ opToken }, operand));
+            return makeUnaryExpression(opToken, operand);
         }
         return parsePrimary();
     }
@@ -190,6 +194,10 @@ private:
         return std::find(operators.begin(), operators.end(), type) != operators.end();
     }
 
+    bool isUnaryOperator(TokenType type) const {
+        return std::find(unaryOperator.begin(), unaryOperator.end(), type) != unaryOperator.end();
+    }
+
     Expression* makeBinaryExpression(const Token& opToken, Expression* left, Expression* right) {
         switch (opToken.type) {
             case TokenType::EQUAL: {
@@ -208,6 +216,13 @@ private:
             case TokenType::MINUS: return addNode<SubExpression>(std::vector<Token>{ opToken }, left, right);
             case TokenType::STAR: return addNode<MultExpression>(std::vector<Token>{ opToken }, left, right);
             default: return addNode<DivideExpression>(std::vector<Token>{ opToken }, left, right);
+        }
+    }
+
+    Expression* makeUnaryExpression(const Token& opToken, Expression* operand) {
+        switch (opToken.type) {
+            case TokenType::MINUS: return addNode<NegativeExpression>(std::vector<Token>{ opToken }, operand);
+            default: return addNode<NotExpression>(std::vector<Token>{ opToken }, operand);
         }
     }
 
@@ -240,6 +255,7 @@ private:
     const std::vector<Token>& tokens;
     SyntaxTree& tree;
     const OperatorPriority& operatorPriority;
+    const UnaryOperator& unaryOperator;
     size_t pos = 0;
 };
 
@@ -247,7 +263,7 @@ private:
 
 std::unique_ptr<SyntaxTree> Assembler::assemble(const std::vector<Token> tokens) {
     auto tree = std::make_unique<SyntaxTree>();
-    Parser parser(tokens, *tree, kDefaultOperatorPriority);
+    Parser parser(tokens, *tree, kDefaultOperatorPriority, kDefaultUnaryOperator);
     tree->setRoot(parser.parseStatement());
     return tree;
 }
