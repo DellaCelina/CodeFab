@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <stdexcept>
+#include <string>
 #include <utility>
 #include <vector>
 
@@ -186,7 +187,7 @@ private:
                 return expr;
             }
             default:
-                throw std::invalid_argument("Expect expression.");
+                throw makeParseError("Expect expression.", token);
         }
     }
 
@@ -201,12 +202,19 @@ private:
         return std::find(unaryOperator.begin(), unaryOperator.end(), type) != unaryOperator.end();
     }
 
+    // Attaches the offending token's origin/line to a parse error message, when the
+    // token that caused the error is known.
+    static std::invalid_argument makeParseError(const std::string& message, const Token& token) {
+        return std::invalid_argument(
+            message + " (near '" + token.origin + "' at line " + std::to_string(token.line) + ")");
+    }
+
     Expression* makeBinaryExpression(const Token& opToken, Expression* left, Expression* right) {
         switch (opToken.type) {
             case TokenType::EQUAL: {
                 IdentifierExpression* identifier = dynamic_cast<IdentifierExpression*>(left);
                 if (!identifier)
-                    throw std::invalid_argument("Invalid assignment target.");
+                    throw makeParseError("Invalid assignment target.", opToken);
                 return addNode<AssignExpression>(Tokens{ opToken }, identifier, right);
             }
             case TokenType::EQUAL_EQUAL: return addNode<EqualExpression>(Tokens{ opToken }, left, right);
@@ -242,8 +250,10 @@ private:
     }
 
     Token expectToken(TokenType type, const std::string& message) {
-        if (isAtEnd() || tokens[pos].type != type)
+        if (isAtEnd())
             throw std::invalid_argument(message);
+        if (tokens[pos].type != type)
+            throw makeParseError(message, tokens[pos]);
         return tokens[pos++];
     }
 
