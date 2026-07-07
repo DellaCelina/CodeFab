@@ -2,7 +2,6 @@
 
 #include <algorithm>
 #include <optional>
-#include <stdexcept>
 #include <string>
 #include <utility>
 #include <vector>
@@ -168,7 +167,7 @@ private:
     Expression* parsePrimary() {
         auto token = currentToken();
         if (!token)
-            throw std::invalid_argument("Expect expression.");
+            throw AssemblerError("No more token for expression.");
 
         switch (token->type) {
             case TokenType::NUMBER:
@@ -210,9 +209,8 @@ private:
 
     // Attaches the offending token's origin/line to a parse error message, when the
     // token that caused the error is known.
-    static std::invalid_argument makeParseError(const std::string& message, const Token& token) {
-        return std::invalid_argument(
-            message + " (near '" + token.origin + "' at line " + std::to_string(token.line) + ")");
+    static AssemblerError makeParseError(const std::string& message, const Token& token) {
+        return AssemblerError("{} (near '{}' at line {})", message, token.origin, token.line);
     }
 
     Expression* makeBinaryExpression(const Token& opToken, Expression* left, Expression* right) {
@@ -256,7 +254,7 @@ private:
     Token popExpectedToken(TokenType type, const std::string& message) {
         auto token = currentToken();
         if (!token)
-            throw std::invalid_argument(message);
+            throw AssemblerError(message);
         if (token->type != type)
             throw makeParseError(message, *token);
         return popToken();
