@@ -3,7 +3,7 @@
 
 #include "gmock/gmock.h"
 #include "Executor.h"
-#include "ShellErrors.h"
+#include "ExecuteInterface.h"
 #include "SyntaxTree.h"
 
 struct ExecutorTester : public testing::Test {
@@ -65,7 +65,7 @@ TEST_F(ExecutorTester, Evaluate_DivideByZero_ThrowsRuntimeError) {
     NumberExpression zero({}, 0);
     DivideExpression div({}, &three, &zero);
 
-    EXPECT_THROW(executor.evaluate(&div), RuntimeCodeFabError);
+    EXPECT_THROW(executor.evaluate(&div), ExecutorError);
 }
 
 TEST_F(ExecutorTester, Evaluate_ParenthesizedExpression_OverridesPrecedence) {
@@ -164,7 +164,7 @@ TEST_F(ExecutorTester, Evaluate_AddNumberAndString_ThrowsRuntimeError) {
     StringExpression hello({}, "hello");
     AddExpression add({}, &three, &hello);
 
-    EXPECT_THROW(executor.evaluate(&add), RuntimeCodeFabError);
+    EXPECT_THROW(executor.evaluate(&add), ExecutorError);
 }
 
 TEST_F(ExecutorTester, Evaluate_SubStringAndNumber_ThrowsRuntimeError) {
@@ -172,7 +172,7 @@ TEST_F(ExecutorTester, Evaluate_SubStringAndNumber_ThrowsRuntimeError) {
     NumberExpression three({}, 3);
     SubExpression sub({}, &hello, &three);
 
-    EXPECT_THROW(executor.evaluate(&sub), RuntimeCodeFabError);
+    EXPECT_THROW(executor.evaluate(&sub), ExecutorError);
 }
 
 TEST_F(ExecutorTester, Evaluate_AddBooleanAndNumber_ThrowsRuntimeError) {
@@ -180,7 +180,7 @@ TEST_F(ExecutorTester, Evaluate_AddBooleanAndNumber_ThrowsRuntimeError) {
     NumberExpression three({}, 3);
     AddExpression add({}, &trueLiteral, &three);
 
-    EXPECT_THROW(executor.evaluate(&add), RuntimeCodeFabError);
+    EXPECT_THROW(executor.evaluate(&add), ExecutorError);
 }
 
 TEST_F(ExecutorTester, Evaluate_MultStringAndBoolean_ThrowsRuntimeError) {
@@ -188,13 +188,13 @@ TEST_F(ExecutorTester, Evaluate_MultStringAndBoolean_ThrowsRuntimeError) {
     BooleanExpression trueLiteral({}, true);
     MultExpression mult({}, &hello, &trueLiteral);
 
-    EXPECT_THROW(executor.evaluate(&mult), RuntimeCodeFabError);
+    EXPECT_THROW(executor.evaluate(&mult), ExecutorError);
 }
 
 TEST_F(ExecutorTester, Evaluate_UndefinedVariable_ThrowsRuntimeError) {
     IdentifierExpression ident({}, "notDefined");
 
-    EXPECT_THROW(executor.evaluate(&ident), RuntimeCodeFabError);
+    EXPECT_THROW(executor.evaluate(&ident), ExecutorError);
 }
 
 TEST_F(ExecutorTester, Evaluate_UndefinedVariable_ErrorMessageContainsName) {
@@ -202,9 +202,9 @@ TEST_F(ExecutorTester, Evaluate_UndefinedVariable_ErrorMessageContainsName) {
 
     try {
         executor.evaluate(&ident);
-        FAIL() << "RuntimeCodeFabError가 발생해야 합니다";
-    } catch (const RuntimeCodeFabError& e) {
-        EXPECT_EQ(std::string(e.what()), "Undefined variable 'notDefined'");
+        FAIL() << "ExecutorError가 발생해야 합니다";
+    } catch (const ExecutorError& e) {
+        EXPECT_EQ(std::string(e.what()), "'notDefined' 변수가 정의되지 않았습니다.");
     }
 }
 

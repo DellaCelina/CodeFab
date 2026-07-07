@@ -36,7 +36,7 @@ public:
 
 private:
     void registerDefaultHandlers();
-    void requireNumberOperands(const Expression* expr, const Value& left, const Value& right, const char* op) const;
+    void requireNumberOperands(const Value& left, const Value& right, const char* op) const;
 
     std::ostream& out_;
     Environment environment_;
