@@ -96,6 +96,38 @@ TEST_F(ExecutorTester, Evaluate_GreaterExpression_ReturnsBoolean) {
     EXPECT_EQ(executor.evaluate(&greater).asBoolean(), false);
 }
 
+TEST_F(ExecutorTester, Evaluate_EqualExpression_ReturnsBoolean) {
+    NumberExpression three({}, 3);
+    NumberExpression threeAgain({}, 3);
+    EqualExpression equal({}, &three, &threeAgain);
+
+    EXPECT_EQ(executor.evaluate(&equal).asBoolean(), true);
+}
+
+TEST_F(ExecutorTester, Evaluate_NotEqualExpression_ReturnsBoolean) {
+    NumberExpression three({}, 3);
+    NumberExpression five({}, 5);
+    NotEqualExpression notEqual({}, &three, &five);
+
+    EXPECT_EQ(executor.evaluate(&notEqual).asBoolean(), true);
+}
+
+TEST_F(ExecutorTester, Evaluate_LessEqualExpression_ReturnsBoolean) {
+    NumberExpression three({}, 3);
+    NumberExpression threeAgain({}, 3);
+    LessEqualExpression lessEqual({}, &three, &threeAgain);
+
+    EXPECT_EQ(executor.evaluate(&lessEqual).asBoolean(), true);
+}
+
+TEST_F(ExecutorTester, Evaluate_GreaterEqualExpression_ReturnsBoolean) {
+    NumberExpression five({}, 5);
+    NumberExpression three({}, 3);
+    GreaterEqualExpression greaterEqual({}, &five, &three);
+
+    EXPECT_EQ(executor.evaluate(&greaterEqual).asBoolean(), true);
+}
+
 TEST_F(ExecutorTester, Evaluate_AddExpression_ConcatenatesStrings) {
     StringExpression hello({}, "Hello, ");
     StringExpression codefab({}, "CodeFab!");
