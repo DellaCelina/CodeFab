@@ -10,6 +10,11 @@ void Executor::registerDefaultHandlers() {
     expressionHandlers_[std::type_index(typeid(NumberExpression))] = [](Expression* expr) {
         return Value(static_cast<NumberExpression*>(expr)->value);
     };
+
+    expressionHandlers_[std::type_index(typeid(AddExpression))] = [this](Expression* expr) {
+        auto* add = static_cast<AddExpression*>(expr);
+        return Value(evaluate(add->left).asNumber() + evaluate(add->right).asNumber());
+    };
 }
 
 Value Executor::evaluate(Expression* expr) {
