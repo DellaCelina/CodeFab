@@ -2,6 +2,14 @@
 
 #include <stdexcept>
 
+#include "ShellErrors.h"
+
+namespace {
+// TODO: replace with the offending node's own line once
+// SyntaxNode::getLine() (added in PR #5) lands on this branch.
+constexpr int kUnknownLine = 0;
+}  // namespace
+
 Executor::Executor(std::ostream& out) : out_(out) {
     registerDefaultHandlers();
 }
@@ -64,17 +72,49 @@ void Executor::registerDefaultHandlers() {
         return Value(evaluate(greater->left).asNumber() > evaluate(greater->right).asNumber());
     };
 
-    // TODO(variables & assignment): register handlers for
-    //   IdentifierExpression -> environment_.lookup(name); throw
-    //     RuntimeCodeFabError(node->getLine(), "...") if undefined.
-    //   DeclareStatement      -> environment_.define(identifier->name, evaluate(expr))
-    //   AssignExpression      -> value = evaluate(value); if (!environment_.assign(...))
-    //     throw RuntimeCodeFabError(...) for undefined target; return value.
+    expressionHandlers_[std::type_index(typeid(IdentifierExpression))] = [this](Expression* expr) {
+        auto* identifier = static_cast<IdentifierExpression*>(expr);
+        auto value = environment_.lookup(identifier->name);
+        if (!value) {
+            throw RuntimeCodeFabError(kUnknownLine, "'" + identifier->name + "' 변수가 정의되지 않았습니다.");
+        }
+        return *value;
+    };
 
-    // TODO(block scope & control flow): register handlers for
-    //   BlockStatement -> environment_.pushScope(); execute each statement;
-    //     environment_.popScope() (use try/finally-style RAII or catch+rethrow
-    //     so scope still pops if a statement throws).
+    expressionHandlers_[std::type_index(typeid(AssignExpression))] = [this](Expression* expr) {
+        auto* assign = static_cast<AssignExpression*>(expr);
+        Value value = evaluate(assign->value);
+        if (!environment_.assign(assign->identifier->name, value)) {
+            throw RuntimeCodeFabError(kUnknownLine, "'" + assign->identifier->name + "' 변수가 정의되지 않았습니다.");
+        }
+        return value;
+    };
+
+    statementHandlers_[std::type_index(typeid(DeclareStatement))] = [this](Statement* stmt) {
+        auto* decl = static_cast<DeclareStatement*>(stmt);
+        environment_.define(decl->identifier->name, evaluate(decl->expr));
+    };
+
+    statementHandlers_[std::type_index(typeid(ExpressionStatement))] = [this](Statement* stmt) {
+        auto* exprStmt = static_cast<ExpressionStatement*>(stmt);
+        evaluate(exprStmt->expr);
+    };
+
+    statementHandlers_[std::type_index(typeid(BlockStatement))] = [this](Statement* stmt) {
+        auto* block = static_cast<BlockStatement*>(stmt);
+        environment_.pushScope();
+        try {
+            for (Statement* inner : block->statements) {
+                execute(inner);
+            }
+        } catch (...) {
+            environment_.popScope();
+            throw;
+        }
+        environment_.popScope();
+    };
+
+    // TODO(control flow): register handlers for
     //   IfStatement    -> evaluate(expr).isTruthy() ? execute(thenBranch)
     //                      : (elseBranch ? execute(elseBranch) : void).
     //   ForStatement   -> execute(init-as-statement or evaluate as expr);
