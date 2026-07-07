@@ -18,13 +18,13 @@
     <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="main.cpp">
+    <ClCompile Include="Main.cpp">
       <Filter>소스 파일</Filter>
     </ClCompile>
-    <ClCompile Include="checker.cpp">
+    <ClCompile Include="Checker.cpp">
       <Filter>소스 파일</Filter>
     </ClCompile>
-    <ClCompile Include="checker_test.cpp">
+    <ClCompile Include="CheckerTest.cpp">
       <Filter>소스 파일</Filter>
     </ClCompile>
   </ItemGroup>
