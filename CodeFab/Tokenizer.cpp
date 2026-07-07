@@ -25,7 +25,7 @@ void Tokenizer::reset(const std::string& src) {
     tokens.clear();
 }
 
-std::vector<Token> Tokenizer::tokenize(const std::string& src) {
+std::vector<Token> Tokenizer::scanTokens(const std::string& src) {
     reset(src);
 
     while (!isAtEnd()) {
@@ -46,7 +46,7 @@ std::vector<Token> Tokenizer::tokenize(const std::string& src) {
 
 std::vector<Token> Tokenizer::tokenize(const std::string& src) {
     try {
-
+        return scanTokens(src);
     } catch (const TokenizerIncompleteError& e) {
         throw IncompleteInputError(line, e.what());
     } catch (const std::runtime_error& e) {
