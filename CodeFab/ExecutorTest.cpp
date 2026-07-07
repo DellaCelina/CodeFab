@@ -23,3 +23,13 @@ TEST_F(ExecutorTester, Evaluate_AddExpression_ReturnsSum) {
 
     EXPECT_EQ(result.asNumber(), 3.0);
 }
+
+TEST_F(ExecutorTester, Evaluate_MultExpression_ReturnsProduct) {
+    NumberExpression two(2);
+    NumberExpression three(3);
+    MultExpression mult(&two, &three);
+
+    Value result = executor.evaluate(&mult);
+
+    EXPECT_EQ(result.asNumber(), 6.0);
+}
