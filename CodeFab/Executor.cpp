@@ -133,14 +133,6 @@ void Executor::registerDefaultHandlers() {
         return Value(!evaluate(notExpr->operand).isTruthy());
     };
 
-    // TODO(remaining operators & runtime errors): register handlers for
-    //   NotExpression -> done
-    //   EqualExpression, NotEqualExpression, LessEqualExpression,
-    //     GreaterEqualExpression -> done
-    //   DivideExpression: add divide-by-zero check, throw RuntimeCodeFabError
-    //   Add/Sub/Mult/Divide/comparisons: wrap asNumber()/asString() mismatches
-    //     (currently a raw std::bad_variant_access) into a clear
-    //     RuntimeCodeFabError("피연산자는 반드시 숫자여야 합니다", node->getLine())
 }
 
 void Executor::execute(SyntaxTree& tree) {
