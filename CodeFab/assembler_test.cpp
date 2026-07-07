@@ -213,7 +213,8 @@ TEST_F(AssemblerTester, ReassignmentTest) {
     IdentifierExpression a({ tokens[2] }, "a");
     NumberExpression five({ tokens[4] }, 5);
     AddExpression add({ tokens[3] }, &a, &five);
-    AssignExpression golden({ tokens[1], tokens[5] }, &target, &add);
+    AssignExpression assign({ tokens[1] }, &target, &add);
+    ExpressionStatement golden({ tokens[5] }, &assign);
 
     EXPECT_EQ(*root, golden);
 }

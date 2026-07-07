@@ -73,6 +73,19 @@ struct PrintStatement : public Statement {
     }
 };
 
+struct ExpressionStatement : public Statement {
+    Expression* const expr;
+
+    ExpressionStatement(const std::vector<Token>& tokens, Expression* expr) : Statement(tokens), expr(expr) {}
+
+    bool operator==(const SyntaxNode& op) const override {
+        auto node = dynamic_cast<const ExpressionStatement*>(&op);
+        if (!node)
+            return false;
+        return SyntaxNode::operator==(op) && expr->operator==(*node->expr);
+    }
+};
+
 struct DeclareStatement : public Statement {
     IdentifierExpression* const identifier;
     Expression* const expr;

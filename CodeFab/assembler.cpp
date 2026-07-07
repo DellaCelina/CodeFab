@@ -43,7 +43,7 @@ private:
 
     PrintStatement* parsePrintStatement() {
         Token printToken = advance();
-        Expression* expr = parseAssignment(false);
+        Expression* expr = parseAssignment();
         Token semicolonToken = expectToken(TokenType::SEMICOLON, "Expect ';' after value.");
         return addNode<PrintStatement>(std::vector<Token>{ printToken, semicolonToken }, expr);
     }
@@ -53,7 +53,7 @@ private:
         Token nameToken = expectToken(TokenType::IDENTIFIER, "Expect variable name.");
         IdentifierExpression* identifier = addNode<IdentifierExpression>(std::vector<Token>{ nameToken }, nameToken.origin);
         Token equalToken = expectToken(TokenType::EQUAL, "Expect '=' after variable name.");
-        Expression* expr = parseAssignment(false);
+        Expression* expr = parseAssignment();
         Token semicolonToken = expectToken(TokenType::SEMICOLON, "Expect ';' after value.");
         return addNode<DeclareStatement>(std::vector<Token>{ varToken, equalToken, semicolonToken }, identifier, expr);
     }
@@ -70,7 +70,7 @@ private:
     IfStatement* parseIfStatement() {
         Token ifToken = advance();
         Token leftParen = expectToken(TokenType::LEFT_PAREN, "Expect '(' after 'if'.");
-        Expression* expr = parseAssignment(false);
+        Expression* expr = parseAssignment();
         Token rightParen = expectToken(TokenType::RIGHT_PAREN, "Expect ')' after if condition.");
         Statement* thenBranch = static_cast<Statement*>(parseStatement());
 
@@ -86,11 +86,11 @@ private:
     ForStatement* parseForStatement() {
         Token forToken = advance();
         Token leftParen = expectToken(TokenType::LEFT_PAREN, "Expect '(' after 'for'.");
-        Expression* init = parseAssignment(false);
+        Expression* init = parseAssignment();
         Token firstSemicolon = expectToken(TokenType::SEMICOLON, "Expect ';' after for-loop initializer.");
-        Expression* compare = parseAssignment(false);
+        Expression* compare = parseAssignment();
         Token secondSemicolon = expectToken(TokenType::SEMICOLON, "Expect ';' after for-loop condition.");
-        Expression* next = parseAssignment(false);
+        Expression* next = parseAssignment();
         Token rightParen = expectToken(TokenType::RIGHT_PAREN, "Expect ')' after for-loop clauses.");
         Statement* loop = static_cast<Statement*>(parseStatement());
 
@@ -99,13 +99,15 @@ private:
             init, compare, next, loop);
     }
 
-    Expression* parseExpressionStatement() {
-        return parseAssignment(true);
+    ExpressionStatement* parseExpressionStatement() {
+        Expression* expr = parseAssignment();
+        Token semicolonToken = expectToken(TokenType::SEMICOLON, "Expect ';' after expression.");
+        return addNode<ExpressionStatement>(std::vector<Token>{ semicolonToken }, expr);
     }
 
     // ---- Expressions ----
 
-    Expression* parseAssignment(bool asStatement) {
+    Expression* parseAssignment() {
         Expression* expr = parseEquality();
 
         if (!isAtEnd() && peek().type == TokenType::EQUAL) {
@@ -114,13 +116,9 @@ private:
                 throw std::invalid_argument("Invalid assignment target.");
 
             Token equalToken = advance();
-            Expression* value = parseAssignment(false);
+            Expression* value = parseAssignment();
 
-            std::vector<Token> ownTokens{ equalToken };
-            if (asStatement)
-                ownTokens.push_back(expectToken(TokenType::SEMICOLON, "Expect ';' after value."));
-
-            return addNode<AssignExpression>(ownTokens, identifier, value);
+            return addNode<AssignExpression>(std::vector<Token>{ equalToken }, identifier, value);
         }
 
         return expr;
@@ -206,7 +204,7 @@ private:
                 return addNode<IdentifierExpression>(std::vector<Token>{ token }, token.origin);
             case TokenType::LEFT_PAREN: {
                 advance();
-                Expression* expr = parseAssignment(false);
+                Expression* expr = parseAssignment();
                 expectToken(TokenType::RIGHT_PAREN, "Expect ')' after expression.");
                 return expr;
             }
