@@ -1,6 +1,7 @@
 ﻿#include "Assembler.h"
 
 #include <algorithm>
+#include <optional>
 #include <stdexcept>
 #include <string>
 #include <utility>
@@ -49,8 +50,8 @@ public:
         : tokens(tokens), tree(tree), operatorPriority(operatorPriority), unaryOperator(unaryOperator) {}
 
     SyntaxNode* parseStatement() {
-        if (!isAtEnd()) {
-            switch (peek().type) {
+        if (auto token = currentToken()) {
+            switch (token->type) {
                 case TokenType::PRINT: return parsePrintStatement();
                 case TokenType::VAR: return parseDeclareStatement();
                 case TokenType::LEFT_BRACE: return parseBlockStatement();
@@ -66,56 +67,59 @@ private:
     // ---- Statements ----
 
     PrintStatement* parsePrintStatement() {
-        Token printToken = advance();
+        Token printToken = popToken();
         Expression* expr = parseExpression(0);
-        Token semicolonToken = expectToken(TokenType::SEMICOLON, "Expect ';' after value.");
+        Token semicolonToken = popExpectedToken(TokenType::SEMICOLON, "Expect ';' after value.");
         return addNode<PrintStatement>(Tokens{ printToken, semicolonToken }, expr);
     }
 
     DeclareStatement* parseDeclareStatement() {
-        Token varToken = advance();
-        Token nameToken = expectToken(TokenType::IDENTIFIER, "Expect variable name.");
+        Token varToken = popToken();
+        Token nameToken = popExpectedToken(TokenType::IDENTIFIER, "Expect variable name.");
         IdentifierExpression* identifier = addNode<IdentifierExpression>(Tokens{ nameToken }, nameToken.origin);
-        Token equalToken = expectToken(TokenType::EQUAL, "Expect '=' after variable name.");
+        Token equalToken = popExpectedToken(TokenType::EQUAL, "Expect '=' after variable name.");
         Expression* expr = parseExpression(0);
-        Token semicolonToken = expectToken(TokenType::SEMICOLON, "Expect ';' after value.");
+        Token semicolonToken = popExpectedToken(TokenType::SEMICOLON, "Expect ';' after value.");
         return addNode<DeclareStatement>(Tokens{ varToken, equalToken, semicolonToken }, identifier, expr);
     }
 
     BlockStatement* parseBlockStatement() {
-        Token leftBrace = advance();
+        Token leftBrace = popToken();
         std::vector<Statement*> statements;
-        while (!isAtEnd() && peek().type != TokenType::RIGHT_BRACE)
+        while (auto token = currentToken()) {
+            if (token->type == TokenType::RIGHT_BRACE)
+                break;
             statements.push_back(static_cast<Statement*>(parseStatement()));
-        Token rightBrace = expectToken(TokenType::RIGHT_BRACE, "Expect '}' after block.");
+        }
+        Token rightBrace = popExpectedToken(TokenType::RIGHT_BRACE, "Expect '}' after block.");
         return addNode<BlockStatement>(Tokens{ leftBrace, rightBrace }, statements);
     }
 
     IfStatement* parseIfStatement() {
-        Token ifToken = advance();
-        Token leftParen = expectToken(TokenType::LEFT_PAREN, "Expect '(' after 'if'.");
+        Token ifToken = popToken();
+        Token leftParen = popExpectedToken(TokenType::LEFT_PAREN, "Expect '(' after 'if'.");
         Expression* expr = parseExpression(0);
-        Token rightParen = expectToken(TokenType::RIGHT_PAREN, "Expect ')' after if condition.");
+        Token rightParen = popExpectedToken(TokenType::RIGHT_PAREN, "Expect ')' after if condition.");
         Statement* thenBranch = static_cast<Statement*>(parseStatement());
 
         Tokens ownTokens{ ifToken, leftParen, rightParen };
         Statement* elseBranch = nullptr;
-        if (!isAtEnd() && peek().type == TokenType::ELSE) {
-            ownTokens.push_back(advance());
+        if (auto token = currentToken(); token && token->type == TokenType::ELSE) {
+            ownTokens.push_back(popToken());
             elseBranch = static_cast<Statement*>(parseStatement());
         }
         return addNode<IfStatement>(ownTokens, expr, thenBranch, elseBranch);
     }
 
     ForStatement* parseForStatement() {
-        Token forToken = advance();
-        Token leftParen = expectToken(TokenType::LEFT_PAREN, "Expect '(' after 'for'.");
+        Token forToken = popToken();
+        Token leftParen = popExpectedToken(TokenType::LEFT_PAREN, "Expect '(' after 'for'.");
         Expression* init = parseExpression(0);
-        Token firstSemicolon = expectToken(TokenType::SEMICOLON, "Expect ';' after for-loop initializer.");
+        Token firstSemicolon = popExpectedToken(TokenType::SEMICOLON, "Expect ';' after for-loop initializer.");
         Expression* compare = parseExpression(0);
-        Token secondSemicolon = expectToken(TokenType::SEMICOLON, "Expect ';' after for-loop condition.");
+        Token secondSemicolon = popExpectedToken(TokenType::SEMICOLON, "Expect ';' after for-loop condition.");
         Expression* next = parseExpression(0);
-        Token rightParen = expectToken(TokenType::RIGHT_PAREN, "Expect ')' after for-loop clauses.");
+        Token rightParen = popExpectedToken(TokenType::RIGHT_PAREN, "Expect ')' after for-loop clauses.");
         Statement* loop = static_cast<Statement*>(parseStatement());
 
         return addNode<ForStatement>(
@@ -125,7 +129,7 @@ private:
 
     ExpressionStatement* parseExpressionStatement() {
         Expression* expr = parseExpression(0);
-        Token semicolonToken = expectToken(TokenType::SEMICOLON, "Expect ';' after expression.");
+        Token semicolonToken = popExpectedToken(TokenType::SEMICOLON, "Expect ';' after expression.");
         return addNode<ExpressionStatement>(Tokens{ semicolonToken }, expr);
     }
 
@@ -139,8 +143,10 @@ private:
             return parseUnary();
 
         Expression* left = parseExpression(level + 1);
-        while (!isAtEnd() && isOperatorAtLevel(level, peek().type)) {
-            Token opToken = advance();
+        while (auto token = currentToken()) {
+            if (!isOperatorAtLevel(level, token->type))
+                break;
+            Token opToken = popToken();
 
             auto nextLevel = opToken.type == TokenType::EQUAL ? level : level + 1;
             Expression* right = parseExpression(nextLevel);
@@ -151,8 +157,8 @@ private:
     }
 
     Expression* parseUnary() {
-        if (!isAtEnd() && isUnaryOperator(peek().type)) {
-            Token opToken = advance();
+        if (auto token = currentToken(); token && isUnaryOperator(token->type)) {
+            Token opToken = popToken();
             Expression* operand = parseUnary();
             return makeUnaryExpression(opToken, operand);
         }
@@ -160,34 +166,34 @@ private:
     }
 
     Expression* parsePrimary() {
-        if (isAtEnd())
+        auto token = currentToken();
+        if (!token)
             throw std::invalid_argument("Expect expression.");
 
-        Token token = peek();
-        switch (token.type) {
+        switch (token->type) {
             case TokenType::NUMBER:
-                advance();
-                return addNode<NumberExpression>(Tokens{ token }, std::stod(token.origin));
+                popToken();
+                return addNode<NumberExpression>(Tokens{ *token }, std::stod(token->origin));
             case TokenType::STRING:
-                advance();
-                return addNode<StringExpression>(Tokens{ token }, token.origin);
+                popToken();
+                return addNode<StringExpression>(Tokens{ *token }, token->origin);
             case TokenType::TRUE:
-                advance();
-                return addNode<BooleanExpression>(Tokens{ token }, true);
+                popToken();
+                return addNode<BooleanExpression>(Tokens{ *token }, true);
             case TokenType::FALSE:
-                advance();
-                return addNode<BooleanExpression>(Tokens{ token }, false);
+                popToken();
+                return addNode<BooleanExpression>(Tokens{ *token }, false);
             case TokenType::IDENTIFIER:
-                advance();
-                return addNode<IdentifierExpression>(Tokens{ token }, token.origin);
+                popToken();
+                return addNode<IdentifierExpression>(Tokens{ *token }, token->origin);
             case TokenType::LEFT_PAREN: {
-                advance();
+                popToken();
                 Expression* expr = parseExpression(0);
-                expectToken(TokenType::RIGHT_PAREN, "Expect ')' after expression.");
+                popExpectedToken(TokenType::RIGHT_PAREN, "Expect ')' after expression.");
                 return expr;
             }
             default:
-                throw makeParseError("Expect expression.", token);
+                throw makeParseError("Expect expression.", *token);
         }
     }
 
@@ -237,24 +243,23 @@ private:
         }
     }
 
-    bool isAtEnd() const {
-        return pos >= tokens.size();
-    }
-
-    const Token& peek() const {
+    std::optional<Token> currentToken() const {
+        if (pos >= tokens.size())
+            return std::nullopt;
         return tokens[pos];
     }
 
-    Token advance() {
+    Token popToken() {
         return tokens[pos++];
     }
 
-    Token expectToken(TokenType type, const std::string& message) {
-        if (isAtEnd())
+    Token popExpectedToken(TokenType type, const std::string& message) {
+        auto token = currentToken();
+        if (!token)
             throw std::invalid_argument(message);
-        if (tokens[pos].type != type)
-            throw makeParseError(message, tokens[pos]);
-        return tokens[pos++];
+        if (token->type != type)
+            throw makeParseError(message, *token);
+        return popToken();
     }
 
     template <typename NodeType, typename... Args>
