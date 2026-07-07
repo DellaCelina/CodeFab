@@ -145,6 +145,7 @@
     <ClInclude Include="Token.h" />
     <ClInclude Include="Tokenizer.h" />
     <ClInclude Include="syntax_tree.h" />
+    <ClInclude Include="MockSyntaxTree.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp" />
