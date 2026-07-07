@@ -69,7 +69,7 @@ struct PrintStatement : public Statement {
         auto node = dynamic_cast<const PrintStatement*>(&op);
         if (!node)
             return false;
-        return SyntaxNode::operator==(op) && *expr == *node->expr;
+        return SyntaxNode::operator==(op) && expr->operator==(*node->expr);
     }
 };
 
@@ -84,7 +84,7 @@ struct DeclareStatement : public Statement {
         auto node = dynamic_cast<const DeclareStatement*>(&op);
         if (!node)
             return false;
-        return SyntaxNode::operator==(op) && *identifier == *node->identifier && *expr == *node->expr;
+        return SyntaxNode::operator==(op) && identifier->operator==(*node->identifier) && expr->operator==(*node->expr);
     }
 };
 
@@ -101,7 +101,7 @@ struct BlockStatement : public Statement {
         if (statements.size() != node->statements.size())
             return false;
         for (size_t i = 0; i < statements.size(); i++) {
-            if (!(*statements[i] == *node->statements[i]))
+            if (!statements[i]->operator==(*node->statements[i]))
                 return false;
         }
         return SyntaxNode::operator==(op);
@@ -122,9 +122,9 @@ struct IfStatement : public Statement {
             return false;
         if ((elseBranch == nullptr) != (node->elseBranch == nullptr))
             return false;
-        if (elseBranch && !(*elseBranch == *node->elseBranch))
+        if (elseBranch && !elseBranch->operator==(*node->elseBranch))
             return false;
-        return SyntaxNode::operator==(op) && *expr == *node->expr && *thenBranch == *node->thenBranch;
+        return SyntaxNode::operator==(op) && expr->operator==(*node->expr) && thenBranch->operator==(*node->thenBranch);
     }
 };
 
@@ -141,8 +141,8 @@ struct ForStatement : public Statement {
         auto node = dynamic_cast<const ForStatement*>(&op);
         if (!node)
             return false;
-        return SyntaxNode::operator==(op) && *init == *node->init && *compare == *node->compare
-            && *next == *node->next && *loop == *node->loop;
+        return SyntaxNode::operator==(op) && init->operator==(*node->init) && compare->operator==(*node->compare)
+            && next->operator==(*node->next) && loop->operator==(*node->loop);
     }
 };
 
@@ -196,7 +196,7 @@ struct BinaryExpression : public Expression {
         auto node = dynamic_cast<const BinaryExpression*>(&op);
         if (!node)
             return false;
-        return SyntaxNode::operator==(op) && *left == *node->left && *right == *node->right;
+        return SyntaxNode::operator==(op) && left->operator==(*node->left) && right->operator==(*node->right);
     }
 };
 
@@ -331,7 +331,7 @@ struct AssignExpression : public Expression {
         auto node = dynamic_cast<const AssignExpression*>(&op);
         if (!node)
             return false;
-        return SyntaxNode::operator==(op) && *identifier == *node->identifier && *value == *node->value;
+        return SyntaxNode::operator==(op) && identifier->operator==(*node->identifier) && value->operator==(*node->value);
     }
 };
 
@@ -344,7 +344,7 @@ struct UnaryExpression : public Expression {
         auto node = dynamic_cast<const UnaryExpression*>(&op);
         if (!node)
             return false;
-        return SyntaxNode::operator==(op) && *operand == *node->operand;
+        return SyntaxNode::operator==(op) && operand->operator==(*node->operand);
     }
 };
 
