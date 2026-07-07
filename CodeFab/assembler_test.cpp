@@ -400,3 +400,60 @@ TEST_F(AssemblerTester, UnexpectedTokenThrowsTest) {
 
     EXPECT_THROW(assembler.assemble(tokens), std::invalid_argument);
 }
+
+
+TEST_F(AssemblerTester, ChainedAssignmentTest) {
+    // a = b = 3;    // expect: right-associative, a = (b = 3)
+    std::vector<Token> tokens = {
+        { TokenType::IDENTIFIER, "a", 0},
+        { TokenType::EQUAL, "=", 0},
+        { TokenType::IDENTIFIER, "b", 0},
+        { TokenType::EQUAL, "=", 0},
+        { TokenType::NUMBER, "3", 0},
+        { TokenType::SEMICOLON, ";", 0},
+    };
+
+    auto tree = assembler.assemble(tokens);
+    auto root = tree->getRoot();
+
+    IdentifierExpression targetA({ tokens[0] }, "a");
+    IdentifierExpression targetB({ tokens[2] }, "b");
+    NumberExpression three({ tokens[4] }, 3);
+    AssignExpression assignB({ tokens[3] }, &targetB, &three);
+    AssignExpression assignA({ tokens[1] }, &targetA, &assignB);
+    ExpressionStatement golden({ tokens[5] }, &assignA);
+
+    EXPECT_EQ(*root, golden);
+}
+
+TEST_F(AssemblerTester, AssignmentWithPrecedenceTest) {
+    // a = 1 * 2 + 3 * 4;    // expect: a = ((1 * 2) + (3 * 4))
+    std::vector<Token> tokens = {
+        { TokenType::IDENTIFIER, "a", 0},
+        { TokenType::EQUAL, "=", 0},
+        { TokenType::NUMBER, "1", 0},
+        { TokenType::STAR, "*", 0},
+        { TokenType::NUMBER, "2", 0},
+        { TokenType::PLUS, "+", 0},
+        { TokenType::NUMBER, "3", 0},
+        { TokenType::STAR, "*", 0},
+        { TokenType::NUMBER, "4", 0},
+        { TokenType::SEMICOLON, ";", 0},
+    };
+
+    auto tree = assembler.assemble(tokens);
+    auto root = tree->getRoot();
+
+    IdentifierExpression target({ tokens[0] }, "a");
+    NumberExpression one({ tokens[2] }, 1);
+    NumberExpression two({ tokens[4] }, 2);
+    MultExpression mult1({ tokens[3] }, &one, &two);
+    NumberExpression three({ tokens[6] }, 3);
+    NumberExpression four({ tokens[8] }, 4);
+    MultExpression mult2({ tokens[7] }, &three, &four);
+    AddExpression add({ tokens[5] }, &mult1, &mult2);
+    AssignExpression assign({ tokens[1] }, &target, &add);
+    ExpressionStatement golden({ tokens[9] }, &assign);
+
+    EXPECT_EQ(*root, golden);
+}
