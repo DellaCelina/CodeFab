@@ -2,7 +2,7 @@
 #include <vector>
 
 #include "gmock/gmock.h"
-#include "assembler.h"
+#include "Assembler.h"
 
 using namespace testing;
 
@@ -26,7 +26,7 @@ TEST_F(AssemblerTester, PrintWithExpressionTest) {
 
     auto tree = assembler.assemble(tokens);
 
-    auto root = tree->getRoot();
+    auto root = tree.getRoot();
 
     NumberExpression one({ tokens[1] }, 1);
     NumberExpression two({ tokens[3] }, 2);
@@ -51,7 +51,7 @@ TEST_F(AssemblerTester, SubtractionAssociativityTest) {
     };
 
     auto tree = assembler.assemble(tokens);
-    auto root = tree->getRoot();
+    auto root = tree.getRoot();
 
     NumberExpression ten({ tokens[1] }, 10);
     NumberExpression four({ tokens[3] }, 4);
@@ -76,7 +76,7 @@ TEST_F(AssemblerTester, DivisionAssociativityTest) {
     };
 
     auto tree = assembler.assemble(tokens);
-    auto root = tree->getRoot();
+    auto root = tree.getRoot();
 
     NumberExpression eight({ tokens[1] }, 8);
     NumberExpression two1({ tokens[3] }, 2);
@@ -100,7 +100,7 @@ TEST_F(AssemblerTester, NegativeNumberTest) {
     };
 
     auto tree = assembler.assemble(tokens);
-    auto root = tree->getRoot();
+    auto root = tree.getRoot();
 
     NumberExpression three({ tokens[2] }, 3);
     NegativeExpression negThree({ tokens[1] }, &three);
@@ -122,7 +122,7 @@ TEST_F(AssemblerTester, LessThanComparisonTest) {
     };
 
     auto tree = assembler.assemble(tokens);
-    auto root = tree->getRoot();
+    auto root = tree.getRoot();
 
     NumberExpression one({ tokens[1] }, 1);
     NumberExpression two({ tokens[3] }, 2);
@@ -143,7 +143,7 @@ TEST_F(AssemblerTester, GreaterThanComparisonTest) {
     };
 
     auto tree = assembler.assemble(tokens);
-    auto root = tree->getRoot();
+    auto root = tree.getRoot();
 
     NumberExpression three({ tokens[1] }, 3);
     NumberExpression five({ tokens[3] }, 5);
@@ -164,7 +164,7 @@ TEST_F(AssemblerTester, StringConcatTest) {
     };
 
     auto tree = assembler.assemble(tokens);
-    auto root = tree->getRoot();
+    auto root = tree.getRoot();
 
     StringExpression hello({ tokens[1] }, "Hello, ");
     StringExpression codefab({ tokens[3] }, "CodeFab!");
@@ -186,7 +186,7 @@ TEST_F(AssemblerTester, DeclareStatementTest) {
     };
 
     auto tree = assembler.assemble(tokens);
-    auto root = tree->getRoot();
+    auto root = tree.getRoot();
 
     IdentifierExpression a({ tokens[1] }, "a");
     NumberExpression ten({ tokens[3] }, 10);
@@ -207,7 +207,7 @@ TEST_F(AssemblerTester, ReassignmentTest) {
     };
 
     auto tree = assembler.assemble(tokens);
-    auto root = tree->getRoot();
+    auto root = tree.getRoot();
 
     IdentifierExpression target({ tokens[0] }, "a");
     IdentifierExpression a({ tokens[2] }, "a");
@@ -235,7 +235,7 @@ TEST_F(AssemblerTester, BlockScopeTest) {
     };
 
     auto tree = assembler.assemble(tokens);
-    auto root = tree->getRoot();
+    auto root = tree.getRoot();
 
     IdentifierExpression x_decl({ tokens[2] }, "x");
     StringExpression inner({ tokens[4] }, "inner");
@@ -261,7 +261,7 @@ TEST_F(AssemblerTester, IfStatementTest) {
     };
 
     auto tree = assembler.assemble(tokens);
-    auto root = tree->getRoot();
+    auto root = tree.getRoot();
 
     BooleanExpression condition({ tokens[2] }, true);
     StringExpression bbq({ tokens[5] }, "bbq");
@@ -288,7 +288,7 @@ TEST_F(AssemblerTester, IfElseStatementTest) {
     };
 
     auto tree = assembler.assemble(tokens);
-    auto root = tree->getRoot();
+    auto root = tree.getRoot();
 
     BooleanExpression condition({ tokens[2] }, false);
     StringExpression no({ tokens[5] }, "no");
@@ -327,7 +327,7 @@ TEST_F(AssemblerTester, ForStatementTest) {
     };
 
     auto tree = assembler.assemble(tokens);
-    auto root = tree->getRoot();
+    auto root = tree.getRoot();
 
     IdentifierExpression initTarget({ tokens[2] }, "j");
     NumberExpression zero({ tokens[4] }, 0);
@@ -414,7 +414,7 @@ TEST_F(AssemblerTester, ChainedAssignmentTest) {
     };
 
     auto tree = assembler.assemble(tokens);
-    auto root = tree->getRoot();
+    auto root = tree.getRoot();
 
     IdentifierExpression targetA({ tokens[0] }, "a");
     IdentifierExpression targetB({ tokens[2] }, "b");
@@ -442,7 +442,7 @@ TEST_F(AssemblerTester, AssignmentWithPrecedenceTest) {
     };
 
     auto tree = assembler.assemble(tokens);
-    auto root = tree->getRoot();
+    auto root = tree.getRoot();
 
     IdentifierExpression target({ tokens[0] }, "a");
     NumberExpression one({ tokens[2] }, 1);

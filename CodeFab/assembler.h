@@ -1,8 +1,8 @@
 ﻿#pragma once
 
-#include "assembler_interface.h"
+#include "AssemblerInterface.h"
 
 class Assembler : public AssemblerInterface {
 public:
-    std::unique_ptr<SyntaxTree> assemble(const std::vector<Token> tokens) override;
+    SyntaxTree assemble(const std::vector<Token>& tokens) override;
 };

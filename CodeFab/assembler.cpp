@@ -1,4 +1,4 @@
-﻿#include "assembler.h"
+﻿#include "Assembler.h"
 
 #include <algorithm>
 #include <stdexcept>
@@ -274,9 +274,9 @@ private:
 
 }  // namespace
 
-std::unique_ptr<SyntaxTree> Assembler::assemble(const Tokens tokens) {
-    auto tree = std::make_unique<SyntaxTree>();
-    Parser parser(tokens, *tree, kDefaultOperatorPriority, kDefaultUnaryOperator);
-    tree->setRoot(parser.parseStatement());
-    return tree;
+SyntaxTree Assembler::assemble(const Tokens& tokens) {
+    SyntaxTree tree;
+    Parser parser(tokens, tree, kDefaultOperatorPriority, kDefaultUnaryOperator);
+    tree.setRoot(parser.parseStatement());
+    return std::move(tree);
 }

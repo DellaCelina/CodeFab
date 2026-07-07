@@ -21,33 +21,54 @@
     <ClCompile Include="Tokenizer.cpp">
       <Filter>소스 파일</Filter>
     </ClCompile>
-    <ClCompile Include="Tokenizer_test.cpp">
+    <ClCompile Include="TokenizerTest.cpp">
       <Filter>소스 파일</Filter>
     </ClCompile>
     <ClCompile Include="main.cpp">
       <Filter>소스 파일</Filter>
     </ClCompile>
-    <ClCompile Include="assembler.cpp">
+    <ClCompile Include="RunPromptShell.cpp">
       <Filter>소스 파일</Filter>
     </ClCompile>
-    <ClCompile Include="assembler_test.cpp">
+    <ClCompile Include="RunPromptShellTest.cpp">
+      <Filter>소스 파일</Filter>
+    </ClCompile>
+    <ClCompile Include="Assembler.cpp">
+      <Filter>소스 파일</Filter>
+    </ClCompile>
+    <ClCompile Include="AssemblerTest.cpp">
       <Filter>소스 파일</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="ShellErrors.h">
+      <Filter>헤더 파일</Filter>
+    </ClInclude>
     <ClInclude Include="Token.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
     <ClInclude Include="Tokenizer.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
-    <ClInclude Include="syntax_tree.h">
+    <ClInclude Include="SyntaxTree.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
-    <ClInclude Include="assembler_interface.h">
+    <ClInclude Include="TokenizeInterface.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
-    <ClInclude Include="assembler.h">
+    <ClInclude Include="AssemblerInterface.h">
+      <Filter>헤더 파일</Filter>
+    </ClInclude>
+    <ClInclude Include="CheckerInterface.h">
+      <Filter>헤더 파일</Filter>
+    </ClInclude>
+    <ClInclude Include="ExecuteInterface.h">
+      <Filter>헤더 파일</Filter>
+    </ClInclude>
+    <ClInclude Include="RunPromptShell.h">
+      <Filter>헤더 파일</Filter>
+    </ClInclude>
+    <ClInclude Include="Assembler.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
   </ItemGroup>

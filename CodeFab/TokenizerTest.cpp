@@ -1,0 +1,149 @@
+﻿#include <gtest/gtest.h>
+#include <gmock/gmock.h>
+#include "Tokenizer.h"
+
+using ::testing::ElementsAre;
+
+class TokenizerFixture : public ::testing::Test {
+protected:
+    Tokenizer tokenizer;
+
+    std::vector<TokenType> getTypes(const std::vector<Token>& tokens) {
+        std::vector<TokenType> result;
+        for (const auto& tok : tokens)
+            result.push_back(tok.type);
+        return result;
+    }
+};
+
+TEST_F(TokenizerFixture, TokenTypes) {
+    auto tokens = tokenizer.tokenize("print 1 + 2 * 3;");
+    EXPECT_THAT(getTypes(tokens), ElementsAre(
+        TokenType::PRINT,
+        TokenType::NUMBER,
+        TokenType::PLUS,
+        TokenType::NUMBER,
+        TokenType::STAR,
+        TokenType::NUMBER,
+        TokenType::SEMICOLON,
+        TokenType::END_OF_FILE
+    ));
+}
+
+TEST_F(TokenizerFixture, TokenOrigins) {
+    auto tokens = tokenizer.tokenize("print 1 + 2 * 3;");
+    EXPECT_EQ(tokens[0].origin, "print");
+    EXPECT_EQ(tokens[1].origin, "1");
+    EXPECT_EQ(tokens[2].origin, "+");
+    EXPECT_EQ(tokens[3].origin, "2");
+    EXPECT_EQ(tokens[4].origin, "*");
+    EXPECT_EQ(tokens[5].origin, "3");
+    EXPECT_EQ(tokens[6].origin, ";");
+}
+
+TEST_F(TokenizerFixture, TokenCount) {
+    auto tokens = tokenizer.tokenize("print 1 + 2 * 3;");
+    EXPECT_EQ(tokens.size(), 8u); // 7개 + END_OF_FILE
+}
+
+// 빈 입력
+TEST_F(TokenizerFixture, EmptyInput) {
+    auto tokens = tokenizer.tokenize("");
+    ASSERT_EQ(tokens.size(), 1u);
+    EXPECT_EQ(tokens[0].type, TokenType::END_OF_FILE);
+}
+
+// 키워드
+TEST_F(TokenizerFixture, Keywords) {
+    auto tokens = tokenizer.tokenize("var if else for");
+    EXPECT_THAT(getTypes(tokens), ElementsAre(
+        TokenType::VAR, TokenType::IF, TokenType::ELSE, TokenType::FOR,
+        TokenType::END_OF_FILE
+    ));
+}
+
+// 식별자 (키워드와 구분)
+TEST_F(TokenizerFixture, Identifier) {
+    auto tokens = tokenizer.tokenize("variable");
+    EXPECT_EQ(tokens[0].type, TokenType::IDENTIFIER);
+    EXPECT_EQ(tokens[0].origin, "variable");
+}
+
+// 불리언 리터럴
+TEST_F(TokenizerFixture, BooleanLiterals) {
+    auto tokens = tokenizer.tokenize("true false");
+    EXPECT_THAT(getTypes(tokens), ElementsAre(
+        TokenType::TRUE, TokenType::FALSE, TokenType::END_OF_FILE
+    ));
+}
+
+// 문자열 리터럴 (따옴표 제거 확인)
+TEST_F(TokenizerFixture, StringLiteral) {
+    auto tokens = tokenizer.tokenize("\"hello\"");
+    EXPECT_EQ(tokens[0].type, TokenType::STRING);
+    EXPECT_EQ(tokens[0].origin, "hello");
+}
+
+// 소수점 숫자
+TEST_F(TokenizerFixture, FloatNumber) {
+    auto tokens = tokenizer.tokenize("3.14");
+    EXPECT_EQ(tokens[0].type, TokenType::NUMBER);
+    EXPECT_EQ(tokens[0].origin, "3.14");
+}
+
+// 이중 문자 연산자
+TEST_F(TokenizerFixture, TwoCharOperators) {
+    auto tokens = tokenizer.tokenize("== != <= >=");
+    EXPECT_THAT(getTypes(tokens), ElementsAre(
+        TokenType::EQUAL_EQUAL, TokenType::BANG_EQUAL,
+        TokenType::LESS_EQUAL,  TokenType::GREATER_EQUAL,
+        TokenType::END_OF_FILE
+    ));
+}
+
+// 줄 번호 추적
+TEST_F(TokenizerFixture, LineTracking) {
+    auto tokens = tokenizer.tokenize("var x;\nvar y;");
+    EXPECT_EQ(tokens[0].line, 1); // var
+    EXPECT_EQ(tokens[3].line, 2); // var (두 번째 줄)
+}
+
+// 종결되지 않은 문자열 예외
+TEST_F(TokenizerFixture, UnterminatedString) {
+    EXPECT_THROW(tokenizer.tokenize("\"hello"), std::runtime_error);
+}
+
+// 알 수 없는 문자 예외
+TEST_F(TokenizerFixture, UnknownCharacter) {
+    EXPECT_THROW(tokenizer.tokenize("@"), std::runtime_error);
+}
+
+// var 선언 구문
+TEST_F(TokenizerFixture, VarDeclaration) {
+    auto tokens = tokenizer.tokenize("var x = 10;");
+    EXPECT_THAT(getTypes(tokens), ElementsAre(
+        TokenType::VAR, TokenType::IDENTIFIER,
+        TokenType::EQUAL, TokenType::NUMBER,
+        TokenType::SEMICOLON, TokenType::END_OF_FILE
+    ));
+}
+
+// 괄호 및 중괄호
+TEST_F(TokenizerFixture, ParenAndBrace) {
+    auto tokens = tokenizer.tokenize("( ) { }");
+    EXPECT_THAT(getTypes(tokens), ElementsAre(
+        TokenType::LEFT_PAREN,  TokenType::RIGHT_PAREN,
+        TokenType::LEFT_BRACE,  TokenType::RIGHT_BRACE,
+        TokenType::END_OF_FILE
+    ));
+}
+
+// 빼기 및 나누기 연산자
+TEST_F(TokenizerFixture, MinusAndSlash) {
+    auto tokens = tokenizer.tokenize("10 - 2 / 5");
+    EXPECT_THAT(getTypes(tokens), ElementsAre(
+        TokenType::NUMBER, TokenType::MINUS,
+        TokenType::NUMBER, TokenType::SLASH,
+        TokenType::NUMBER, TokenType::END_OF_FILE
+    ));
+}
