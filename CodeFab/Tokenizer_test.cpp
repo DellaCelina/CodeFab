@@ -127,3 +127,23 @@ TEST_F(TokenizerFixture, VarDeclaration) {
         TokenType::SEMICOLON, TokenType::END_OF_FILE
     ));
 }
+
+// 괄호 및 중괄호
+TEST_F(TokenizerFixture, ParenAndBrace) {
+    auto tokens = tokenizer.tokenize("( ) { }");
+    EXPECT_THAT(getTypes(tokens), ElementsAre(
+        TokenType::LEFT_PAREN,  TokenType::RIGHT_PAREN,
+        TokenType::LEFT_BRACE,  TokenType::RIGHT_BRACE,
+        TokenType::END_OF_FILE
+    ));
+}
+
+// 빼기 및 나누기 연산자
+TEST_F(TokenizerFixture, MinusAndSlash) {
+    auto tokens = tokenizer.tokenize("10 - 2 / 5");
+    EXPECT_THAT(getTypes(tokens), ElementsAre(
+        TokenType::NUMBER, TokenType::MINUS,
+        TokenType::NUMBER, TokenType::SLASH,
+        TokenType::NUMBER, TokenType::END_OF_FILE
+    ));
+}
