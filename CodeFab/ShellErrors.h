@@ -23,6 +23,13 @@ public:
     using CodeFabError::CodeFabError;
 };
 
+// TokenizeInterface: 소스가 아직 완결되지 않음(괄호/문자열이 안 닫힘).
+// 오류가 아니라 Shell이 입력을 더 받아야 한다는 신호로 사용한다.
+class IncompleteInputError : public CodeFabError {
+public:
+    using CodeFabError::CodeFabError;
+};
+
 // CheckerInterface: 의미 오류 (변수 중복 선언, 자기 참조 등)
 class CheckError : public CodeFabError {
 public:

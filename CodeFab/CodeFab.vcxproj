@@ -143,10 +143,8 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp" />
-    <ClCompile Include="InputBuffer.cpp" />
     <ClCompile Include="SyntaxTree.cpp" />
     <ClCompile Include="RunPromptShell.cpp" />
-    <ClCompile Include="InputBufferTest.cpp" />
     <ClCompile Include="RunPromptShellTest.cpp" />
     <ClCompile Include="Tokenizer.cpp" />
     <ClCompile Include="Tokenizer_test.cpp" />
@@ -161,7 +159,6 @@
     <ClInclude Include="AssemblerInterface.h" />
     <ClInclude Include="CheckerInterface.h" />
     <ClInclude Include="ExecuteInterface.h" />
-    <ClInclude Include="InputBuffer.h" />
     <ClInclude Include="RunPromptShell.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

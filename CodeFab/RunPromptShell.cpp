@@ -3,7 +3,6 @@
 #include <cctype>
 #include <string>
 
-#include "InputBuffer.h"
 #include "ShellErrors.h"
 
 namespace {
@@ -51,14 +50,6 @@ void RunPromptShell::Run(std::istream& in, std::ostream& out) {
             continue;
         }
 
-        // TODO(tokenizer 병합 후 refactor): IsInputComplete는 Tokenizer가 스캐닝 중
-        // 판단할 내용(괄호/문자열 미종결)을 미리 중복 검사하는 임시 로직이다.
-        // 자세한 대체 방향은 InputBuffer.h 참고.
-        if (!IsInputComplete(buffer)) {
-            out << kContinuationPrompt;
-            continue;
-        }
-
         try {
             std::vector<Token> tokens = tokenizer_.Tokenize(buffer);
             SyntaxTree tree = assembler_.Assemble(tokens);
@@ -67,6 +58,10 @@ void RunPromptShell::Run(std::istream& in, std::ostream& out) {
             } else {
                 out << "코드 검사에 실패했습니다.\n";
             }
+        } catch (const IncompleteInputError&) {
+            // 괄호/문자열이 아직 안 닫힌 상태: 버퍼를 비우지 않고 다음 줄을 이어받는다.
+            out << kContinuationPrompt;
+            continue;
         } catch (const CodeFabError& e) {
             out << "[" << e.Line() << "번째 줄] " << e.what() << "\n";
         }

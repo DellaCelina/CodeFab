@@ -138,8 +138,9 @@ TEST_F(RunPromptShellTest, MultipleLines_ProcessedOneAtATimeUsingSameExecutorIns
     EXPECT_EQ(out.str(), ">>> >>> >>> ");
 }
 
-TEST_F(RunPromptShellTest, UnbalancedBrace_WaitsForMoreInputBeforeTokenizing) {
-    EXPECT_CALL(tokenizer, Tokenize(_)).Times(0);
+TEST_F(RunPromptShellTest, UnbalancedBrace_WaitsForMoreInputWhenTokenizerReportsIncomplete) {
+    EXPECT_CALL(tokenizer, Tokenize(std::string("if (a > 0) {")))
+        .WillOnce(Throw(IncompleteInputError(1, "입력이 완결되지 않았습니다.")));
 
     std::ostringstream out;
     Run("if (a > 0) {\n", out);
@@ -147,7 +148,12 @@ TEST_F(RunPromptShellTest, UnbalancedBrace_WaitsForMoreInputBeforeTokenizing) {
     EXPECT_EQ(out.str(), ">>> ... ");
 }
 
-TEST_F(RunPromptShellTest, MultilineBlock_TokenizedOnceWhenBraceCloses) {
+TEST_F(RunPromptShellTest, MultilineBlock_CompletesWhenBraceClosesAndTokenizerStopsReportingIncomplete) {
+    InSequence seq;
+    EXPECT_CALL(tokenizer, Tokenize(std::string("if (a > 0) {")))
+        .WillOnce(Throw(IncompleteInputError(1, "입력이 완결되지 않았습니다.")));
+    EXPECT_CALL(tokenizer, Tokenize(std::string("if (a > 0) {\nprint a;")))
+        .WillOnce(Throw(IncompleteInputError(1, "입력이 완결되지 않았습니다.")));
     EXPECT_CALL(tokenizer, Tokenize(std::string("if (a > 0) {\nprint a;\n}")))
         .WillOnce(Return(std::vector<Token>{}));
     EXPECT_CALL(assembler, Assemble(_)).WillOnce(Return(ByMove(SyntaxTree())));
