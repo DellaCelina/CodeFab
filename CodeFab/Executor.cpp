@@ -27,6 +27,10 @@ void Executor::registerDefaultHandlers() {
     };
 }
 
+void Executor::run(SyntaxTree& tree) {
+    execute(static_cast<Statement*>(tree.getRoot()));
+}
+
 void Executor::execute(Statement* stmt) {
     auto it = statementHandlers_.find(std::type_index(typeid(*stmt)));
     if (it == statementHandlers_.end()) {

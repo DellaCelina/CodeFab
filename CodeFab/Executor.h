@@ -19,6 +19,11 @@ public:
     // ostringstream in tests to capture what print statements write.
     explicit Executor(std::ostream& out = std::cout);
 
+    // Entry point: executes a whole program starting from the tree's root.
+    // The root is always a Statement (a program is a statement), so it's
+    // downcast once here rather than needing a SyntaxNode-level dispatch.
+    void run(SyntaxTree& tree);
+
     // Executes a single statement node. Throws std::logic_error if no
     // handler was registered for its concrete type.
     void execute(Statement* stmt);
