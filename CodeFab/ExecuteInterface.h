@@ -9,5 +9,5 @@ class ExecuteInterface {
 public:
     virtual ~ExecuteInterface() = default;
 
-    virtual void Execute(SyntaxTree& tree) = 0;
+    virtual void execute(SyntaxTree& tree) = 0;
 };

@@ -29,7 +29,7 @@ RunPromptShell::RunPromptShell(TokenizeInterface& tokenizer,
     : tokenizer_(tokenizer), assembler_(assembler), checker_(checker), executor_(executor) {
 }
 
-void RunPromptShell::Run(std::istream& in, std::ostream& out) {
+void RunPromptShell::run(std::istream& in, std::ostream& out) {
     std::string buffer;
     std::string line;
 
@@ -51,10 +51,10 @@ void RunPromptShell::Run(std::istream& in, std::ostream& out) {
         }
 
         try {
-            std::vector<Token> tokens = tokenizer_.Tokenize(buffer);
-            SyntaxTree tree = assembler_.Assemble(tokens);
-            if (checker_.Check(tree)) {
-                executor_.Execute(tree);
+            std::vector<Token> tokens = tokenizer_.tokenize(buffer);
+            SyntaxTree tree = assembler_.assemble(tokens);
+            if (checker_.check(tree)) {
+                executor_.execute(tree);
             } else {
                 out << "코드 검사에 실패했습니다.\n";
             }
@@ -63,7 +63,7 @@ void RunPromptShell::Run(std::istream& in, std::ostream& out) {
             out << kContinuationPrompt;
             continue;
         } catch (const CodeFabError& e) {
-            out << "[" << e.Line() << "번째 줄] " << e.what() << "\n";
+            out << "[" << e.line() << "번째 줄] " << e.what() << "\n";
         }
 
         buffer.clear();

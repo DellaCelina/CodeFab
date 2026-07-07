@@ -14,7 +14,8 @@ static const std::unordered_map<std::string, TokenType> KEYWORDS = {
     { "false", TokenType::FALSE },
 };
 
-std::vector<Token> Tokenizer::tokenize(const std::string& src) {
+
+void Tokenizer::reset(const std::string& src) {
     source     = src;
     start      = 0;
     current    = 0;
@@ -22,6 +23,10 @@ std::vector<Token> Tokenizer::tokenize(const std::string& src) {
     parenDepth = 0;
     braceDepth = 0;
     tokens.clear();
+}
+
+std::vector<Token> Tokenizer::scanTokens(const std::string& src) {
+    reset(src);
 
     while (!isAtEnd()) {
         start = current;
@@ -39,9 +44,9 @@ std::vector<Token> Tokenizer::tokenize(const std::string& src) {
     return tokens;
 }
 
-std::vector<Token> Tokenizer::Tokenize(const std::string& src) {
+std::vector<Token> Tokenizer::tokenize(const std::string& src) {
     try {
-        return tokenize(src);
+        return scanTokens(src);
     } catch (const TokenizerIncompleteError& e) {
         throw IncompleteInputError(line, e.what());
     } catch (const std::runtime_error& e) {
@@ -76,6 +81,18 @@ void Tokenizer::addToken(TokenType type) {
     tokens.push_back({ type, source.substr(start, current - start), line });
 }
 
+bool Tokenizer::isDigit(char c) {
+    return std::isdigit(static_cast<unsigned char>(c));
+}
+
+bool Tokenizer::isAlpha(char c) {
+    return std::isalpha(static_cast<unsigned char>(c)) || c == '_';
+}
+
+bool Tokenizer::isAlphaNumeric(char c) {
+    return std::isalnum(static_cast<unsigned char>(c)) || c == '_';
+}
+
 void Tokenizer::scanToken() {
     char c = advance();
     switch (c) {
@@ -88,10 +105,11 @@ void Tokenizer::scanToken() {
         case '-': addToken(TokenType::MINUS);       break;
         case '*': addToken(TokenType::STAR);        break;
         case '/': addToken(TokenType::SLASH);       break;
-        case '=': addToken(match('=') ? TokenType::EQUAL_EQUAL   : TokenType::EQUAL);          break;
-        case '!': addToken(match('=') ? TokenType::BANG_EQUAL    : TokenType::BANG);           break;
-        case '<': addToken(match('=') ? TokenType::LESS_EQUAL    : TokenType::LESS);           break;
-        case '>': addToken(match('=') ? TokenType::GREATER_EQUAL : TokenType::GREATER);        break;
+
+        case '=': addToken(match('=') ? TokenType::EQUAL_EQUAL   : TokenType::EQUAL);   break;
+        case '!': addToken(match('=') ? TokenType::BANG_EQUAL    : TokenType::BANG);    break;
+        case '<': addToken(match('=') ? TokenType::LESS_EQUAL    : TokenType::LESS);    break;
+        case '>': addToken(match('=') ? TokenType::GREATER_EQUAL : TokenType::GREATER); break;
         case ' ':
         case '\r':
         case '\t':
@@ -103,13 +121,8 @@ void Tokenizer::scanToken() {
             scanString();
             break;
         default:
-            if (std::isdigit(static_cast<unsigned char>(c))) {
-                scanNumber();
-            } else if (std::isalpha(static_cast<unsigned char>(c)) || c == '_') {
-                scanIdentifier();
-            } else {
-                throw std::runtime_error(std::string("알 수 없는 문자: '") + c + "'");
-            }
+
+            scanDefault(c);
             break;
     }
 }
@@ -128,19 +141,25 @@ void Tokenizer::scanString() {
     tokens.push_back({ TokenType::STRING, value, line });
 }
 
-void Tokenizer::scanNumber() {
-    while (std::isdigit(static_cast<unsigned char>(peek()))) advance();
+void Tokenizer::scanDefault(char c) {
+    if (isDigit(c))      scanNumber();
+    else if (isAlpha(c)) scanIdentifier();
+    else throw std::runtime_error(std::string("알 수 없는 문자: '") + c + "'");
+}
 
-    if (peek() == '.' && std::isdigit(static_cast<unsigned char>(peekNext()))) {
-        advance(); // '.' 소비
-        while (std::isdigit(static_cast<unsigned char>(peek()))) advance();
+void Tokenizer::scanNumber() {
+
+    while (isDigit(peek())) advance();
+
+    if (peek() == '.' && isDigit(peekNext())) {
+        advance();
+        while (isDigit(peek())) advance();
     }
     addToken(TokenType::NUMBER);
 }
 
 void Tokenizer::scanIdentifier() {
-    while (std::isalnum(static_cast<unsigned char>(peek())) || peek() == '_')
-        advance();
+   while (isAlphaNumeric(peek())) advance();
 
     std::string text = source.substr(start, current - start);
     auto it = KEYWORDS.find(text);

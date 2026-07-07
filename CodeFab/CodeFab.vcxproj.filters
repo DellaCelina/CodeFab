@@ -21,7 +21,7 @@
     <ClCompile Include="Tokenizer.cpp">
       <Filter>소스 파일</Filter>
     </ClCompile>
-    <ClCompile Include="Tokenizer_test.cpp">
+    <ClCompile Include="TokenizerTest.cpp">
       <Filter>소스 파일</Filter>
     </ClCompile>
     <ClCompile Include="main.cpp">
@@ -43,6 +43,12 @@
     <ClCompile Include="RunPromptShellTest.cpp">
       <Filter>소스 파일</Filter>
     </ClCompile>
+    <ClCompile Include="Assembler.cpp">
+      <Filter>소스 파일</Filter>
+    </ClCompile>
+    <ClCompile Include="AssemblerTest.cpp">
+      <Filter>소스 파일</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="ShellErrors.h">
@@ -52,9 +58,6 @@
       <Filter>헤더 파일</Filter>
     </ClInclude>
     <ClInclude Include="Tokenizer.h">
-      <Filter>헤더 파일</Filter>
-    </ClInclude>
-    <ClInclude Include="SyntaxNode.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
     <ClInclude Include="SyntaxTree.h">
@@ -82,6 +85,9 @@
       <Filter>헤더 파일</Filter>
     </ClInclude>
     <ClInclude Include="Value.h">
+      <Filter>헤더 파일</Filter>
+    </ClInclude>
+    <ClInclude Include="Assembler.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
   </ItemGroup>

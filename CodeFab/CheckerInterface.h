@@ -11,5 +11,5 @@ class CheckerInterface {
 public:
     virtual ~CheckerInterface() = default;
 
-    virtual bool Check(SyntaxTree& tree) = 0;
+    virtual bool check(SyntaxTree& tree) = 0;
 };

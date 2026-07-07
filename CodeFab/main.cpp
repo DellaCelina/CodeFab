@@ -16,21 +16,21 @@ namespace {
 // 지금은 Shell 통합 골격이 빌드/실행되는 것을 보여주기 위한 임시 구현이다.
 class NotImplementedAssembler : public AssemblerInterface {
 public:
-    SyntaxTree Assemble(const std::vector<Token>&) override {
+    SyntaxTree assemble(const std::vector<Token>&) override {
         throw AssemblyError(0, "Assembler가 아직 구현되지 않았습니다.");
     }
 };
 
 class NotImplementedChecker : public CheckerInterface {
 public:
-    bool Check(SyntaxTree&) override {
+    bool check(SyntaxTree&) override {
         throw CheckError(0, "Checker가 아직 구현되지 않았습니다.");
     }
 };
 
 class NotImplementedExecutor : public ExecuteInterface {
 public:
-    void Execute(SyntaxTree&) override {
+    void execute(SyntaxTree&) override {
         throw RuntimeCodeFabError(0, "Executor가 아직 구현되지 않았습니다.");
     }
 };
@@ -52,7 +52,7 @@ int main() {
     NotImplementedExecutor executor;
 
     RunPromptShell shell(tokenizer, assembler, checker, executor);
-    shell.Run(std::cin, std::cout);
+    shell.run(std::cin, std::cout);
     return 0;
 #endif
 }
