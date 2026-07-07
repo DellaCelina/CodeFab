@@ -59,7 +59,7 @@ private:
         const Token& token = tokens[pos];
         expect(TokenType::NUMBER);
 
-        auto number = std::make_unique<NumberExpression>(std::vector<Token>{ token }, std::stod(token.orign));
+        auto number = std::make_unique<NumberExpression>(std::vector<Token>{ token }, std::stod(token.origin));
         Expression* raw = number.get();
         tree.add(std::move(number));
         return raw;
