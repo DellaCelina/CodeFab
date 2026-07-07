@@ -66,7 +66,11 @@ void Executor::registerDefaultHandlers() {
 }
 
 void Executor::execute(SyntaxTree& tree) {
-    execute(static_cast<Statement*>(tree.getRoot()));
+    auto* root = dynamic_cast<Statement*>(tree.getRoot());
+    if (!root) {
+        throw std::logic_error("Executor::execute: tree root is not a Statement");
+    }
+    execute(root);
 }
 
 void Executor::execute(Statement* stmt) {

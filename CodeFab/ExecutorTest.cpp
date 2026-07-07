@@ -1,4 +1,5 @@
 #include <sstream>
+#include <stdexcept>
 
 #include "gmock/gmock.h"
 #include "Executor.h"
@@ -161,4 +162,12 @@ TEST(ExecutorPrintTest, Execute_SyntaxTree_ExecutesFromRoot) {
     executor.execute(tree);
 
     EXPECT_EQ(out.str(), "7\n");
+}
+
+TEST_F(ExecutorTester, Execute_SyntaxTree_ThrowsIfRootIsNotStatement) {
+    SyntaxTree tree;
+    NumberExpression number({}, 1);
+    tree.setRoot(&number);
+
+    EXPECT_THROW(executor.execute(tree), std::logic_error);
 }
