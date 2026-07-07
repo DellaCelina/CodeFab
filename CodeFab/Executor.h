@@ -5,6 +5,7 @@
 #include <typeindex>
 #include <unordered_map>
 
+#include "Environment.h"
 #include "ExecuteInterface.h"
 #include "SyntaxTree.h"
 #include "Value.h"
@@ -37,6 +38,7 @@ private:
     void registerDefaultHandlers();
 
     std::ostream& out_;
+    Environment environment_;
     std::unordered_map<std::type_index, std::function<void(Statement*)>> statementHandlers_;
     std::unordered_map<std::type_index, std::function<Value(Expression*)>> expressionHandlers_;
 };

@@ -21,7 +21,7 @@
   <PropertyGroup Label="Globals">
     <VCProjectVersion>18.0</VCProjectVersion>
     <Keyword>Win32Proj</Keyword>
-    <ProjectGuid>{6529D521-D792-874C-5A19-51198F436EEC}</ProjectGuid>
+    <ProjectGuid>{89384359-983A-47C7-BF2E-FA827BB2A718}</ProjectGuid>
     <RootNamespace>CodeFab</RootNamespace>
     <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
@@ -158,6 +158,9 @@
     <ClCompile Include="ExecutorTest.cpp" />
     <ClCompile Include="Executor.cpp" />
     <ClCompile Include="Value.cpp" />
+    <ClCompile Include="Environment.cpp" />
+    <ClCompile Include="Scope.cpp" />
+    <ClCompile Include="EnvironmentTest.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Checker.h" />
@@ -173,6 +176,8 @@
     <ClInclude Include="Assembler.h" />
     <ClInclude Include="Executor.h" />
     <ClInclude Include="Value.h" />
+    <ClInclude Include="Environment.h" />
+    <ClInclude Include="Scope.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
