@@ -1,4 +1,4 @@
-#include <sstream>
+﻿#include <sstream>
 #include <stdexcept>
 
 #include "gmock/gmock.h"
@@ -189,6 +189,23 @@ TEST_F(ExecutorTester, Evaluate_MultStringAndBoolean_ThrowsRuntimeError) {
     MultExpression mult({}, &hello, &trueLiteral);
 
     EXPECT_THROW(executor.evaluate(&mult), RuntimeCodeFabError);
+}
+
+TEST_F(ExecutorTester, Evaluate_UndefinedVariable_ThrowsRuntimeError) {
+    IdentifierExpression ident({}, "notDefined");
+
+    EXPECT_THROW(executor.evaluate(&ident), RuntimeCodeFabError);
+}
+
+TEST_F(ExecutorTester, Evaluate_UndefinedVariable_ErrorMessageContainsName) {
+    IdentifierExpression ident({}, "notDefined");
+
+    try {
+        executor.evaluate(&ident);
+        FAIL() << "RuntimeCodeFabError가 발생해야 합니다";
+    } catch (const RuntimeCodeFabError& e) {
+        EXPECT_EQ(std::string(e.what()), "Undefined variable 'notDefined'");
+    }
 }
 
 TEST_F(ExecutorTester, Evaluate_BooleanLiteral_ReturnsItsValue) {

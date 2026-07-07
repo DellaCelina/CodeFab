@@ -1,4 +1,4 @@
-#include "Executor.h"
+﻿#include "Executor.h"
 
 #include <stdexcept>
 #include "ShellErrors.h"
@@ -11,6 +11,14 @@ void Executor::registerDefaultHandlers() {
     statementHandlers_[std::type_index(typeid(PrintStatement))] = [this](Statement* stmt) {
         auto* print = static_cast<PrintStatement*>(stmt);
         out_ << evaluate(print->expr).toString() << std::endl;
+    };
+
+    expressionHandlers_[std::type_index(typeid(IdentifierExpression))] = [this](Expression* expr) {
+        auto* ident = static_cast<IdentifierExpression*>(expr);
+        auto value = environment_.lookup(ident->name);
+        if (!value)
+            throw RuntimeCodeFabError(expr->getLine(), "Undefined variable '" + ident->name + "'");
+        return *value;
     };
 
     expressionHandlers_[std::type_index(typeid(NumberExpression))] = [](Expression* expr) {
@@ -33,14 +41,14 @@ void Executor::registerDefaultHandlers() {
             return Value(left.asString() + right.asString());
         if (left.isNumber() && right.isNumber())
             return Value(left.asNumber() + right.asNumber());
-        throw RuntimeCodeFabError(0, std::string("타입 오류: ") + left.typeName() + " + " + right.typeName());
+        throw RuntimeCodeFabError(expr->getLine(), std::string("타입 오류: ") + left.typeName() + " + " + right.typeName());
     };
 
     expressionHandlers_[std::type_index(typeid(SubExpression))] = [this](Expression* expr) {
         auto* sub = static_cast<SubExpression*>(expr);
         Value left = evaluate(sub->left);
         Value right = evaluate(sub->right);
-        requireNumberOperands(left, right, "-");
+        requireNumberOperands(expr, left, right, "-");
         return Value(left.asNumber() - right.asNumber());
     };
 
@@ -48,7 +56,7 @@ void Executor::registerDefaultHandlers() {
         auto* mult = static_cast<MultExpression*>(expr);
         Value left = evaluate(mult->left);
         Value right = evaluate(mult->right);
-        requireNumberOperands(left, right, "*");
+        requireNumberOperands(expr, left, right, "*");
         return Value(left.asNumber() * right.asNumber());
     };
 
@@ -56,9 +64,9 @@ void Executor::registerDefaultHandlers() {
         auto* divide = static_cast<DivideExpression*>(expr);
         Value left = evaluate(divide->left);
         Value right = evaluate(divide->right);
-        requireNumberOperands(left, right, "/");
+        requireNumberOperands(expr, left, right, "/");
         if (right.asNumber() == 0.0)
-            throw RuntimeCodeFabError(0, "0으로 나눌 수 없습니다");
+            throw RuntimeCodeFabError(expr->getLine(), "0으로 나눌 수 없습니다");
         return Value(left.asNumber() / right.asNumber());
     };
 
@@ -66,7 +74,7 @@ void Executor::registerDefaultHandlers() {
         auto* negative = static_cast<NegativeExpression*>(expr);
         Value operand = evaluate(negative->operand);
         if (!operand.isNumber())
-            throw RuntimeCodeFabError(0, std::string("타입 오류: -") + operand.typeName());
+            throw RuntimeCodeFabError(expr->getLine(), std::string("타입 오류: -") + operand.typeName());
         return Value(-operand.asNumber());
     };
 
@@ -74,7 +82,7 @@ void Executor::registerDefaultHandlers() {
         auto* less = static_cast<LessExpression*>(expr);
         Value left = evaluate(less->left);
         Value right = evaluate(less->right);
-        requireNumberOperands(left, right, "<");
+        requireNumberOperands(expr, left, right, "<");
         return Value(left.asNumber() < right.asNumber());
     };
 
@@ -82,7 +90,7 @@ void Executor::registerDefaultHandlers() {
         auto* greater = static_cast<GreaterExpression*>(expr);
         Value left = evaluate(greater->left);
         Value right = evaluate(greater->right);
-        requireNumberOperands(left, right, ">");
+        requireNumberOperands(expr, left, right, ">");
         return Value(left.asNumber() > right.asNumber());
     };
 
@@ -116,7 +124,7 @@ void Executor::registerDefaultHandlers() {
         auto* lessEqual = static_cast<LessEqualExpression*>(expr);
         Value left = evaluate(lessEqual->left);
         Value right = evaluate(lessEqual->right);
-        requireNumberOperands(left, right, "<=");
+        requireNumberOperands(expr, left, right, "<=");
         return Value(left.asNumber() <= right.asNumber());
     };
 
@@ -124,7 +132,7 @@ void Executor::registerDefaultHandlers() {
         auto* greaterEqual = static_cast<GreaterEqualExpression*>(expr);
         Value left = evaluate(greaterEqual->left);
         Value right = evaluate(greaterEqual->right);
-        requireNumberOperands(left, right, ">=");
+        requireNumberOperands(expr, left, right, ">=");
         return Value(left.asNumber() >= right.asNumber());
     };
 
@@ -151,9 +159,9 @@ void Executor::execute(Statement* stmt) {
     it->second(stmt);
 }
 
-void Executor::requireNumberOperands(const Value& left, const Value& right, const char* op) const {
+void Executor::requireNumberOperands(const Expression* expr, const Value& left, const Value& right, const char* op) const {
     if (!left.isNumber() || !right.isNumber())
-        throw RuntimeCodeFabError(0, std::string("타입 오류: ") + left.typeName() + " " + op + " " + right.typeName());
+        throw RuntimeCodeFabError(expr->getLine(), std::string("타입 오류: ") + left.typeName() + " " + op + " " + right.typeName());
 }
 
 Value Executor::evaluate(Expression* expr) {
