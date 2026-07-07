@@ -1,4 +1,4 @@
-#include "Checker.h"
+﻿#include "Checker.h"
 
 // scope func.
 

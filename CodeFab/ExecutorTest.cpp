@@ -1,4 +1,4 @@
-#include <sstream>
+﻿#include <sstream>
 #include <stdexcept>
 
 #include "gmock/gmock.h"
