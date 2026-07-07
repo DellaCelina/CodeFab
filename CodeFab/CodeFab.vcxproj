@@ -146,12 +146,16 @@
     <ClInclude Include="Tokenizer.h" />
     <ClInclude Include="syntax_tree.h" />
     <ClInclude Include="MockSyntaxTree.h" />
+    <ClInclude Include="Executor.h" />
+    <ClInclude Include="Value.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp" />
     <ClCompile Include="Tokenizer.cpp" />
     <ClCompile Include="Tokenizer_test.cpp" />
     <ClCompile Include="ExecutorTest.cpp" />
+    <ClCompile Include="Executor.cpp" />
+    <ClCompile Include="Value.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
