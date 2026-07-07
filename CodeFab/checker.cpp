@@ -32,7 +32,7 @@ void Checker::declare(const string& name) {
 }
 
 void Checker::reportError(int line, const string& message) {
-    // error 발생 line 표시, 향후 error 포맷은 수정 가능
+    // error 발생 line 표시
     errors.push_back(CheckError{ "[" + to_string(line) + "번째 줄] " + message });
 }
 
@@ -48,14 +48,14 @@ void Checker::checkStatement(Statement* stmt) {
     if (auto* block = dynamic_cast<BlockStatement*>(stmt)) {
         checkBlock(block);
     }
-    else if (auto* decl = dynamic_cast<VarDeclStatement*>(stmt)) {
-        checkVarDecl(decl);
+    else if (auto* decl = dynamic_cast<DeclareStatement*>(stmt)) {
+        checkDeclare(decl);
     }
     else if (auto* print = dynamic_cast<PrintStatement*>(stmt)) {
         checkPrint(print);
     }
-    // ASSUMPTION: 여기 걸리지 않는 새 Statement 타입이 assembler 쪽에 추가되면
-    // 분기 추가 필요
+    // ASSUMPTION: ExpressionStatement/IfStatement/ForStatement 등 나머지 Statement 타입은
+    // 아직 checker가 다루지 않는다. 필요해지면 분기를 추가한다.
 }
 
 void Checker::checkExpression(Expression* expr) {
@@ -67,11 +67,13 @@ void Checker::checkExpression(Expression* expr) {
         checkIdentifier(id);
     }
     else if (auto* bin = dynamic_cast<BinaryExpression*>(expr)) {
-        // AddExpression, MultExpression 모두 BinaryExpression을 상속하므로
+        // AddExpression, MultExpression 등 모든 이항 연산자가 BinaryExpression을 상속하므로
         // 여기서 한 번에 처리된다 (왼쪽/오른쪽 자식을 재귀적으로 검사).
         checkBinary(bin);
     }
-    // LiteralExpression(숫자 리터럴)은 그 자체로는 검사할 의미 규칙이 없어 별도 분기가 없다.
+    // NumberExpression(숫자 리터럴)은 그 자체로 항상 유효해 검사할 규칙이 없어 분기가 없다.
+    // ASSUMPTION: StringExpression/BooleanExpression/AssignExpression/UnaryExpression 등은
+    // 아직 checker가 다루지 않는다. 필요해지면 분기를 추가한다.
 }
 
 // ---------------------------------------------------------------------------
@@ -86,32 +88,29 @@ void Checker::checkBlock(BlockStatement* block) {
     exitScope();
 }
 
-void Checker::checkVarDecl(VarDeclStatement* decl) {
+void Checker::checkDeclare(DeclareStatement* decl) {
+    const string& name = decl->identifier->name;
+
     // [검사 1] 변수 중복 선언: 같은 스코프에 이미 같은 이름이 있으면 에러.
-    // (p.72: "{ var a = 11; var a = 12; }" -> 2번째 var a 에서 에러)
-    if (isDeclaredInCurrentScope(decl->name)) {
+    if (isDeclaredInCurrentScope(name)) {
         reportError(decl->getLine(),
-            "'" + decl->name + "'에러: 이미 해당 변수는 현재 스코프에서 사용중입니다.");
+            "'" + name + "'에러: 이미 해당 변수는 현재 스코프에서 사용중입니다.");
         // 에러가 나도 계속 진행한다 (fail-fast가 아니라 에러를 최대한 누적해서 보여주는 방식).
     }
 
     // [검사 2] 선언 시 자기 참조: var a = a + 1; 처럼 초기화식 안에서 자기 자신을 읽으면 에러.
-    // (p.73: "{ var a = a + 1; }")
     //
     // 핵심 아이디어: 초기화식을 검사하는 "동안에는" 아직 심볼 테이블에 변수를 등록하지 않는다.
     // 대신 지금 선언 중인 이름을 currentlyDeclaring에 기억해두고,
     // checkIdentifier에서 그 이름과 같은 식별자를 만나면 "자기 참조"로 판단한다.
     string previousDeclaring = currentlyDeclaring;
-    currentlyDeclaring = decl->name;
+    currentlyDeclaring = name;
 
-    if (decl->initExpr != nullptr) {
-        checkExpression(decl->initExpr);
-    }
+    checkExpression(decl->expr);
 
-    currentlyDeclaring = previousDeclaring; // 중첩된 var 선언을 대비해 이전 상태로 복원
+    currentlyDeclaring = previousDeclaring; // 중첩된 선언을 대비해 이전 상태로 복원
 
-    // 초기화식 검사가 모두 끝난 뒤에야 비로소 변수를 현재 스코프에 등록한다.
-    declare(decl->name);
+    declare(name);
 }
 
 void Checker::checkPrint(PrintStatement* stmt) {
@@ -126,7 +125,6 @@ void Checker::checkIdentifier(IdentifierExpression* id) {
     }
 
     // 그 외의 일반적인 경우: 스코프 체인 전체에서 선언 여부 확인.
-    // (슬라이드에는 명시되어 있지 않지만, 미선언 변수 참조도 의미 오류이므로 함께 검사)
     if (!isDeclaredInAnyScope(id->name)) {
         reportError(id->getLine(), "'" + id->name + "'에러: 선언되지 않은 변수입니다.");
     }
@@ -143,7 +141,7 @@ CheckResult Checker::check(SyntaxTree& tree) {
     scopes.clear();
     currentlyDeclaring.clear();
 
-    enterScope(); 
+    enterScope();
 
     // ASSUMPTION: SyntaxTree::getRoot()가 프로그램 전체를 감싸는 단일 Statement
     // (보통 최상위 BlockStatement)를 반환한다고 가정.
