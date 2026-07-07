@@ -5,6 +5,8 @@
 #include <utility>
 #include <vector>
 
+using Tokens = std::vector<Token>;
+
 namespace {
 
 // Binary operator precedence table, lowest to highest. parseExpression(level) consumes
@@ -41,7 +43,7 @@ const UnaryOperator kDefaultUnaryOperator = { TokenType::MINUS, TokenType::BANG 
 //   primary      -> NUMBER | STRING | TRUE | FALSE | IDENTIFIER | LEFT_PAREN expression(0) RIGHT_PAREN
 class Parser {
 public:
-    Parser(const std::vector<Token>& tokens, SyntaxTree& tree, const OperatorPriority& operatorPriority,
+    Parser(const Tokens& tokens, SyntaxTree& tree, const OperatorPriority& operatorPriority,
         const UnaryOperator& unaryOperator)
         : tokens(tokens), tree(tree), operatorPriority(operatorPriority), unaryOperator(unaryOperator) {}
 
@@ -66,17 +68,17 @@ private:
         Token printToken = advance();
         Expression* expr = parseExpression(0);
         Token semicolonToken = expectToken(TokenType::SEMICOLON, "Expect ';' after value.");
-        return addNode<PrintStatement>(std::vector<Token>{ printToken, semicolonToken }, expr);
+        return addNode<PrintStatement>(Tokens{ printToken, semicolonToken }, expr);
     }
 
     DeclareStatement* parseDeclareStatement() {
         Token varToken = advance();
         Token nameToken = expectToken(TokenType::IDENTIFIER, "Expect variable name.");
-        IdentifierExpression* identifier = addNode<IdentifierExpression>(std::vector<Token>{ nameToken }, nameToken.origin);
+        IdentifierExpression* identifier = addNode<IdentifierExpression>(Tokens{ nameToken }, nameToken.origin);
         Token equalToken = expectToken(TokenType::EQUAL, "Expect '=' after variable name.");
         Expression* expr = parseExpression(0);
         Token semicolonToken = expectToken(TokenType::SEMICOLON, "Expect ';' after value.");
-        return addNode<DeclareStatement>(std::vector<Token>{ varToken, equalToken, semicolonToken }, identifier, expr);
+        return addNode<DeclareStatement>(Tokens{ varToken, equalToken, semicolonToken }, identifier, expr);
     }
 
     BlockStatement* parseBlockStatement() {
@@ -85,7 +87,7 @@ private:
         while (!isAtEnd() && peek().type != TokenType::RIGHT_BRACE)
             statements.push_back(static_cast<Statement*>(parseStatement()));
         Token rightBrace = expectToken(TokenType::RIGHT_BRACE, "Expect '}' after block.");
-        return addNode<BlockStatement>(std::vector<Token>{ leftBrace, rightBrace }, statements);
+        return addNode<BlockStatement>(Tokens{ leftBrace, rightBrace }, statements);
     }
 
     IfStatement* parseIfStatement() {
@@ -95,7 +97,7 @@ private:
         Token rightParen = expectToken(TokenType::RIGHT_PAREN, "Expect ')' after if condition.");
         Statement* thenBranch = static_cast<Statement*>(parseStatement());
 
-        std::vector<Token> ownTokens{ ifToken, leftParen, rightParen };
+        Tokens ownTokens{ ifToken, leftParen, rightParen };
         Statement* elseBranch = nullptr;
         if (!isAtEnd() && peek().type == TokenType::ELSE) {
             ownTokens.push_back(advance());
@@ -116,14 +118,14 @@ private:
         Statement* loop = static_cast<Statement*>(parseStatement());
 
         return addNode<ForStatement>(
-            std::vector<Token>{ forToken, leftParen, firstSemicolon, secondSemicolon, rightParen },
+            Tokens{ forToken, leftParen, firstSemicolon, secondSemicolon, rightParen },
             init, compare, next, loop);
     }
 
     ExpressionStatement* parseExpressionStatement() {
         Expression* expr = parseExpression(0);
         Token semicolonToken = expectToken(TokenType::SEMICOLON, "Expect ';' after expression.");
-        return addNode<ExpressionStatement>(std::vector<Token>{ semicolonToken }, expr);
+        return addNode<ExpressionStatement>(Tokens{ semicolonToken }, expr);
     }
 
     // ---- Expressions ----
@@ -163,19 +165,19 @@ private:
         switch (token.type) {
             case TokenType::NUMBER:
                 advance();
-                return addNode<NumberExpression>(std::vector<Token>{ token }, std::stod(token.origin));
+                return addNode<NumberExpression>(Tokens{ token }, std::stod(token.origin));
             case TokenType::STRING:
                 advance();
-                return addNode<StringExpression>(std::vector<Token>{ token }, token.origin);
+                return addNode<StringExpression>(Tokens{ token }, token.origin);
             case TokenType::TRUE:
                 advance();
-                return addNode<BooleanExpression>(std::vector<Token>{ token }, true);
+                return addNode<BooleanExpression>(Tokens{ token }, true);
             case TokenType::FALSE:
                 advance();
-                return addNode<BooleanExpression>(std::vector<Token>{ token }, false);
+                return addNode<BooleanExpression>(Tokens{ token }, false);
             case TokenType::IDENTIFIER:
                 advance();
-                return addNode<IdentifierExpression>(std::vector<Token>{ token }, token.origin);
+                return addNode<IdentifierExpression>(Tokens{ token }, token.origin);
             case TokenType::LEFT_PAREN: {
                 advance();
                 Expression* expr = parseExpression(0);
@@ -204,25 +206,25 @@ private:
                 IdentifierExpression* identifier = dynamic_cast<IdentifierExpression*>(left);
                 if (!identifier)
                     throw std::invalid_argument("Invalid assignment target.");
-                return addNode<AssignExpression>(std::vector<Token>{ opToken }, identifier, right);
+                return addNode<AssignExpression>(Tokens{ opToken }, identifier, right);
             }
-            case TokenType::EQUAL_EQUAL: return addNode<EqualExpression>(std::vector<Token>{ opToken }, left, right);
-            case TokenType::BANG_EQUAL: return addNode<NotEqualExpression>(std::vector<Token>{ opToken }, left, right);
-            case TokenType::LESS: return addNode<LessExpression>(std::vector<Token>{ opToken }, left, right);
-            case TokenType::LESS_EQUAL: return addNode<LessEqualExpression>(std::vector<Token>{ opToken }, left, right);
-            case TokenType::GREATER: return addNode<GreaterExpression>(std::vector<Token>{ opToken }, left, right);
-            case TokenType::GREATER_EQUAL: return addNode<GreaterEqualExpression>(std::vector<Token>{ opToken }, left, right);
-            case TokenType::PLUS: return addNode<AddExpression>(std::vector<Token>{ opToken }, left, right);
-            case TokenType::MINUS: return addNode<SubExpression>(std::vector<Token>{ opToken }, left, right);
-            case TokenType::STAR: return addNode<MultExpression>(std::vector<Token>{ opToken }, left, right);
-            default: return addNode<DivideExpression>(std::vector<Token>{ opToken }, left, right);
+            case TokenType::EQUAL_EQUAL: return addNode<EqualExpression>(Tokens{ opToken }, left, right);
+            case TokenType::BANG_EQUAL: return addNode<NotEqualExpression>(Tokens{ opToken }, left, right);
+            case TokenType::LESS: return addNode<LessExpression>(Tokens{ opToken }, left, right);
+            case TokenType::LESS_EQUAL: return addNode<LessEqualExpression>(Tokens{ opToken }, left, right);
+            case TokenType::GREATER: return addNode<GreaterExpression>(Tokens{ opToken }, left, right);
+            case TokenType::GREATER_EQUAL: return addNode<GreaterEqualExpression>(Tokens{ opToken }, left, right);
+            case TokenType::PLUS: return addNode<AddExpression>(Tokens{ opToken }, left, right);
+            case TokenType::MINUS: return addNode<SubExpression>(Tokens{ opToken }, left, right);
+            case TokenType::STAR: return addNode<MultExpression>(Tokens{ opToken }, left, right);
+            default: return addNode<DivideExpression>(Tokens{ opToken }, left, right);
         }
     }
 
     Expression* makeUnaryExpression(const Token& opToken, Expression* operand) {
         switch (opToken.type) {
-            case TokenType::MINUS: return addNode<NegativeExpression>(std::vector<Token>{ opToken }, operand);
-            default: return addNode<NotExpression>(std::vector<Token>{ opToken }, operand);
+            case TokenType::MINUS: return addNode<NegativeExpression>(Tokens{ opToken }, operand);
+            default: return addNode<NotExpression>(Tokens{ opToken }, operand);
         }
     }
 
@@ -245,14 +247,14 @@ private:
     }
 
     template <typename NodeType, typename... Args>
-    NodeType* addNode(const std::vector<Token>& nodeTokens, Args&&... args) {
+    NodeType* addNode(const Tokens& nodeTokens, Args&&... args) {
         auto node = std::make_unique<NodeType>(nodeTokens, std::forward<Args>(args)...);
         NodeType* raw = node.get();
         tree.add(std::move(node));
         return raw;
     }
 
-    const std::vector<Token>& tokens;
+    const Tokens& tokens;
     SyntaxTree& tree;
     const OperatorPriority& operatorPriority;
     const UnaryOperator& unaryOperator;
@@ -261,7 +263,7 @@ private:
 
 }  // namespace
 
-std::unique_ptr<SyntaxTree> Assembler::assemble(const std::vector<Token> tokens) {
+std::unique_ptr<SyntaxTree> Assembler::assemble(const Tokens tokens) {
     auto tree = std::make_unique<SyntaxTree>();
     Parser parser(tokens, *tree, kDefaultOperatorPriority, kDefaultUnaryOperator);
     tree->setRoot(parser.parseStatement());
