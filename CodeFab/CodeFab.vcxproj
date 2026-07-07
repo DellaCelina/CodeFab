@@ -21,7 +21,7 @@
   <PropertyGroup Label="Globals">
     <VCProjectVersion>18.0</VCProjectVersion>
     <Keyword>Win32Proj</Keyword>
-    <ProjectGuid>{6529D521-D792-874C-5A19-51198F436EEC}</ProjectGuid>
+    <ProjectGuid>{89384359-983A-47C7-BF2E-FA827BB2A718}</ProjectGuid>
     <RootNamespace>CodeFab</RootNamespace>
     <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
@@ -149,6 +149,9 @@
     <ClCompile Include="TokenizerTest.cpp" />
     <ClCompile Include="Assembler.cpp" />
     <ClCompile Include="AssemblerTest.cpp" />
+    <ClCompile Include="ExecutorTest.cpp" />
+    <ClCompile Include="Executor.cpp" />
+    <ClCompile Include="Value.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Token.h" />
@@ -161,6 +164,8 @@
     <ClInclude Include="ExecuteInterface.h" />
     <ClInclude Include="RunPromptShell.h" />
     <ClInclude Include="Assembler.h" />
+    <ClInclude Include="Executor.h" />
+    <ClInclude Include="Value.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

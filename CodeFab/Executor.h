@@ -5,7 +5,8 @@
 #include <typeindex>
 #include <unordered_map>
 
-#include "MockSyntaxTree.h"
+#include "ExecuteInterface.h"
+#include "SyntaxTree.h"
 #include "Value.h"
 
 // Executes a SyntaxTree via recursive DFS.
@@ -13,16 +14,16 @@
 // Dispatch is done through a type_index -> handler table instead of a
 // dynamic_cast/switch chain, so adding a node kind never requires editing
 // evaluate()/execute() themselves — only registerDefaultHandlers() grows.
-class Executor {
+class Executor : public ExecuteInterface {
 public:
     // `out` defaults to std::cout but can be swapped for e.g. an
     // ostringstream in tests to capture what print statements write.
     explicit Executor(std::ostream& out = std::cout);
 
-    // Entry point: executes a whole program starting from the tree's root.
-    // The root is always a Statement (a program is a statement), so it's
-    // downcast once here rather than needing a SyntaxNode-level dispatch.
-    void run(SyntaxTree& tree);
+    // ExecuteInterface: entry point, executes a whole program starting from
+    // the tree's root. The root is always a Statement (a program is a
+    // statement), so it's downcast once here.
+    void execute(SyntaxTree& tree) override;
 
     // Executes a single statement node. Throws std::logic_error if no
     // handler was registered for its concrete type.
