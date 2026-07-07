@@ -14,9 +14,9 @@ namespace {
 // level runs past the table, it falls through to unary/primary parsing.
 // EQUAL (assignment) sits at the lowest level and is right-associative: its right
 // operand recurses back into the SAME level instead of level + 1.
-using OperatorPriority = std::vector<std::vector<TokenType>>;
+using OperatorsPriority = std::vector<std::vector<TokenType>>;
 
-const OperatorPriority kDefaultOperatorPriority = {
+const OperatorsPriority kDefaultOperatorPriority = {
     { TokenType::EQUAL },
     { TokenType::EQUAL_EQUAL, TokenType::BANG_EQUAL },
     { TokenType::LESS, TokenType::LESS_EQUAL, TokenType::GREATER, TokenType::GREATER_EQUAL },
@@ -25,9 +25,9 @@ const OperatorPriority kDefaultOperatorPriority = {
 };
 
 // Prefix operators parseUnary() recognizes, e.g. -x, !x.
-using UnaryOperator = std::vector<TokenType>;
+using UnaryOperators = std::vector<TokenType>;
 
-const UnaryOperator kDefaultUnaryOperator = { TokenType::MINUS, TokenType::BANG };
+const UnaryOperators kDefaultUnaryOperator = { TokenType::MINUS, TokenType::BANG };
 
 // Grammar (lowest to highest precedence):
 //   statement    -> printStmt | declareStmt | blockStmt | ifStmt | forStmt | exprStmt
@@ -43,8 +43,8 @@ const UnaryOperator kDefaultUnaryOperator = { TokenType::MINUS, TokenType::BANG 
 //   primary      -> NUMBER | STRING | TRUE | FALSE | IDENTIFIER | LEFT_PAREN expression(0) RIGHT_PAREN
 class Parser {
 public:
-    Parser(const Tokens& tokens, SyntaxTree& tree, const OperatorPriority& operatorPriority,
-        const UnaryOperator& unaryOperator)
+    Parser(const Tokens& tokens, SyntaxTree& tree, const OperatorsPriority& operatorPriority,
+        const UnaryOperators& unaryOperator)
         : tokens(tokens), tree(tree), operatorPriority(operatorPriority), unaryOperator(unaryOperator) {}
 
     SyntaxNode* parseStatement() {
@@ -140,9 +140,10 @@ private:
         Expression* left = parseExpression(level + 1);
         while (!isAtEnd() && isOperatorAtLevel(level, peek().type)) {
             Token opToken = advance();
-            Expression* right = opToken.type == TokenType::EQUAL
-                ? parseExpression(level)
-                : parseExpression(level + 1);
+
+            auto nextLevel = opToken.type == TokenType::EQUAL ? level : level + 1;
+            Expression* right = parseExpression(nextLevel);
+
             left = makeBinaryExpression(opToken, left, right);
         }
         return left;
@@ -256,8 +257,8 @@ private:
 
     const Tokens& tokens;
     SyntaxTree& tree;
-    const OperatorPriority& operatorPriority;
-    const UnaryOperator& unaryOperator;
+    const OperatorsPriority operatorPriority;
+    const UnaryOperators unaryOperator;
     size_t pos = 0;
 };
 
