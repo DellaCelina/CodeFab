@@ -29,43 +29,61 @@ void Executor::registerDefaultHandlers() {
         auto* add = static_cast<AddExpression*>(expr);
         Value left = evaluate(add->left);
         Value right = evaluate(add->right);
-        if (left.isString() && right.isString()) {
+        if (left.isString() && right.isString())
             return Value(left.asString() + right.asString());
-        }
-        return Value(left.asNumber() + right.asNumber());
+        if (left.isNumber() && right.isNumber())
+            return Value(left.asNumber() + right.asNumber());
+        throw RuntimeCodeFabError(0, std::string("타입 오류: ") + left.typeName() + " + " + right.typeName());
     };
 
     expressionHandlers_[std::type_index(typeid(SubExpression))] = [this](Expression* expr) {
         auto* sub = static_cast<SubExpression*>(expr);
-        return Value(evaluate(sub->left).asNumber() - evaluate(sub->right).asNumber());
+        Value left = evaluate(sub->left);
+        Value right = evaluate(sub->right);
+        requireNumberOperands(left, right, "-");
+        return Value(left.asNumber() - right.asNumber());
     };
 
     expressionHandlers_[std::type_index(typeid(MultExpression))] = [this](Expression* expr) {
         auto* mult = static_cast<MultExpression*>(expr);
-        return Value(evaluate(mult->left).asNumber() * evaluate(mult->right).asNumber());
+        Value left = evaluate(mult->left);
+        Value right = evaluate(mult->right);
+        requireNumberOperands(left, right, "*");
+        return Value(left.asNumber() * right.asNumber());
     };
 
     expressionHandlers_[std::type_index(typeid(DivideExpression))] = [this](Expression* expr) {
         auto* divide = static_cast<DivideExpression*>(expr);
-        double right = evaluate(divide->right).asNumber();
-        if (right == 0.0)
+        Value left = evaluate(divide->left);
+        Value right = evaluate(divide->right);
+        requireNumberOperands(left, right, "/");
+        if (right.asNumber() == 0.0)
             throw RuntimeCodeFabError(0, "0으로 나눌 수 없습니다");
-        return Value(evaluate(divide->left).asNumber() / right);
+        return Value(left.asNumber() / right.asNumber());
     };
 
     expressionHandlers_[std::type_index(typeid(NegativeExpression))] = [this](Expression* expr) {
         auto* negative = static_cast<NegativeExpression*>(expr);
-        return Value(-evaluate(negative->operand).asNumber());
+        Value operand = evaluate(negative->operand);
+        if (!operand.isNumber())
+            throw RuntimeCodeFabError(0, std::string("타입 오류: -") + operand.typeName());
+        return Value(-operand.asNumber());
     };
 
     expressionHandlers_[std::type_index(typeid(LessExpression))] = [this](Expression* expr) {
         auto* less = static_cast<LessExpression*>(expr);
-        return Value(evaluate(less->left).asNumber() < evaluate(less->right).asNumber());
+        Value left = evaluate(less->left);
+        Value right = evaluate(less->right);
+        requireNumberOperands(left, right, "<");
+        return Value(left.asNumber() < right.asNumber());
     };
 
     expressionHandlers_[std::type_index(typeid(GreaterExpression))] = [this](Expression* expr) {
         auto* greater = static_cast<GreaterExpression*>(expr);
-        return Value(evaluate(greater->left).asNumber() > evaluate(greater->right).asNumber());
+        Value left = evaluate(greater->left);
+        Value right = evaluate(greater->right);
+        requireNumberOperands(left, right, ">");
+        return Value(left.asNumber() > right.asNumber());
     };
 
     // TODO(variables & assignment): register handlers for
@@ -96,12 +114,18 @@ void Executor::registerDefaultHandlers() {
 
     expressionHandlers_[std::type_index(typeid(LessEqualExpression))] = [this](Expression* expr) {
         auto* lessEqual = static_cast<LessEqualExpression*>(expr);
-        return Value(evaluate(lessEqual->left).asNumber() <= evaluate(lessEqual->right).asNumber());
+        Value left = evaluate(lessEqual->left);
+        Value right = evaluate(lessEqual->right);
+        requireNumberOperands(left, right, "<=");
+        return Value(left.asNumber() <= right.asNumber());
     };
 
     expressionHandlers_[std::type_index(typeid(GreaterEqualExpression))] = [this](Expression* expr) {
         auto* greaterEqual = static_cast<GreaterEqualExpression*>(expr);
-        return Value(evaluate(greaterEqual->left).asNumber() >= evaluate(greaterEqual->right).asNumber());
+        Value left = evaluate(greaterEqual->left);
+        Value right = evaluate(greaterEqual->right);
+        requireNumberOperands(left, right, ">=");
+        return Value(left.asNumber() >= right.asNumber());
     };
 
     expressionHandlers_[std::type_index(typeid(NotExpression))] = [this](Expression* expr) {
@@ -133,6 +157,11 @@ void Executor::execute(Statement* stmt) {
         throw std::logic_error("Executor::execute: no handler registered for this statement node");
     }
     it->second(stmt);
+}
+
+void Executor::requireNumberOperands(const Value& left, const Value& right, const char* op) const {
+    if (!left.isNumber() || !right.isNumber())
+        throw RuntimeCodeFabError(0, std::string("타입 오류: ") + left.typeName() + " " + op + " " + right.typeName());
 }
 
 Value Executor::evaluate(Expression* expr) {

@@ -159,6 +159,38 @@ TEST_F(ExecutorTester, Evaluate_AddExpression_ConcatenatesStrings) {
     EXPECT_EQ(executor.evaluate(&add).asString(), "Hello, CodeFab!");
 }
 
+TEST_F(ExecutorTester, Evaluate_AddNumberAndString_ThrowsRuntimeError) {
+    NumberExpression three({}, 3);
+    StringExpression hello({}, "hello");
+    AddExpression add({}, &three, &hello);
+
+    EXPECT_THROW(executor.evaluate(&add), RuntimeCodeFabError);
+}
+
+TEST_F(ExecutorTester, Evaluate_SubStringAndNumber_ThrowsRuntimeError) {
+    StringExpression hello({}, "hello");
+    NumberExpression three({}, 3);
+    SubExpression sub({}, &hello, &three);
+
+    EXPECT_THROW(executor.evaluate(&sub), RuntimeCodeFabError);
+}
+
+TEST_F(ExecutorTester, Evaluate_AddBooleanAndNumber_ThrowsRuntimeError) {
+    BooleanExpression trueLiteral({}, true);
+    NumberExpression three({}, 3);
+    AddExpression add({}, &trueLiteral, &three);
+
+    EXPECT_THROW(executor.evaluate(&add), RuntimeCodeFabError);
+}
+
+TEST_F(ExecutorTester, Evaluate_MultStringAndBoolean_ThrowsRuntimeError) {
+    StringExpression hello({}, "hello");
+    BooleanExpression trueLiteral({}, true);
+    MultExpression mult({}, &hello, &trueLiteral);
+
+    EXPECT_THROW(executor.evaluate(&mult), RuntimeCodeFabError);
+}
+
 TEST_F(ExecutorTester, Evaluate_BooleanLiteral_ReturnsItsValue) {
     BooleanExpression trueLiteral({}, true);
     BooleanExpression falseLiteral({}, false);
