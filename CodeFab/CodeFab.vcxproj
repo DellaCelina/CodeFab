@@ -142,17 +142,12 @@
     <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="Token.h" />
-    <ClInclude Include="Tokenizer.h" />
-    <ClInclude Include="syntax_tree.h" />
-  </ItemGroup>
-  <ItemGroup>
     <ClCompile Include="main.cpp" />
     <ClCompile Include="SyntaxTree.cpp" />
     <ClCompile Include="RunPromptShell.cpp" />
     <ClCompile Include="RunPromptShellTest.cpp" />
     <ClCompile Include="Tokenizer.cpp" />
-    <ClCompile Include="Tokenizer_test.cpp" />
+    <ClCompile Include="TokenizerTest.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Token.h" />
