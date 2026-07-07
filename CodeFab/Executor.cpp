@@ -132,11 +132,23 @@ void Executor::registerDefaultHandlers() {
         }
     };
 
-    // TODO(control flow): register handlers for
-    //   IfStatement    -> evaluate(expr).isTruthy() ? execute(thenBranch)
-    //                      : (elseBranch ? execute(elseBranch) : void).
-    //   ForStatement   -> execute(init-as-statement or evaluate as expr);
-    //     while (evaluate(compare).isTruthy()) { execute(loop); evaluate(next); }
+    statementHandlers_[std::type_index(typeid(IfStatement))] = [this](Statement* stmt) {
+        auto* ifStmt = static_cast<IfStatement*>(stmt);
+        if (evaluate(ifStmt->expr).isTruthy()) {
+            execute(ifStmt->thenBranch);
+        } else if (ifStmt->elseBranch) {
+            execute(ifStmt->elseBranch);
+        }
+    };
+
+    statementHandlers_[std::type_index(typeid(ForStatement))] = [this](Statement* stmt) {
+        auto* forStmt = static_cast<ForStatement*>(stmt);
+        evaluate(forStmt->init);
+        while (evaluate(forStmt->compare).isTruthy()) {
+            execute(forStmt->loop);
+            evaluate(forStmt->next);
+        }
+    };
 
     // TODO(remaining operators & runtime errors): register handlers for
     //   EqualExpression, NotEqualExpression, LessEqualExpression,
