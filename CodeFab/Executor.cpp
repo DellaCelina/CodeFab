@@ -2,11 +2,16 @@
 
 #include <stdexcept>
 
-Executor::Executor() {
+Executor::Executor(std::ostream& out) : out_(out) {
     registerDefaultHandlers();
 }
 
 void Executor::registerDefaultHandlers() {
+    statementHandlers_[std::type_index(typeid(PrintStatement))] = [this](Statement* stmt) {
+        auto* print = static_cast<PrintStatement*>(stmt);
+        out_ << evaluate(print->expr).toString() << std::endl;
+    };
+
     expressionHandlers_[std::type_index(typeid(NumberExpression))] = [](Expression* expr) {
         return Value(static_cast<NumberExpression*>(expr)->value);
     };
@@ -20,6 +25,14 @@ void Executor::registerDefaultHandlers() {
         auto* mult = static_cast<MultExpression*>(expr);
         return Value(evaluate(mult->left).asNumber() * evaluate(mult->right).asNumber());
     };
+}
+
+void Executor::execute(Statement* stmt) {
+    auto it = statementHandlers_.find(std::type_index(typeid(*stmt)));
+    if (it == statementHandlers_.end()) {
+        throw std::logic_error("Executor::execute: no handler registered for this statement node");
+    }
+    it->second(stmt);
 }
 
 Value Executor::evaluate(Expression* expr) {

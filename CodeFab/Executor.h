@@ -1,6 +1,7 @@
 #pragma once
 
 #include <functional>
+#include <iostream>
 #include <typeindex>
 #include <unordered_map>
 
@@ -14,7 +15,13 @@
 // evaluate()/execute() themselves — only registerDefaultHandlers() grows.
 class Executor {
 public:
-    Executor();
+    // `out` defaults to std::cout but can be swapped for e.g. an
+    // ostringstream in tests to capture what print statements write.
+    explicit Executor(std::ostream& out = std::cout);
+
+    // Executes a single statement node. Throws std::logic_error if no
+    // handler was registered for its concrete type.
+    void execute(Statement* stmt);
 
     // Evaluates a single expression node and returns its Value. Throws
     // std::logic_error if no handler was registered for its concrete type.
@@ -23,5 +30,7 @@ public:
 private:
     void registerDefaultHandlers();
 
+    std::ostream& out_;
+    std::unordered_map<std::type_index, std::function<void(Statement*)>> statementHandlers_;
     std::unordered_map<std::type_index, std::function<Value(Expression*)>> expressionHandlers_;
 };
