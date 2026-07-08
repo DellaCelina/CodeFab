@@ -3,6 +3,38 @@
 #include <stdexcept>
 #include "ShellErrors.h"
 
+#include "ShellErrors.h"
+
+namespace {
+// TODO: replace with the offending node's own line once
+// SyntaxNode::getLine() (added in PR #5) lands on this branch.
+constexpr int kUnknownLine = 0;
+
+RuntimeCodeFabError undefinedVariableError(const std::string& name) {
+    return RuntimeCodeFabError(kUnknownLine, "'" + name + "' 변수가 정의되지 않았습니다.");
+}
+
+// Pushes a new scope on construction and guarantees it's popped when the
+// block ends, whether that's normal control flow or an exception unwinding
+// through it (e.g. a statement inside the block throwing).
+class ScopeGuard {
+public:
+    explicit ScopeGuard(Environment& environment) : environment_(environment) {
+        environment_.pushScope();
+    }
+
+    ~ScopeGuard() {
+        environment_.popScope();
+    }
+
+    ScopeGuard(const ScopeGuard&) = delete;
+    ScopeGuard& operator=(const ScopeGuard&) = delete;
+
+private:
+    Environment& environment_;
+};
+}  // namespace
+
 Executor::Executor(std::ostream& out) : out_(out) {
     registerDefaultHandlers();
 }
@@ -94,21 +126,59 @@ void Executor::registerDefaultHandlers() {
         return Value(left.asNumber() > right.asNumber());
     };
 
-    // TODO(variables & assignment): register handlers for
-    //   IdentifierExpression -> environment_.lookup(name); throw
-    //     RuntimeCodeFabError(node->getLine(), "...") if undefined.
-    //   DeclareStatement      -> environment_.define(identifier->name, evaluate(expr))
-    //   AssignExpression      -> value = evaluate(value); if (!environment_.assign(...))
-    //     throw RuntimeCodeFabError(...) for undefined target; return value.
+    expressionHandlers_[std::type_index(typeid(IdentifierExpression))] = [this](Expression* expr) {
+        auto* identifier = static_cast<IdentifierExpression*>(expr);
+        auto value = environment_.lookup(identifier->name);
+        if (!value) {
+            throw undefinedVariableError(identifier->name);
+        }
+        return *value;
+    };
 
-    // TODO(block scope & control flow): register handlers for
-    //   BlockStatement -> environment_.pushScope(); execute each statement;
-    //     environment_.popScope() (use try/finally-style RAII or catch+rethrow
-    //     so scope still pops if a statement throws).
-    //   IfStatement    -> evaluate(expr).isTruthy() ? execute(thenBranch)
-    //                      : (elseBranch ? execute(elseBranch) : void).
-    //   ForStatement   -> execute(init-as-statement or evaluate as expr);
-    //     while (evaluate(compare).isTruthy()) { execute(loop); evaluate(next); }
+    expressionHandlers_[std::type_index(typeid(AssignExpression))] = [this](Expression* expr) {
+        auto* assign = static_cast<AssignExpression*>(expr);
+        Value value = evaluate(assign->value);
+        if (!environment_.assign(assign->identifier->name, value)) {
+            throw undefinedVariableError(assign->identifier->name);
+        }
+        return value;
+    };
+
+    statementHandlers_[std::type_index(typeid(DeclareStatement))] = [this](Statement* stmt) {
+        auto* decl = static_cast<DeclareStatement*>(stmt);
+        environment_.define(decl->identifier->name, evaluate(decl->expr));
+    };
+
+    statementHandlers_[std::type_index(typeid(ExpressionStatement))] = [this](Statement* stmt) {
+        auto* exprStmt = static_cast<ExpressionStatement*>(stmt);
+        evaluate(exprStmt->expr);
+    };
+
+    statementHandlers_[std::type_index(typeid(BlockStatement))] = [this](Statement* stmt) {
+        auto* block = static_cast<BlockStatement*>(stmt);
+        ScopeGuard guard(environment_);
+        for (Statement* inner : block->statements) {
+            execute(inner);
+        }
+    };
+
+    statementHandlers_[std::type_index(typeid(IfStatement))] = [this](Statement* stmt) {
+        auto* ifStmt = static_cast<IfStatement*>(stmt);
+        if (evaluate(ifStmt->expr).isTruthy()) {
+            execute(ifStmt->thenBranch);
+        } else if (ifStmt->elseBranch) {
+            execute(ifStmt->elseBranch);
+        }
+    };
+
+    statementHandlers_[std::type_index(typeid(ForStatement))] = [this](Statement* stmt) {
+        auto* forStmt = static_cast<ForStatement*>(stmt);
+        evaluate(forStmt->init);
+        while (evaluate(forStmt->compare).isTruthy()) {
+            execute(forStmt->loop);
+            evaluate(forStmt->next);
+        }
+    };
 
     expressionHandlers_[std::type_index(typeid(EqualExpression))] = [this](Expression* expr) {
         auto* equal = static_cast<EqualExpression*>(expr);
@@ -140,7 +210,6 @@ void Executor::registerDefaultHandlers() {
         auto* notExpr = static_cast<NotExpression*>(expr);
         return Value(!evaluate(notExpr->operand).isTruthy());
     };
-
 }
 
 void Executor::execute(SyntaxTree& tree) {

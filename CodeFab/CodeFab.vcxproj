@@ -152,6 +152,8 @@
     <ClCompile Include="Assembler.cpp" />
     <ClCompile Include="AssemblerTest.cpp" />
     <ClCompile Include="ExecutorTest.cpp" />
+    <ClCompile Include="ExecutorVariableTest.cpp" />
+    <ClCompile Include="ExecutorControlFlowTest.cpp" />
     <ClCompile Include="Executor.cpp" />
     <ClCompile Include="Value.cpp" />
     <ClCompile Include="Environment.cpp" />
