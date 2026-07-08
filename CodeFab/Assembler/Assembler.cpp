@@ -288,6 +288,10 @@ private:
 
 }  // namespace
 
+Assembler::Assembler(TokenizeInterface& tokenizer, SourceReaderInterface& sourceReader)
+    : tokenizer_(tokenizer), sourceReader_(sourceReader) {
+}
+
 SyntaxTree Assembler::assemble(const Tokens& tokens) {
     SyntaxTree tree;
     Parser parser(tokens, tree, kDefaultOperatorPriority, kDefaultUnaryOperator);

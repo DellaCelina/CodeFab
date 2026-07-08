@@ -31,6 +31,14 @@ public:
     // Looks up `name` from local -> global. Returns nullopt if not found.
     std::optional<Value> lookup(const std::string& name) const;
 
+    // 정적 바인딩(실행전 최적화, Architecture.md §6.1) 전용 접근자. `distance`
+    // 단계만큼 안쪽(back)에서 바깥쪽으로 건너뛴 정확히 그 스코프에서만
+    // 조회/대입한다(0 = 현재 스코프). Checker의 Resolver가 IdentifierExpression::depth
+    // 에 채워 넣은 값을 그대로 넘기면 된다 - 스코프 깊이와 무관한 상수 시간
+    // 접근이라 lookup()/assign()의 매번 전체 스코프를 훑는 동적 조회보다 빠르다.
+    std::optional<Value> lookupAt(int distance, const std::string& name) const;
+    bool assignAt(int distance, const std::string& name, const Value& value);
+
 private:
     std::vector<Scope> scopes_;
 };

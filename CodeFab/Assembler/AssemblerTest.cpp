@@ -2,11 +2,15 @@
 
 #include "gmock/gmock.h"
 #include "Assembler.h"
+#include "FileSourceReader.h"
+#include "../Tokenizer/Tokenizer.h"
 
 using namespace testing;
 
 struct AssemblerTester : public Test {
-    Assembler assembler;
+    Tokenizer tokenizer;
+    FileSourceReader sourceReader;
+    Assembler assembler{ tokenizer, sourceReader };
 };
 
 TEST_F(AssemblerTester, PrintWithExpressionTest) {

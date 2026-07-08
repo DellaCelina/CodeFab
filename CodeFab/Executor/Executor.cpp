@@ -1,6 +1,7 @@
 ﻿#include "Executor.h"
 
 #include <stdexcept>
+#include <utility>
 
 namespace {
 
@@ -114,7 +115,13 @@ void Executor::registerDefaultHandlers() {
 
     expressionHandlers_[std::type_index(typeid(IdentifierExpression))] = [this](Expression* expr) {
         auto* identifier = static_cast<IdentifierExpression*>(expr);
-        auto value = environment_.lookup(identifier->name);
+        // depth가 채워져 있으면(Checker의 Resolver가 계산한 정적 바인딩 결과,
+        // Architecture.md §6.1) 스코프를 훑지 않고 바로 그 스코프에서 조회한다.
+        // 아직 아무도 depth를 채우지 않는 동안에는(Resolver 미구현) 항상
+        // nullopt라서 기존과 동일하게 동적 조회로 동작한다.
+        auto value = identifier->depth
+            ? environment_.lookupAt(*identifier->depth, identifier->name)
+            : environment_.lookup(identifier->name);
         if (!value) {
             throw undefinedVariableError(identifier->name);
         }
@@ -123,9 +130,20 @@ void Executor::registerDefaultHandlers() {
 
     expressionHandlers_[std::type_index(typeid(AssignExpression))] = [this](Expression* expr) {
         auto* assign = static_cast<AssignExpression*>(expr);
+        // 지금은 target이 항상 IdentifierExpression이다 (Assembler가 그 외의
+        // 대입 대상을 아직 만들지 않는다). FieldAccessExpression/IndexExpression
+        // 대입(3일차 확장, Architecture.md §4.3/§5.3)이 추가되면 이 자리에 분기를
+        // 늘리면 된다.
+        auto* identifier = dynamic_cast<IdentifierExpression*>(assign->target);
+        if (!identifier) {
+            throw ExecutorError("아직 지원하지 않는 대입 대상입니다.");
+        }
         Value value = evaluate(assign->value);
-        if (!environment_.assign(assign->identifier->name, value)) {
-            throw undefinedVariableError(assign->identifier->name);
+        bool assigned = identifier->depth
+            ? environment_.assignAt(*identifier->depth, identifier->name, value)
+            : environment_.assign(identifier->name, value);
+        if (!assigned) {
+            throw undefinedVariableError(identifier->name);
         }
         return value;
     };
@@ -210,11 +228,22 @@ void Executor::execute(SyntaxTree& tree) {
 }
 
 void Executor::execute(Statement* stmt) {
+    if (statementHook_) {
+        statementHook_(stmt);
+    }
     auto it = statementHandlers_.find(std::type_index(typeid(*stmt)));
     if (it == statementHandlers_.end()) {
         throw std::logic_error("Executor::execute: no handler registered for this statement node");
     }
     it->second(stmt);
+}
+
+const Environment& Executor::environment() const {
+    return environment_;
+}
+
+void Executor::setStatementHook(StatementHook hook) {
+    statementHook_ = std::move(hook);
 }
 
 void Executor::requireNumberOperands(const Value& left, const Value& right, const char* op) const {

@@ -32,7 +32,18 @@ public:
 
     // Evaluates a single expression node and returns its Value. Throws
     // std::logic_error if no handler was registered for its concrete type.
-    Value evaluate(Expression* expr);
+    Value evaluate(Expression* expr) override;
+
+    // ExecuteInterface: 현재 변수 저장소를 읽기 전용으로 노출한다 (디버그 모드의
+    // watch/inspect 용, Architecture.md §9.3).
+    const Environment& environment() const override;
+
+    // 디버그 모드(Shell) 전용 훅. Statement 하나를 실제로 실행하기 직전에 매번
+    // 호출된다. RunPromptShell/FileRunMode는 이 훅을 설정하지 않으므로 기존
+    // 동작에 영향이 없다. ExecuteInterface에는 포함하지 않는다 - 디버그 모드만
+    // 이 구체 타입(Executor)에 직접 의존해서 쓴다 (Architecture.md §9.3 참고).
+    using StatementHook = std::function<void(Statement*)>;
+    void setStatementHook(StatementHook hook);
 
 private:
     void registerDefaultHandlers();
@@ -40,6 +51,7 @@ private:
 
     std::ostream& out_;
     Environment environment_;
+    StatementHook statementHook_;
     std::unordered_map<std::type_index, std::function<void(Statement*)>> statementHandlers_;
     std::unordered_map<std::type_index, std::function<Value(Expression*)>> expressionHandlers_;
 };

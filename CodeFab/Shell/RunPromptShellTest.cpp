@@ -10,6 +10,7 @@
 
 #include "../Assembler/Assembler.h"
 #include "../Assembler/AssemblerInterface.h"
+#include "../Assembler/FileSourceReader.h"
 #include "../Checker/Checker.h"
 #include "../Checker/CheckerInterface.h"
 #include "../Executor/ExecuteInterface.h"
@@ -51,6 +52,8 @@ public:
 class MockExecutor : public ExecuteInterface {
 public:
     MOCK_METHOD(void, execute, (SyntaxTree & tree), (override));
+    MOCK_METHOD(Value, evaluate, (Expression * expr), (override));
+    MOCK_METHOD(const Environment&, environment, (), (const, override));
 };
 
 class RunPromptShellTest : public ::testing::Test {
@@ -297,11 +300,14 @@ TEST_F(RunPromptShellTest, ErrorOnOneLine_DoesNotPreventNextLineFromRunning) {
 // ============================================================================
 class RunPromptShellIntegrationTest : public ::testing::Test {
 protected:
+    // 선언 순서 = 생성 순서: assembler/checker가 참조로 물고 있는 tokenizer,
+    // sourceReader, executor가 먼저 만들어져 있어야 한다.
     Tokenizer tokenizer;
-    Assembler assembler;
-    Checker checker;
+    FileSourceReader sourceReader;
+    Assembler assembler{tokenizer, sourceReader};
     std::ostringstream programOutput;  // Executor가 print 결과를 쓰는 곳 (out과는 별개)
     Executor executor{programOutput};
+    Checker checker{executor};
 
     RunPromptShell shell{tokenizer, assembler, checker, executor};
 

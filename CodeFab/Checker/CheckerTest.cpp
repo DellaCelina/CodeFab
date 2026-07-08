@@ -1,5 +1,8 @@
-﻿#include "gmock/gmock.h"
+﻿#include <sstream>
+
+#include "gmock/gmock.h"
 #include "Checker.h"
+#include "../Executor/Executor.h"
 
 // ---------------------------------------------------------------------------
 // 테스트용 mock 트리 생성 헬퍼
@@ -44,7 +47,9 @@ TEST(CheckerTest, PrintExpressionWithNoErrorsPasses) {
     tree.add(std::move(block));
     tree.setRoot(rootRaw);
 
-    Checker checker;
+    std::ostringstream executorOutput;
+    Executor executor(executorOutput);
+    Checker checker(executor);
     EXPECT_TRUE(checker.check(tree));
 }
 
@@ -77,7 +82,9 @@ TEST(CheckerTest, DuplicateDeclarationInSameScopeReportsError) {
     tree.add(std::move(block));
     tree.setRoot(rootRaw);
 
-    Checker checker;
+    std::ostringstream executorOutput;
+    Executor executor(executorOutput);
+    Checker checker(executor);
     try {
         checker.check(tree);
         FAIL() << "CheckerError가 발생해야 합니다.";
@@ -114,7 +121,9 @@ TEST(CheckerTest, SelfReferenceInInitializerReportsError) {
     tree.add(std::move(block));
     tree.setRoot(rootRaw);
 
-    Checker checker;
+    std::ostringstream executorOutput;
+    Executor executor(executorOutput);
+    Checker checker(executor);
     try {
         checker.check(tree);
         FAIL() << "CheckerError가 발생해야 합니다.";
@@ -133,7 +142,9 @@ TEST(CheckerTest, SelfReferenceInInitializerReportsError) {
 // 선언한 전역 변수는 다음 호출에서도 "선언된 변수"로 남아있어야 한다.
 // ---------------------------------------------------------------------------
 TEST(CheckerTest, VariableDeclaredInEarlierCallIsVisibleToLaterCall) {
-    Checker checker;
+    std::ostringstream executorOutput;
+    Executor executor(executorOutput);
+    Checker checker(executor);
 
     SyntaxTree declareTree;
     auto declIdent = std::make_unique<IdentifierExpression>(testTokens(TokenType::IDENTIFIER, "a", 1), "a");
@@ -162,7 +173,9 @@ TEST(CheckerTest, VariableDeclaredInEarlierCallIsVisibleToLaterCall) {
 // print notDefined;   (선언된 적 없는 변수 - 세션 전체에 걸쳐도 여전히 에러여야 한다)
 // ---------------------------------------------------------------------------
 TEST(CheckerTest, UndefinedVariableAcrossCallsStillReportsError) {
-    Checker checker;
+    std::ostringstream executorOutput;
+    Executor executor(executorOutput);
+    Checker checker(executor);
 
     SyntaxTree tree;
     auto idNotDefined = std::make_unique<IdentifierExpression>(testTokens(TokenType::IDENTIFIER, "notDefined", 1), "notDefined");
