@@ -1,11 +1,26 @@
-﻿#include <vector>
+﻿#include <unordered_map>
+#include <vector>
 
 #include "gmock/gmock.h"
 #include "Assembler.h"
 #include "FileSourceReader.h"
+#include "SourceReaderInterface.h"
 #include "../Tokenizer/Tokenizer.h"
 
 using namespace testing;
+
+// import 관련 테스트에서 실제 파일 시스템 없이 "경로 -> 토큰 목록"을 흉내내기
+// 위한 인메모리 Fake. 등록되지 않은 경로를 read()하면 예외를 던진다.
+struct FakeSourceReader : public SourceReaderInterface {
+    std::unordered_map<std::string, std::vector<Token>> files;
+
+    std::vector<Token> read(const std::string& path) override {
+        auto it = files.find(path);
+        if (it == files.end())
+            throw std::runtime_error("file not found: " + path);
+        return it->second;
+    }
+};
 
 struct AssemblerTester : public Test {
     Tokenizer tokenizer;
@@ -551,4 +566,533 @@ TEST_F(AssemblerTester, MissingClosingBraceThrowsTest) {
     } catch (const AssemblerError& error) {
         EXPECT_THAT(error.what(), HasSubstr("Expect '}' after block."));
     }
+}
+
+// ============================================================================
+// 3일차 확장: postfix 체인 (call / field access / index)
+// ============================================================================
+
+TEST_F(AssemblerTester, CallExpressionTest) {
+    // add(1, 2);
+    std::vector<Token> tokens = {
+        { TokenType::IDENTIFIER, "add", 0},
+        { TokenType::LEFT_PAREN, "(", 0},
+        { TokenType::NUMBER, "1", 0},
+        { TokenType::COMMA, ",", 0},
+        { TokenType::NUMBER, "2", 0},
+        { TokenType::RIGHT_PAREN, ")", 0},
+        { TokenType::SEMICOLON, ";", 0},
+    };
+
+    auto tree = assembler.assemble(tokens);
+    auto root = tree.getRoot();
+
+    IdentifierExpression callee({ tokens[0] }, "add");
+    NumberExpression one({ tokens[2] }, 1);
+    NumberExpression two({ tokens[4] }, 2);
+    CallExpression call({ tokens[1], tokens[5] }, &callee, { &one, &two });
+    ExpressionStatement golden({ tokens[6] }, &call);
+
+    EXPECT_EQ(*root, golden);
+}
+
+TEST_F(AssemblerTester, CallExpressionNoArgsTest) {
+    // foo();
+    std::vector<Token> tokens = {
+        { TokenType::IDENTIFIER, "foo", 0},
+        { TokenType::LEFT_PAREN, "(", 0},
+        { TokenType::RIGHT_PAREN, ")", 0},
+        { TokenType::SEMICOLON, ";", 0},
+    };
+
+    auto tree = assembler.assemble(tokens);
+    auto root = tree.getRoot();
+
+    IdentifierExpression callee({ tokens[0] }, "foo");
+    CallExpression call({ tokens[1], tokens[2] }, &callee, {});
+    ExpressionStatement golden({ tokens[3] }, &call);
+
+    EXPECT_EQ(*root, golden);
+}
+
+TEST_F(AssemblerTester, FieldAccessExpressionTest) {
+    // r.speed;
+    std::vector<Token> tokens = {
+        { TokenType::IDENTIFIER, "r", 0},
+        { TokenType::DOT, ".", 0},
+        { TokenType::IDENTIFIER, "speed", 0},
+        { TokenType::SEMICOLON, ";", 0},
+    };
+
+    auto tree = assembler.assemble(tokens);
+    auto root = tree.getRoot();
+
+    IdentifierExpression object({ tokens[0] }, "r");
+    FieldAccessExpression access({ tokens[1] }, &object, tokens[2]);
+    ExpressionStatement golden({ tokens[3] }, &access);
+
+    EXPECT_EQ(*root, golden);
+}
+
+TEST_F(AssemblerTester, MethodCallExpressionTest) {
+    // r.move(5);
+    std::vector<Token> tokens = {
+        { TokenType::IDENTIFIER, "r", 0},
+        { TokenType::DOT, ".", 0},
+        { TokenType::IDENTIFIER, "move", 0},
+        { TokenType::LEFT_PAREN, "(", 0},
+        { TokenType::NUMBER, "5", 0},
+        { TokenType::RIGHT_PAREN, ")", 0},
+        { TokenType::SEMICOLON, ";", 0},
+    };
+
+    auto tree = assembler.assemble(tokens);
+    auto root = tree.getRoot();
+
+    IdentifierExpression object({ tokens[0] }, "r");
+    FieldAccessExpression access({ tokens[1] }, &object, tokens[2]);
+    NumberExpression five({ tokens[4] }, 5);
+    CallExpression call({ tokens[3], tokens[5] }, &access, { &five });
+    ExpressionStatement golden({ tokens[6] }, &call);
+
+    EXPECT_EQ(*root, golden);
+}
+
+TEST_F(AssemblerTester, IndexExpressionTest) {
+    // arr[0];
+    std::vector<Token> tokens = {
+        { TokenType::IDENTIFIER, "arr", 0},
+        { TokenType::LEFT_BRACKET, "[", 0},
+        { TokenType::NUMBER, "0", 0},
+        { TokenType::RIGHT_BRACKET, "]", 0},
+        { TokenType::SEMICOLON, ";", 0},
+    };
+
+    auto tree = assembler.assemble(tokens);
+    auto root = tree.getRoot();
+
+    IdentifierExpression collection({ tokens[0] }, "arr");
+    NumberExpression zero({ tokens[2] }, 0);
+    IndexExpression index({ tokens[1], tokens[3] }, &collection, &zero);
+    ExpressionStatement golden({ tokens[4] }, &index);
+
+    EXPECT_EQ(*root, golden);
+}
+
+TEST_F(AssemblerTester, ChainedPostfixTest) {
+    // r.list[0]();
+    std::vector<Token> tokens = {
+        { TokenType::IDENTIFIER, "r", 0},
+        { TokenType::DOT, ".", 0},
+        { TokenType::IDENTIFIER, "list", 0},
+        { TokenType::LEFT_BRACKET, "[", 0},
+        { TokenType::NUMBER, "0", 0},
+        { TokenType::RIGHT_BRACKET, "]", 0},
+        { TokenType::LEFT_PAREN, "(", 0},
+        { TokenType::RIGHT_PAREN, ")", 0},
+        { TokenType::SEMICOLON, ";", 0},
+    };
+
+    auto tree = assembler.assemble(tokens);
+    auto root = tree.getRoot();
+
+    IdentifierExpression r({ tokens[0] }, "r");
+    FieldAccessExpression list({ tokens[1] }, &r, tokens[2]);
+    NumberExpression zero({ tokens[4] }, 0);
+    IndexExpression index({ tokens[3], tokens[5] }, &list, &zero);
+    CallExpression call({ tokens[6], tokens[7] }, &index, {});
+    ExpressionStatement golden({ tokens[8] }, &call);
+
+    EXPECT_EQ(*root, golden);
+}
+
+// ============================================================================
+// 3일차 확장: This / Array / 대입 대상 일반화
+// ============================================================================
+
+TEST_F(AssemblerTester, ThisFieldAssignmentTest) {
+    // This.speed = speed;
+    std::vector<Token> tokens = {
+        { TokenType::THIS, "This", 0},
+        { TokenType::DOT, ".", 0},
+        { TokenType::IDENTIFIER, "speed", 0},
+        { TokenType::EQUAL, "=", 0},
+        { TokenType::IDENTIFIER, "speed", 0},
+        { TokenType::SEMICOLON, ";", 0},
+    };
+
+    auto tree = assembler.assemble(tokens);
+    auto root = tree.getRoot();
+
+    ThisExpression thisExpr({ tokens[0] });
+    FieldAccessExpression target({ tokens[1] }, &thisExpr, tokens[2]);
+    IdentifierExpression value({ tokens[4] }, "speed");
+    AssignExpression assign({ tokens[3] }, &target, &value);
+    ExpressionStatement golden({ tokens[5] }, &assign);
+
+    EXPECT_EQ(*root, golden);
+}
+
+TEST_F(AssemblerTester, ArrayExpressionTest) {
+    // var a = Array(3);
+    std::vector<Token> tokens = {
+        { TokenType::VAR, "var", 0},
+        { TokenType::IDENTIFIER, "a", 0},
+        { TokenType::EQUAL, "=", 0},
+        { TokenType::ARRAY, "Array", 0},
+        { TokenType::LEFT_PAREN, "(", 0},
+        { TokenType::NUMBER, "3", 0},
+        { TokenType::RIGHT_PAREN, ")", 0},
+        { TokenType::SEMICOLON, ";", 0},
+    };
+
+    auto tree = assembler.assemble(tokens);
+    auto root = tree.getRoot();
+
+    IdentifierExpression a({ tokens[1] }, "a");
+    NumberExpression three({ tokens[5] }, 3);
+    ArrayExpression arrayExpr({ tokens[3] }, &three);
+    DeclareStatement golden({ tokens[0], tokens[2], tokens[7] }, &a, &arrayExpr);
+
+    EXPECT_EQ(*root, golden);
+}
+
+TEST_F(AssemblerTester, IndexAssignmentTest) {
+    // arr[0] = 5;
+    std::vector<Token> tokens = {
+        { TokenType::IDENTIFIER, "arr", 0},
+        { TokenType::LEFT_BRACKET, "[", 0},
+        { TokenType::NUMBER, "0", 0},
+        { TokenType::RIGHT_BRACKET, "]", 0},
+        { TokenType::EQUAL, "=", 0},
+        { TokenType::NUMBER, "5", 0},
+        { TokenType::SEMICOLON, ";", 0},
+    };
+
+    auto tree = assembler.assemble(tokens);
+    auto root = tree.getRoot();
+
+    IdentifierExpression collection({ tokens[0] }, "arr");
+    NumberExpression zero({ tokens[2] }, 0);
+    IndexExpression target({ tokens[1], tokens[3] }, &collection, &zero);
+    NumberExpression five({ tokens[5] }, 5);
+    AssignExpression assign({ tokens[4] }, &target, &five);
+    ExpressionStatement golden({ tokens[6] }, &assign);
+
+    EXPECT_EQ(*root, golden);
+}
+
+TEST_F(AssemblerTester, FieldAssignmentTest) {
+    // r.speed = 10;
+    std::vector<Token> tokens = {
+        { TokenType::IDENTIFIER, "r", 0},
+        { TokenType::DOT, ".", 0},
+        { TokenType::IDENTIFIER, "speed", 0},
+        { TokenType::EQUAL, "=", 0},
+        { TokenType::NUMBER, "10", 0},
+        { TokenType::SEMICOLON, ";", 0},
+    };
+
+    auto tree = assembler.assemble(tokens);
+    auto root = tree.getRoot();
+
+    IdentifierExpression object({ tokens[0] }, "r");
+    FieldAccessExpression target({ tokens[1] }, &object, tokens[2]);
+    NumberExpression ten({ tokens[4] }, 10);
+    AssignExpression assign({ tokens[3] }, &target, &ten);
+    ExpressionStatement golden({ tokens[5] }, &assign);
+
+    EXPECT_EQ(*root, golden);
+}
+
+TEST_F(AssemblerTester, InvalidAssignmentTargetNumberThrowsTest) {
+    // 1 = 2;   (숫자 리터럴은 여전히 잘못된 대입 대상)
+    std::vector<Token> tokens = {
+        { TokenType::NUMBER, "1", 0},
+        { TokenType::EQUAL, "=", 0},
+        { TokenType::NUMBER, "2", 0},
+        { TokenType::SEMICOLON, ";", 0},
+    };
+
+    EXPECT_THROW(assembler.assemble(tokens), AssemblerError);
+}
+
+// ============================================================================
+// 3일차 확장: 함수 선언 / return
+// ============================================================================
+
+TEST_F(AssemblerTester, FunctionDeclareStatementTest) {
+    // Func add(a, b) { return a + b; }
+    std::vector<Token> tokens = {
+        { TokenType::FUNC, "Func", 0},
+        { TokenType::IDENTIFIER, "add", 0},
+        { TokenType::LEFT_PAREN, "(", 0},
+        { TokenType::IDENTIFIER, "a", 0},
+        { TokenType::COMMA, ",", 0},
+        { TokenType::IDENTIFIER, "b", 0},
+        { TokenType::RIGHT_PAREN, ")", 0},
+        { TokenType::LEFT_BRACE, "{", 0},
+        { TokenType::RETURN, "return", 0},
+        { TokenType::IDENTIFIER, "a", 0},
+        { TokenType::PLUS, "+", 0},
+        { TokenType::IDENTIFIER, "b", 0},
+        { TokenType::SEMICOLON, ";", 0},
+        { TokenType::RIGHT_BRACE, "}", 0},
+    };
+
+    auto tree = assembler.assemble(tokens);
+    auto root = tree.getRoot();
+
+    IdentifierExpression aRef({ tokens[9] }, "a");
+    IdentifierExpression bRef({ tokens[11] }, "b");
+    AddExpression sum({ tokens[10] }, &aRef, &bRef);
+    ReturnStatement ret({ tokens[8], tokens[12] }, &sum);
+    FunctionDeclareStatement golden({ tokens[0], tokens[6], tokens[7], tokens[13] },
+        tokens[1], { tokens[3], tokens[5] }, { &ret });
+
+    EXPECT_EQ(*root, golden);
+}
+
+TEST_F(AssemblerTester, FunctionDeclareNoParamsTest) {
+    // Func hello() { print "hi"; }
+    std::vector<Token> tokens = {
+        { TokenType::FUNC, "Func", 0},
+        { TokenType::IDENTIFIER, "hello", 0},
+        { TokenType::LEFT_PAREN, "(", 0},
+        { TokenType::RIGHT_PAREN, ")", 0},
+        { TokenType::LEFT_BRACE, "{", 0},
+        { TokenType::PRINT, "print", 0},
+        { TokenType::STRING, "hi", 0},
+        { TokenType::SEMICOLON, ";", 0},
+        { TokenType::RIGHT_BRACE, "}", 0},
+    };
+
+    auto tree = assembler.assemble(tokens);
+    auto root = tree.getRoot();
+
+    StringExpression hi({ tokens[6] }, "hi");
+    PrintStatement printStmt({ tokens[5], tokens[7] }, &hi);
+    FunctionDeclareStatement golden({ tokens[0], tokens[3], tokens[4], tokens[8] },
+        tokens[1], {}, { &printStmt });
+
+    EXPECT_EQ(*root, golden);
+}
+
+TEST_F(AssemblerTester, ReturnWithoutValueTest) {
+    // Func noop() { return; }
+    std::vector<Token> tokens = {
+        { TokenType::FUNC, "Func", 0},
+        { TokenType::IDENTIFIER, "noop", 0},
+        { TokenType::LEFT_PAREN, "(", 0},
+        { TokenType::RIGHT_PAREN, ")", 0},
+        { TokenType::LEFT_BRACE, "{", 0},
+        { TokenType::RETURN, "return", 0},
+        { TokenType::SEMICOLON, ";", 0},
+        { TokenType::RIGHT_BRACE, "}", 0},
+    };
+
+    auto tree = assembler.assemble(tokens);
+    auto root = tree.getRoot();
+
+    ReturnStatement ret({ tokens[5], tokens[6] });
+    FunctionDeclareStatement golden({ tokens[0], tokens[3], tokens[4], tokens[7] },
+        tokens[1], {}, { &ret });
+
+    EXPECT_EQ(*root, golden);
+}
+
+// ============================================================================
+// 3일차 확장: 클래스 선언 (메서드는 Func 없이 파싱)
+// ============================================================================
+
+TEST_F(AssemblerTester, ClassDeclareStatementTest) {
+    // Class Robot {
+    //   init(speed) { This.speed = speed; }
+    //   move(dist) { This.speed = This.speed + dist; }
+    // }
+    std::vector<Token> tokens = {
+        { TokenType::CLASS, "Class", 0},          // 0
+        { TokenType::IDENTIFIER, "Robot", 0},     // 1
+        { TokenType::LEFT_BRACE, "{", 0},         // 2
+        { TokenType::IDENTIFIER, "init", 0},      // 3
+        { TokenType::LEFT_PAREN, "(", 0},         // 4
+        { TokenType::IDENTIFIER, "speed", 0},     // 5
+        { TokenType::RIGHT_PAREN, ")", 0},        // 6
+        { TokenType::LEFT_BRACE, "{", 0},         // 7
+        { TokenType::THIS, "This", 0},            // 8
+        { TokenType::DOT, ".", 0},                // 9
+        { TokenType::IDENTIFIER, "speed", 0},     // 10
+        { TokenType::EQUAL, "=", 0},              // 11
+        { TokenType::IDENTIFIER, "speed", 0},     // 12
+        { TokenType::SEMICOLON, ";", 0},          // 13
+        { TokenType::RIGHT_BRACE, "}", 0},        // 14
+        { TokenType::IDENTIFIER, "move", 0},      // 15
+        { TokenType::LEFT_PAREN, "(", 0},         // 16
+        { TokenType::IDENTIFIER, "dist", 0},      // 17
+        { TokenType::RIGHT_PAREN, ")", 0},        // 18
+        { TokenType::LEFT_BRACE, "{", 0},         // 19
+        { TokenType::THIS, "This", 0},            // 20
+        { TokenType::DOT, ".", 0},                // 21
+        { TokenType::IDENTIFIER, "speed", 0},     // 22
+        { TokenType::EQUAL, "=", 0},              // 23
+        { TokenType::THIS, "This", 0},            // 24
+        { TokenType::DOT, ".", 0},                // 25
+        { TokenType::IDENTIFIER, "speed", 0},     // 26
+        { TokenType::PLUS, "+", 0},               // 27
+        { TokenType::IDENTIFIER, "dist", 0},      // 28
+        { TokenType::SEMICOLON, ";", 0},          // 29
+        { TokenType::RIGHT_BRACE, "}", 0},        // 30
+        { TokenType::RIGHT_BRACE, "}", 0},        // 31
+    };
+
+    auto tree = assembler.assemble(tokens);
+    auto root = tree.getRoot();
+
+    ThisExpression thisInit({ tokens[8] });
+    FieldAccessExpression initTarget({ tokens[9] }, &thisInit, tokens[10]);
+    IdentifierExpression speedParam({ tokens[12] }, "speed");
+    AssignExpression initAssign({ tokens[11] }, &initTarget, &speedParam);
+    ExpressionStatement initBody({ tokens[13] }, &initAssign);
+    MethodDeclareStatement initMethod({ tokens[6], tokens[7], tokens[14] },
+        tokens[3], { tokens[5] }, { &initBody });
+
+    ThisExpression thisMoveTarget({ tokens[20] });
+    FieldAccessExpression moveTarget({ tokens[21] }, &thisMoveTarget, tokens[22]);
+    ThisExpression thisMoveRead({ tokens[24] });
+    FieldAccessExpression moveRead({ tokens[25] }, &thisMoveRead, tokens[26]);
+    IdentifierExpression distRef({ tokens[28] }, "dist");
+    AddExpression movePlus({ tokens[27] }, &moveRead, &distRef);
+    AssignExpression moveAssign({ tokens[23] }, &moveTarget, &movePlus);
+    ExpressionStatement moveBody({ tokens[29] }, &moveAssign);
+    MethodDeclareStatement moveMethod({ tokens[18], tokens[19], tokens[30] },
+        tokens[15], { tokens[17] }, { &moveBody });
+
+    ClassDeclareStatement golden({ tokens[0], tokens[2], tokens[31] },
+        tokens[1], { &initMethod, &moveMethod });
+
+    EXPECT_EQ(*root, golden);
+}
+
+// ============================================================================
+// 3일차 확장: instanceof
+// ============================================================================
+
+TEST_F(AssemblerTester, InstanceOfExpressionTest) {
+    // r instanceof Robot;
+    std::vector<Token> tokens = {
+        { TokenType::IDENTIFIER, "r", 0},
+        { TokenType::INSTANCEOF, "instanceof", 0},
+        { TokenType::IDENTIFIER, "Robot", 0},
+        { TokenType::SEMICOLON, ";", 0},
+    };
+
+    auto tree = assembler.assemble(tokens);
+    auto root = tree.getRoot();
+
+    IdentifierExpression r({ tokens[0] }, "r");
+    InstanceOfExpression instOf({ tokens[1] }, &r, tokens[2]);
+    ExpressionStatement golden({ tokens[3] }, &instOf);
+
+    EXPECT_EQ(*root, golden);
+}
+
+// ============================================================================
+// 3일차 확장: import (Fake SourceReader 사용)
+// ============================================================================
+
+TEST(AssemblerImportTest, ImportStatementTest) {
+    // lib.cf: var pi = 3;
+    std::vector<Token> libTokens = {
+        { TokenType::VAR, "var", 0},
+        { TokenType::IDENTIFIER, "pi", 0},
+        { TokenType::EQUAL, "=", 0},
+        { TokenType::NUMBER, "3", 0},
+        { TokenType::SEMICOLON, ";", 0},
+    };
+    FakeSourceReader fakeReader;
+    fakeReader.files["lib.cf"] = libTokens;
+    Assembler assembler(fakeReader);
+
+    // import "lib.cf" alias math;
+    std::vector<Token> tokens = {
+        { TokenType::IMPORT, "import", 0},
+        { TokenType::STRING, "lib.cf", 0},
+        { TokenType::ALIAS, "alias", 0},
+        { TokenType::IDENTIFIER, "math", 0},
+        { TokenType::SEMICOLON, ";", 0},
+    };
+
+    auto tree = assembler.assemble(tokens);
+    auto root = tree.getRoot();
+
+    IdentifierExpression pi({ libTokens[1] }, "pi");
+    NumberExpression three({ libTokens[3] }, 3);
+    DeclareStatement declarePi({ libTokens[0], libTokens[2], libTokens[4] }, &pi, &three);
+    ImportStatement golden({ tokens[0], tokens[4] }, tokens[3], { &declarePi });
+
+    EXPECT_EQ(*root, golden);
+}
+
+TEST(AssemblerImportTest, CircularImportThrowsTest) {
+    // a.cf: import "a.cf" alias x;   (자기 자신을 import)
+    std::vector<Token> aTokens = {
+        { TokenType::IMPORT, "import", 0},
+        { TokenType::STRING, "a.cf", 0},
+        { TokenType::ALIAS, "alias", 0},
+        { TokenType::IDENTIFIER, "x", 0},
+        { TokenType::SEMICOLON, ";", 0},
+    };
+    FakeSourceReader fakeReader;
+    fakeReader.files["a.cf"] = aTokens;
+    Assembler assembler(fakeReader);
+
+    // import "a.cf" alias y;
+    std::vector<Token> tokens = {
+        { TokenType::IMPORT, "import", 0},
+        { TokenType::STRING, "a.cf", 0},
+        { TokenType::ALIAS, "alias", 0},
+        { TokenType::IDENTIFIER, "y", 0},
+        { TokenType::SEMICOLON, ";", 0},
+    };
+
+    EXPECT_THROW(assembler.assemble(tokens), AssemblerError);
+}
+
+TEST(AssemblerImportTest, FileNotFoundThrowsTest) {
+    FakeSourceReader fakeReader; // 아무 파일도 등록하지 않음
+    Assembler assembler(fakeReader);
+
+    // import "missing.cf" alias m;
+    std::vector<Token> tokens = {
+        { TokenType::IMPORT, "import", 0},
+        { TokenType::STRING, "missing.cf", 0},
+        { TokenType::ALIAS, "alias", 0},
+        { TokenType::IDENTIFIER, "m", 0},
+        { TokenType::SEMICOLON, ";", 0},
+    };
+
+    EXPECT_THROW(assembler.assemble(tokens), AssemblerError);
+}
+
+TEST(AssemblerImportTest, NonDeclarationInsideImportThrowsTest) {
+    // bad.cf: print 1;   (선언이 아닌 문장은 import 대상으로 허용하지 않음)
+    std::vector<Token> badTokens = {
+        { TokenType::PRINT, "print", 0},
+        { TokenType::NUMBER, "1", 0},
+        { TokenType::SEMICOLON, ";", 0},
+    };
+    FakeSourceReader fakeReader;
+    fakeReader.files["bad.cf"] = badTokens;
+    Assembler assembler(fakeReader);
+
+    // import "bad.cf" alias b;
+    std::vector<Token> tokens = {
+        { TokenType::IMPORT, "import", 0},
+        { TokenType::STRING, "bad.cf", 0},
+        { TokenType::ALIAS, "alias", 0},
+        { TokenType::IDENTIFIER, "b", 0},
+        { TokenType::SEMICOLON, ";", 0},
+    };
+
+    EXPECT_THROW(assembler.assemble(tokens), AssemblerError);
 }
