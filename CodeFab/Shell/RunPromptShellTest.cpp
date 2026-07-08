@@ -966,7 +966,10 @@ TEST_F(RunPromptShellIntegrationTest, AccessingNonexistentField_ReportsRuntimeEr
     run("Class Empty { }\nvar e = Empty();\nprint e.missing;\n", out);
 
     EXPECT_EQ(programOutput.str(), "");
-    EXPECT_EQ(out.str(), ">>> >>> 'missing' 필드가 존재하지 않습니다.\n>>> ");
+    // 3개 문장(Class 선언/인스턴스화/print) 각각이 성공 여부와 무관하게 프롬프트를 하나씩
+    // 남긴다 (RunPromptShell::run - 문장 처리 후 항상 kPrompt 출력, InstanceOf_SameClass_PrintsTrue
+    // 등 다른 통합 테스트도 이 불변식을 그대로 사용한다).
+    EXPECT_EQ(out.str(), ">>> >>> >>> 'missing' 필드가 존재하지 않습니다.\n>>> ");
 }
 
 TEST_F(RunPromptShellIntegrationTest, CallingNonexistentMethod_ReportsRuntimeError) {
@@ -974,15 +977,19 @@ TEST_F(RunPromptShellIntegrationTest, CallingNonexistentMethod_ReportsRuntimeErr
     run("Class Empty { }\nvar e = Empty();\nprint e.missing();\n", out);
 
     EXPECT_EQ(programOutput.str(), "");
-    EXPECT_EQ(out.str(), ">>> >>> 'missing' 메서드가 존재하지 않습니다.\n>>> ");
+    // AccessingNonexistentField_ReportsRuntimeError와 동일한 이유로 프롬프트가 3개다.
+    EXPECT_EQ(out.str(), ">>> >>> >>> 'missing' 메서드가 존재하지 않습니다.\n>>> ");
 }
 
-TEST_F(RunPromptShellIntegrationTest, ThisOutsideMethod_ReportsRuntimeError) {
+// 참고: This를 클래스 메서드 밖에서 사용하는 것은 Checker::checkThis가 정적으로
+// 막는다 (CheckerTest.cpp의 ThisOutsideClassReportsError 참고) - Executor까지
+// 도달하지 않으므로 CheckerError의 "[N번째 줄]" 접두사와 메시지가 그대로 노출된다.
+TEST_F(RunPromptShellIntegrationTest, ThisOutsideMethod_ReportsCheckError) {
     std::ostringstream out;
     run("print This;\n", out);
 
     EXPECT_EQ(programOutput.str(), "");
-    EXPECT_EQ(out.str(), ">>> 클래스 외부에서 This를 사용했습니다.\n>>> ");
+    EXPECT_EQ(out.str(), ">>> [1번째 줄] 클래스 메서드 밖에서 This를 사용할 수 없습니다.\n>>> ");
 }
 
 TEST_F(RunPromptShellIntegrationTest, InstanceOf_SameClass_PrintsTrue) {
