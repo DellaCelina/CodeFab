@@ -12,27 +12,22 @@ using namespace std;
 class Checker : public CheckerInterface {
 
 public:
-    // 세션(REPL) 전체에 걸쳐 유지되는 전역 스코프를 하나 만들어둔다. Executor의
-    // Environment와 마찬가지로 Checker도 프로그램 실행 동안 하나의 인스턴스가
-    // 재사용되므로, 이 전역 스코프는 check()를 몇 번을 호출하든(즉 REPL에서 몇 줄을
-    // 입력하든) 계속 유지된다 - 그래야 한 줄에서 선언한 변수를 다음 줄에서도
-    // "선언된 변수"로 인식할 수 있다.
-    //
-    // executor는 상수 연산 최적화(Architecture.md §6.2)에 쓰인다: Checker는 산술
-    // 규칙을 다시 구현하지 않고, 리터럴만으로 이뤄진 서브트리를 발견하면
-    // executor.evaluate()를 그대로 호출해서 값을 구한다. 지금은 이 값을
-    // 저장해두기만 하고 실제로 호출하는 로직은 아직 없다 - Implement.md의 Checker
-    // 담당자 안내 참고.
+    // scopes는 REPL 세션 내내 유지된다(Executor의 Environment와 동일).
+    // executor는 ConstantFolder용으로 받아두었지만 아직 사용하지 않는다.
     explicit Checker(ExecuteInterface& executor);
 
-    // CheckerInterface 구현체. 의미 오류를 찾으면 CheckerError를 throw한다.
-    // 통과하면 true를 반환한다.
+    // 의미 오류 발견 시 CheckerError를 throw, 통과하면 true 반환.
     bool check(SyntaxTree& tree) override;
 
 private:
     ExecuteInterface& executor_;
-    vector<unordered_set<string>> scopes; // 블록 검사를 위한 scope. 블록 진입 push, 블록 종료 pop
-    string currentlyDeclaring; // 자기 참조 검사용 상태값. 현재 checking 중인 초기화 변수
+    vector<unordered_set<string>> scopes; // 블록 진입 시 push, 종료 시 pop
+    string currentlyDeclaring; // 자기 참조 검사용: 지금 초기화식을 검사 중인 변수 이름
+
+    int functionDepth = 0;     // 0이면 함수/메서드 밖 - return 검사용
+    int classMethodDepth = 0;  // 0이면 클래스 메서드 밖 - This 검사용
+    int forDepth = 0;          // 0이면 for 문 밖 - import 금지 검사용
+    bool inInitMethod = false; // 지금 검사 중인 메서드가 init인지 - return 값 금지 검사용
 
     void enterScope();
     void exitScope();
@@ -40,17 +35,12 @@ private:
     bool isDeclaredInAnyScope(const string& name) const;
     void declare(const string& name);
 
-    // 의미 오류 발견 시 CheckerError를 throw하고 반환하지 않는다.
     [[noreturn]] void reportError(int line, const string& message);
 
-    // DFS
-    // SyntaxNode에 accept()가 없어(Visitor 패턴 적용 불가) dynamic_cast로 실제 타입을
-    // 판별해서 분기하는 방식(RTTI 기반)을 사용
-    // 새로운 노드 타입 추가되면 두 함수의 분기(else if) 필요
+    // SyntaxNode에 accept()가 없어 dynamic_cast로 타입 분기한다.
     void checkStatement(Statement* stmt);
     void checkExpression(Expression* expr);
 
-    // Node type checker func.
     void checkBlock(BlockStatement* block);
     void checkDeclare(DeclareStatement* decl);
     void checkPrint(PrintStatement* stmt);
@@ -58,4 +48,15 @@ private:
     void checkFor(ForStatement* forStmt);
     void checkIdentifier(IdentifierExpression* id);
     void checkBinary(BinaryExpression* bin);
+
+    // FunctionDeclareStatement/MethodDeclareStatement가 필드 모양이 같아 공용으로 처리한다.
+    void checkFunctionBody(const string& name, const vector<Token>& params,
+        const vector<Statement*>& body, int line, bool isMethod, bool isInit);
+    void checkClass(ClassDeclareStatement* classDecl);
+    void checkReturn(ReturnStatement* ret);
+    void checkImport(ImportStatement* importStmt);
+    void checkThis(ThisExpression* thisExpr);
+
+    // 정적 바인딩: 몇 단계 위 스코프에서 선언됐는지 세어 id->depth에 기록한다.
+    void resolveIdentifier(IdentifierExpression* id) const;
 };
