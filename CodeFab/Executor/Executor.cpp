@@ -413,8 +413,17 @@ void Executor::execute(SyntaxTree& tree) {
 }
 
 void Executor::execute(Statement* stmt) {
+    // 재귀 호출(Block/If/For 바디, 함수/메서드 호출 등)에도 depth가 항상
+    // 정확히 감소하도록 RAII로 처리한다 - 핸들러가 ReturnSignal/ExecutorError를
+    // 던지고 그 예외가 이 프레임을 그냥 지나가도 statementDepth_는 어긋나지 않는다.
+    ++statementDepth_;
+    struct DepthGuard {
+        int& depth;
+        ~DepthGuard() { --depth; }
+    } depthGuard{statementDepth_};
+
     if (statementHook_) {
-        statementHook_(stmt);
+        statementHook_(stmt, statementDepth_);
     }
     auto it = statementHandlers_.find(std::type_index(typeid(*stmt)));
     if (it == statementHandlers_.end()) {

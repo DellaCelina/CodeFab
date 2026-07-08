@@ -168,6 +168,10 @@
     <ClCompile Include="Shell\CommandLineArgsTest.cpp" />
     <ClCompile Include="Shell\FileRunMode.cpp" />
     <ClCompile Include="Shell\FileRunModeTest.cpp" />
+    <ClCompile Include="Shell\Debugger.cpp" />
+    <ClCompile Include="Shell\DebuggerTest.cpp" />
+    <ClCompile Include="Shell\DebugMode.cpp" />
+    <ClCompile Include="Shell\DebugModeTest.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Tokenizer\Token.h" />
@@ -190,6 +194,8 @@
     <ClInclude Include="Shell\RunPromptShell.h" />
     <ClInclude Include="Shell\CommandLineArgs.h" />
     <ClInclude Include="Shell\FileRunMode.h" />
+    <ClInclude Include="Shell\Debugger.h" />
+    <ClInclude Include="Shell\DebugMode.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
