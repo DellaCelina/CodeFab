@@ -678,15 +678,22 @@ TEST_F(RunPromptShellIntegrationTest, ForLoop_WithVarInitializer_PrintsZeroOneTw
 }
 
 // --- 5. 논리 연산자(and/or) ---
-// PDF 스펙(Assembly Unit 핵심원리 - Expr 예시)이 요구하는 Logical Expr(and/or)은
-// 아직 Tokenizer/Assembler/Executor 어디에도 구현되어 있지 않다. 이 테스트들은
-// 현재 시점에는 FAIL 하도록 의도적으로 추가한 것으로, 미구현 기능을 추적하기 위한
-// 표시용(TDD red) 테스트다. and/or를 구현하면 이 테스트들이 통과해야 한다.
+// Tokenizer/Assembler/Executor 모두 and/or를 구현하고 있다 (Executor.cpp의
+// AndExpression/OrExpression 핸들러, 둘 다 단락 평가). 아래는 실제 파이프라인으로
+// ExecutorTest.cpp의 and/or 단위 테스트가 다루는 케이스를 재현한다.
 TEST_F(RunPromptShellIntegrationTest, LogicalAnd_PrintsFalseWhenLeftOperandIsFalse) {
     std::ostringstream out;
     run("print false and true;\n", out);
 
     EXPECT_EQ(programOutput.str(), "false\n");
+    EXPECT_EQ(out.str(), ">>> >>> ");
+}
+
+TEST_F(RunPromptShellIntegrationTest, LogicalAnd_PrintsTrueWhenBothOperandsAreTrue) {
+    std::ostringstream out;
+    run("print true and true;\n", out);
+
+    EXPECT_EQ(programOutput.str(), "true\n");
     EXPECT_EQ(out.str(), ">>> >>> ");
 }
 
@@ -696,6 +703,114 @@ TEST_F(RunPromptShellIntegrationTest, LogicalOr_PrintsTrueWhenLeftOperandIsFalse
 
     EXPECT_EQ(programOutput.str(), "true\n");
     EXPECT_EQ(out.str(), ">>> >>> ");
+}
+
+TEST_F(RunPromptShellIntegrationTest, LogicalOr_PrintsFalseWhenBothOperandsAreFalse) {
+    std::ostringstream out;
+    run("print false or false;\n", out);
+
+    EXPECT_EQ(programOutput.str(), "false\n");
+    EXPECT_EQ(out.str(), ">>> >>> ");
+}
+
+// --- 5-1. % (나머지) 연산자 ---
+// ExecutorTest.cpp의 Evaluate_ModExpression_ReturnsRemainder /
+// Evaluate_ModExpression_ThrowsOnZero에 대응하는 통합 테스트다.
+TEST_F(RunPromptShellIntegrationTest, ModExpression_PrintsRemainder) {
+    std::ostringstream out;
+    run("print 10 % 3;\n", out);
+
+    EXPECT_EQ(programOutput.str(), "1\n");
+    EXPECT_EQ(out.str(), ">>> >>> ");
+}
+
+TEST_F(RunPromptShellIntegrationTest, ModByZero_ReportsRuntimeError) {
+    std::ostringstream out;
+    run("print 10 % 0;\n", out);
+
+    EXPECT_EQ(programOutput.str(), "");
+    EXPECT_EQ(out.str(), ">>> 0으로 나눌 수 없습니다\n>>> ");
+}
+
+// --- 5-2. 비교 연산자 확장(==, !=, <=, >=) 및 논리 부정(!) ---
+// ExecutorTest.cpp가 evaluate() 단위로 검증하는 EqualExpression/NotEqualExpression/
+// LessEqualExpression/GreaterEqualExpression/NotExpression을 실제 파이프라인으로
+// 재현한다.
+TEST_F(RunPromptShellIntegrationTest, EqualExpression_PrintsTrue) {
+    std::ostringstream out;
+    run("print 3 == 3;\n", out);
+
+    EXPECT_EQ(programOutput.str(), "true\n");
+    EXPECT_EQ(out.str(), ">>> >>> ");
+}
+
+TEST_F(RunPromptShellIntegrationTest, NotEqualExpression_PrintsTrue) {
+    std::ostringstream out;
+    run("print 3 != 5;\n", out);
+
+    EXPECT_EQ(programOutput.str(), "true\n");
+    EXPECT_EQ(out.str(), ">>> >>> ");
+}
+
+TEST_F(RunPromptShellIntegrationTest, LessEqualExpression_PrintsTrue) {
+    std::ostringstream out;
+    run("print 3 <= 3;\n", out);
+
+    EXPECT_EQ(programOutput.str(), "true\n");
+    EXPECT_EQ(out.str(), ">>> >>> ");
+}
+
+TEST_F(RunPromptShellIntegrationTest, GreaterEqualExpression_PrintsTrue) {
+    std::ostringstream out;
+    run("print 5 >= 3;\n", out);
+
+    EXPECT_EQ(programOutput.str(), "true\n");
+    EXPECT_EQ(out.str(), ">>> >>> ");
+}
+
+TEST_F(RunPromptShellIntegrationTest, NotExpression_NegatesTrueLiteral) {
+    std::ostringstream out;
+    run("print !true;\n", out);
+
+    EXPECT_EQ(programOutput.str(), "false\n");
+    EXPECT_EQ(out.str(), ">>> >>> ");
+}
+
+// --- 5-3. 0으로 나눔 / 산술 연산자 타입 오류 ---
+// ExecutorTest.cpp의 Evaluate_DivideByZero_ThrowsRuntimeError,
+// Evaluate_SubStringAndNumber_ThrowsRuntimeError,
+// Evaluate_AddBooleanAndNumber_ThrowsRuntimeError,
+// Evaluate_MultStringAndBoolean_ThrowsRuntimeError에 대응하는 통합 테스트다.
+TEST_F(RunPromptShellIntegrationTest, DivideByZero_ReportsRuntimeError) {
+    std::ostringstream out;
+    run("print 3 / 0;\n", out);
+
+    EXPECT_EQ(programOutput.str(), "");
+    EXPECT_EQ(out.str(), ">>> 0으로 나눌 수 없습니다\n>>> ");
+}
+
+TEST_F(RunPromptShellIntegrationTest, SubStringAndNumber_ReportsTypeMismatchError) {
+    std::ostringstream out;
+    run("print \"hello\" - 3;\n", out);
+
+    EXPECT_EQ(programOutput.str(), "");
+    EXPECT_EQ(out.str(), ">>> 타입 오류: string - number\n>>> ");
+}
+
+TEST_F(RunPromptShellIntegrationTest, AddBooleanAndNumber_ReportsTypeMismatchError) {
+    std::ostringstream out;
+    run("print true + 3;\n", out);
+
+    EXPECT_EQ(programOutput.str(), "");
+    EXPECT_EQ(out.str(), ">>> 타입 오류: boolean + number\n>>> ");
+}
+
+TEST_F(RunPromptShellIntegrationTest, MultStringAndBoolean_ReportsTypeMismatchError) {
+    std::ostringstream out;
+    run("print \"hello\" * true;\n", out);
+
+    EXPECT_EQ(programOutput.str(), "");
+    EXPECT_EQ(out.str(), ">>> 타입 오류: string * boolean\n>>> ");
 }
 
 // --- 6. Checker의 if/for 내부 검사 ---
@@ -720,12 +835,6 @@ TEST_F(RunPromptShellIntegrationTest, SelfReferenceInsideIfBlock_FailsCheckWitho
     EXPECT_EQ(out.str(), ">>> [1번째 줄] 자신의 초기화식에서 지역변수를 읽을 수 없습니다.\n>>> ");
 }
 
-// --- 7. 함수/클래스 선언 후 다음 REPL 줄에서 호출 (dangling pointer 회귀 방지) ---
-// SyntaxTree는 REPL 반복마다 생성/소멸되지만, Executor의 Environment에는
-// FunctionDeclareStatement*/ClassDeclareStatement* 날 포인터가 저장된다.
-// sessionTrees가 트리를 세션 전체 동안 보관하지 않으면 릴리스 빌드에서
-// 해제된 메모리를 역참조해 오동작한다.
-
 TEST_F(RunPromptShellIntegrationTest, FuncDeclaredThenCalledOnNextLine_ReturnsCorrectValue) {
     std::ostringstream out;
     run("Func add(a, b) { return a + b; }\nprint add(3, 7);\n", out);
@@ -743,3 +852,160 @@ TEST_F(RunPromptShellIntegrationTest, ClassMethodCalledAfterInstantiationOnSepar
     EXPECT_EQ(programOutput.str(), "42\n");
     EXPECT_EQ(out.str(), ">>> >>> >>> >>> ");
 }
+
+// --- 7. 정적 배열(Array) ---
+// ExecutorArrayTest.cpp가 evaluate()/execute() 단위로 검증하는 생성/인덱스
+// 읽기·쓰기/런타임 에러 케이스를 실제 파이프라인으로 재현한다.
+TEST_F(RunPromptShellIntegrationTest, ArrayCreation_FillsWithNil) {
+    std::ostringstream out;
+    run("var arr = Array(3);\nprint arr[0];\n", out);
+
+    EXPECT_EQ(programOutput.str(), "nil\n");
+    EXPECT_EQ(out.str(), ">>> >>> >>> ");
+}
+
+TEST_F(RunPromptShellIntegrationTest, IndexWrite_ThenReadReturnsStoredValue) {
+    std::ostringstream out;
+    run("var arr = Array(5);\narr[0] = 3;\nprint arr[0];\n", out);
+
+    EXPECT_EQ(programOutput.str(), "3\n");
+    EXPECT_EQ(out.str(), ">>> >>> >>> >>> ");
+}
+
+TEST_F(RunPromptShellIntegrationTest, ArraySize_NotANumber_ReportsRuntimeError) {
+    std::ostringstream out;
+    run("var arr = Array(\"5\");\n", out);
+
+    EXPECT_EQ(programOutput.str(), "");
+    EXPECT_EQ(out.str(), ">>> 배열의 사이즈는 반드시 number여야 합니다.\n>>> ");
+}
+
+TEST_F(RunPromptShellIntegrationTest, IndexOnNonArray_ReportsRuntimeError) {
+    std::ostringstream out;
+    run("var x = 1;\nprint x[0];\n", out);
+
+    EXPECT_EQ(programOutput.str(), "");
+    EXPECT_EQ(out.str(), ">>> >>> index 접근은 오직 배열만 지원합니다.\n>>> ");
+}
+
+TEST_F(RunPromptShellIntegrationTest, IndexNotANumber_ReportsRuntimeError) {
+    std::ostringstream out;
+    run("var arr = Array(3);\nprint arr[\"zero\"];\n", out);
+
+    EXPECT_EQ(programOutput.str(), "");
+    EXPECT_EQ(out.str(), ">>> >>> 인덱스는 반드시 숫자여야 합니다.\n>>> ");
+}
+
+TEST_F(RunPromptShellIntegrationTest, IndexOutOfRange_ReportsRuntimeError) {
+    std::ostringstream out;
+    run("var arr = Array(3);\nprint arr[3];\n", out);  // 유효 범위는 0..2
+
+    EXPECT_EQ(programOutput.str(), "");
+    EXPECT_EQ(out.str(), ">>> >>> 배열 인덱스 범위를 벗어났습니다.\n>>> ");
+}
+
+TEST_F(RunPromptShellIntegrationTest, DeclareAndCall_ReturnsSum) {
+    std::ostringstream out;
+    run("Func add(a, b) { return a + b; }\nprint add(3, 5);\n", out);
+
+    EXPECT_EQ(programOutput.str(), "8\n");
+    EXPECT_EQ(out.str(), ">>> >>> >>> ");
+}
+
+TEST_F(RunPromptShellIntegrationTest, RecursiveCall_ComputesFactorial) {
+    std::ostringstream out;
+    run("Func fact(n) { if (n <= 1) { return 1; } return n * fact(n - 1); }\nprint fact(5);\n", out);
+
+    EXPECT_EQ(programOutput.str(), "120\n");
+    EXPECT_EQ(out.str(), ">>> >>> >>> ");
+}
+
+TEST_F(RunPromptShellIntegrationTest, CallWithWrongArgumentCount_ReportsRuntimeError) {
+    std::ostringstream out;
+    run("Func oneArg(a) { }\nprint oneArg();\n", out);
+
+    EXPECT_EQ(programOutput.str(), "");
+    EXPECT_EQ(out.str(), ">>> >>> 'oneArg' 호출에는 인자 1개가 필요합니다 (전달된 인자: 0개)\n>>> ");
+}
+
+TEST_F(RunPromptShellIntegrationTest, CallingNonCallableValue_ReportsRuntimeError) {
+    std::ostringstream out;
+    run("var x = 1;\nprint x();\n", out);
+
+    EXPECT_EQ(programOutput.str(), "");
+    EXPECT_EQ(out.str(), ">>> >>> 호출할 수 없는 대상입니다.\n>>> ");
+}
+
+TEST_F(RunPromptShellIntegrationTest, CallWithoutReturn_YieldsNil) {
+    std::ostringstream out;
+    run("Func noop() { 1; }\nprint noop();\n", out);
+
+    EXPECT_EQ(programOutput.str(), "nil\n");
+    EXPECT_EQ(out.str(), ">>> >>> >>> ");
+}
+
+TEST_F(RunPromptShellIntegrationTest, InitSetsField_GetterMethodReturnsIt) {
+    std::ostringstream out;
+    run("Class Robot { init(name) { This.name = name; } getName() { return This.name; } }\n"
+        "var r = Robot(\"ABC\");\nprint r.getName();\n", out);
+
+    EXPECT_EQ(programOutput.str(), "ABC\n");
+    EXPECT_EQ(out.str(), ">>> >>> >>> >>> ");
+}
+
+TEST_F(RunPromptShellIntegrationTest, FieldAccess_ReadsDirectlyWithoutMethod) {
+    std::ostringstream out;
+    run("Class Point { init(x) { This.x = x; } }\nvar p = Point(3);\nprint p.x;\n", out);
+
+    EXPECT_EQ(programOutput.str(), "3\n");
+    EXPECT_EQ(out.str(), ">>> >>> >>> >>> ");
+}
+
+TEST_F(RunPromptShellIntegrationTest, AccessingNonexistentField_ReportsRuntimeError) {
+    std::ostringstream out;
+    run("Class Empty { }\nvar e = Empty();\nprint e.missing;\n", out);
+
+    EXPECT_EQ(programOutput.str(), "");
+    EXPECT_EQ(out.str(), ">>> >>> 'missing' 필드가 존재하지 않습니다.\n>>> ");
+}
+
+TEST_F(RunPromptShellIntegrationTest, CallingNonexistentMethod_ReportsRuntimeError) {
+    std::ostringstream out;
+    run("Class Empty { }\nvar e = Empty();\nprint e.missing();\n", out);
+
+    EXPECT_EQ(programOutput.str(), "");
+    EXPECT_EQ(out.str(), ">>> >>> 'missing' 메서드가 존재하지 않습니다.\n>>> ");
+}
+
+TEST_F(RunPromptShellIntegrationTest, ThisOutsideMethod_ReportsRuntimeError) {
+    std::ostringstream out;
+    run("print This;\n", out);
+
+    EXPECT_EQ(programOutput.str(), "");
+    EXPECT_EQ(out.str(), ">>> 클래스 외부에서 This를 사용했습니다.\n>>> ");
+}
+
+TEST_F(RunPromptShellIntegrationTest, InstanceOf_SameClass_PrintsTrue) {
+    std::ostringstream out;
+    run("Class Robot { }\nvar r = Robot();\nprint r instanceof Robot;\n", out);
+
+    EXPECT_EQ(programOutput.str(), "true\n");
+    EXPECT_EQ(out.str(), ">>> >>> >>> >>> ");
+}
+
+TEST_F(RunPromptShellIntegrationTest, InstanceOf_DifferentClass_PrintsFalse) {
+    std::ostringstream out;
+    run("Class Robot { }\nClass Cat { }\nvar r = Robot();\nprint r instanceof Cat;\n", out);
+
+    EXPECT_EQ(programOutput.str(), "false\n");
+    EXPECT_EQ(out.str(), ">>> >>> >>> >>> >>> ");
+}
+
+TEST_F(RunPromptShellIntegrationTest, InstanceOf_NonInstanceOperand_PrintsFalse) {
+    std::ostringstream out;
+    run("Class Robot { }\nprint 1 instanceof Robot;\n", out);
+
+    EXPECT_EQ(programOutput.str(), "false\n");
+    EXPECT_EQ(out.str(), ">>> >>> >>> ");
+}
+
