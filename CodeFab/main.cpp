@@ -8,7 +8,6 @@
 #include "Assembler.h"
 #include "Checker.h"
 #include "Executor.h"
-#include "ShellErrors.h"
 #include "RunPromptShell.h"
 
 #endif

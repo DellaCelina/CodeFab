@@ -5,7 +5,6 @@
 
 #include "SyntaxTree.h"
 #include "CheckerInterface.h"
-#include "ShellErrors.h"
 
 using namespace std;
 
@@ -19,7 +18,7 @@ public:
     // "선언된 변수"로 인식할 수 있다.
     Checker();
 
-    // CheckerInterface 구현체. 의미 오류를 찾으면 CheckerError(line, message)를 throw한다.
+    // CheckerInterface 구현체. 의미 오류를 찾으면 CheckerError를 throw한다.
     // 통과하면 true를 반환한다.
     bool check(SyntaxTree& tree) override;
 

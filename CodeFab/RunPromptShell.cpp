@@ -1,10 +1,7 @@
 ﻿#include "RunPromptShell.h"
 
 #include <cctype>
-#include <stdexcept>
 #include <string>
-
-#include "ShellErrors.h"
 
 namespace {
 
@@ -63,15 +60,12 @@ void RunPromptShell::run(std::istream& in, std::ostream& out) {
             // 괄호/문자열이 아직 안 닫힌 상태: 버퍼를 비우지 않고 다음 줄을 이어받는다.
             out << kContinuationPrompt;
             continue;
-        } catch (const CodeFabError& e) {
-            out << "[" << e.line() << "번째 줄] " << e.what() << "\n";
-        } catch (const std::invalid_argument& e) {
-            // Assembler가 문법 오류를 std::invalid_argument로 던진다 (line() 정보 없음).
-            out << e.what() << "\n";
         } catch (const std::exception& e) {
-            // Executor가 아직 지원하지 않는 노드/타입(예: 변수 참조, 타입 불일치)을 만나면
-            // std::logic_error, std::bad_variant_access 등을 던진다. Shell이 죽지 않도록
-            // 마지막 안전망으로 잡아 보고한다.
+            // AssemblyError/AssemblerError/CheckerError/ExecutorError 모두 각자의
+            // 인터페이스 헤더(TokenizeInterface.h/AssemblerInterface.h/
+            // CheckerInterface.h/ExecuteInterface.h)에 정의된, 줄 번호를 별도로
+            // 들고 있지 않는 순수 std::exception이다 (필요하면 메시지에 직접
+            // 줄 번호를 담는다). 그래서 여기서 한 번에 잡아 메시지만 보고한다.
             out << e.what() << "\n";
         }
 

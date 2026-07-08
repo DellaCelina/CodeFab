@@ -36,10 +36,9 @@ void Checker::declare(const string& name) {
 }
 
 void Checker::reportError(int line, const string& message) {
-    // CheckerInterface 계약: 의미 오류는 CheckerError(line, message)를 throw해서 알린다.
-    // "[N번째 줄] ..." 포맷은 Shell(RunPromptShell)이 catch 시점에 담당하므로 여기서는
-    // 줄 번호와 순수 메시지만 넘긴다.
-    throw CheckerError(line, message);
+    // CheckerInterface 계약: 의미 오류는 CheckerError를 throw해서 알린다. CheckerError는
+    // 줄 번호를 따로 들고 있지 않으므로(CheckerInterface.h 참고) 여기서 메시지에 직접 담는다.
+    throw CheckerError("[{}번째 줄] {}", line, message);
 }
 
 // ---------------------------------------------------------------------------

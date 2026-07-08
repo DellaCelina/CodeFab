@@ -14,7 +14,6 @@
 #include "CheckerInterface.h"
 #include "ExecuteInterface.h"
 #include "Executor.h"
-#include "ShellErrors.h"
 #include "SyntaxTree.h"
 #include "Token.h"
 #include "TokenizeInterface.h"
@@ -149,7 +148,7 @@ TEST_F(RunPromptShellTest, MultipleLines_ProcessedOneAtATimeUsingSameExecutorIns
 
 TEST_F(RunPromptShellTest, UnbalancedBrace_WaitsForMoreInputWhenTokenizerReportsIncomplete) {
     EXPECT_CALL(tokenizer, tokenize(std::string("if (a > 0) {")))
-        .WillOnce(Throw(IncompleteInputError(1, "입력이 완결되지 않았습니다.")));
+        .WillOnce(Throw(IncompleteInputError("입력이 완결되지 않았습니다.")));
 
     std::ostringstream out;
     run("if (a > 0) {\n", out);
@@ -160,9 +159,9 @@ TEST_F(RunPromptShellTest, UnbalancedBrace_WaitsForMoreInputWhenTokenizerReports
 TEST_F(RunPromptShellTest, MultilineBlock_CompletesWhenBraceClosesAndTokenizerStopsReportingIncomplete) {
     InSequence seq;
     EXPECT_CALL(tokenizer, tokenize(std::string("if (a > 0) {")))
-        .WillOnce(Throw(IncompleteInputError(1, "입력이 완결되지 않았습니다.")));
+        .WillOnce(Throw(IncompleteInputError("입력이 완결되지 않았습니다.")));
     EXPECT_CALL(tokenizer, tokenize(std::string("if (a > 0) {\nprint a;")))
-        .WillOnce(Throw(IncompleteInputError(1, "입력이 완결되지 않았습니다.")));
+        .WillOnce(Throw(IncompleteInputError("입력이 완결되지 않았습니다.")));
     EXPECT_CALL(tokenizer, tokenize(std::string("if (a > 0) {\nprint a;\n}")))
         .WillOnce(Return(std::vector<Token>{}));
     EXPECT_CALL(assembler, assemble(_)).WillOnce(Return(ByMove(SyntaxTree())));
@@ -176,8 +175,10 @@ TEST_F(RunPromptShellTest, MultilineBlock_CompletesWhenBraceClosesAndTokenizerSt
 }
 
 TEST_F(RunPromptShellTest, TokenizeError_IsReportedAndRestOfPipelineIsSkipped) {
+    // 실제 Tokenizer는 인식 불가능한 문자를 만나면 줄 번호를 메시지에 직접 담아
+    // AssemblyError를 던진다 (TokenizeInterface.h/Tokenizer.cpp 참고).
     EXPECT_CALL(tokenizer, tokenize(_))
-        .WillOnce(Throw(AssemblyError(1, "인식할 수 없는 문자입니다.")));
+        .WillOnce(Throw(AssemblyError("[1번째 줄] 인식할 수 없는 문자입니다.")));
     EXPECT_CALL(assembler, assemble(_)).Times(0);
     EXPECT_CALL(checker, check(_)).Times(0);
     EXPECT_CALL(executor, execute(_)).Times(0);
@@ -188,24 +189,30 @@ TEST_F(RunPromptShellTest, TokenizeError_IsReportedAndRestOfPipelineIsSkipped) {
     EXPECT_EQ(out.str(), ">>> [1번째 줄] 인식할 수 없는 문자입니다.\n>>> ");
 }
 
-TEST_F(RunPromptShellTest, AssemblyError_IsReportedAndCheckerExecutorAreSkipped) {
+TEST_F(RunPromptShellTest, AssemblerErrorThrown_IsReportedAndCheckerExecutorAreSkipped) {
+    // 실제 Assembler는 문법 오류를 만나면 AssemblerError를 던진다
+    // (AssemblerInterface.h 참고). AssemblerError는 줄 번호를 따로 들고 있지 않는
+    // 순수 메시지 예외라서, 필요하면 makeParseError()처럼 메시지에 위치 정보를
+    // 직접 담는다 - 이 테스트에서는 위치 정보 없는 메시지를 그대로 재현한다.
     EXPECT_CALL(tokenizer, tokenize(_)).WillOnce(Return(std::vector<Token>{}));
     EXPECT_CALL(assembler, assemble(_))
-        .WillOnce(Throw(AssemblyError(1, "'+' 다음에 피연산자가 필요합니다.")));
+        .WillOnce(Throw(AssemblerError("'+' 다음에 피연산자가 필요합니다.")));
     EXPECT_CALL(checker, check(_)).Times(0);
     EXPECT_CALL(executor, execute(_)).Times(0);
 
     std::ostringstream out;
     run("var a = 3 + ;\n", out);
 
-    EXPECT_EQ(out.str(), ">>> [1번째 줄] '+' 다음에 피연산자가 필요합니다.\n>>> ");
+    EXPECT_EQ(out.str(), ">>> '+' 다음에 피연산자가 필요합니다.\n>>> ");
 }
 
 TEST_F(RunPromptShellTest, CheckerErrorThrown_IsReportedAndExecutorIsSkipped) {
+    // 실제 Checker는 의미 오류를 만나면 줄 번호를 메시지에 직접 담아 CheckerError를
+    // 던진다 (checker.cpp의 reportError() 참고).
     EXPECT_CALL(tokenizer, tokenize(_)).WillOnce(Return(std::vector<Token>{}));
     EXPECT_CALL(assembler, assemble(_)).WillOnce(Return(ByMove(SyntaxTree())));
     EXPECT_CALL(checker, check(_))
-        .WillOnce(Throw(CheckerError(2, "'a'에러: 이미 해당 변수는 현재 스코프에서 사용중입니다.")));
+        .WillOnce(Throw(CheckerError("[2번째 줄] 'a'에러: 이미 해당 변수는 현재 스코프에서 사용중입니다.")));
     EXPECT_CALL(executor, execute(_)).Times(0);
 
     std::ostringstream out;
@@ -233,19 +240,24 @@ TEST_F(RunPromptShellTest, RuntimeError_IsReportedAndShellKeepsRunning) {
         .WillOnce(Return(ByMove(SyntaxTree())))
         .WillOnce(Return(ByMove(SyntaxTree())));
     EXPECT_CALL(checker, check(_)).Times(2).WillRepeatedly(Return(true));
+    // 실제 Executor 구현체가 던지는 예외는 ExecutorError다 (ExecuteInterface.h 참고).
+    // ExecutorError는 line() 정보가 없는 순수 std::exception이라, Shell은 이를
+    // "[N번째 줄]" 접두사 없이 메시지만 출력한다.
     EXPECT_CALL(executor, execute(_))
-        .WillOnce(Throw(RuntimeCodeFabError(1, "0으로 나눈 오류")))
+        .WillOnce(Throw(ExecutorError("0으로 나눈 오류")))
         .WillOnce(Return());
 
     std::ostringstream out;
     run("a = 3 / 0;\nprint a;\n", out);
 
-    EXPECT_EQ(out.str(), ">>> [1번째 줄] 0으로 나눈 오류\n>>> >>> ");
+    EXPECT_EQ(out.str(), ">>> 0으로 나눈 오류\n>>> >>> ");
 }
 
 TEST_F(RunPromptShellTest, ErrorOnOneLine_DoesNotPreventNextLineFromRunning) {
+    // 실제 Tokenizer 구현체는 인식 불가능한 문자를 만나면 줄 번호를 메시지에 직접
+    // 담아 AssemblyError를 던진다 (TokenizeInterface.h/Tokenizer.cpp 참고).
     EXPECT_CALL(tokenizer, tokenize(std::string("x = 5;")))
-        .WillOnce(Throw(RuntimeCodeFabError(1, "미정의된 변수 'x'")));
+        .WillOnce(Throw(AssemblyError("[1번째 줄] 미정의된 변수 'x'")));
     EXPECT_CALL(tokenizer, tokenize(std::string("var y = 1;")))
         .WillOnce(Return(std::vector<Token>{}));
     EXPECT_CALL(assembler, assemble(_)).WillOnce(Return(ByMove(SyntaxTree())));
@@ -267,19 +279,21 @@ TEST_F(RunPromptShellTest, ErrorOnOneLine_DoesNotPreventNextLineFromRunning) {
 //
 // 현재 구현의 실제 한계 (아래 테스트 중 일부는 이 한계 때문에 스펙(gist)이
 // 기대하는 값과 다르게 실패한다 - 각 테스트 옆 주석 참고):
-// - Checker는 의미 오류를 찾으면 CheckerError(line, message)를 throw하고, 통과하면
-//   true를 반환한다. Shell은 CodeFabError(CheckerError 포함)를 잡으면
-//   "[N번째 줄] message" 형식으로 출력한다 (gist가 요구하는 영어 메시지가 아니라
-//   Checker가 실제로 던지는 한글 메시지가 그대로 노출된다).
+// - Tokenizer/Assembler/Checker/Executor가 던지는 예외(AssemblyError, AssemblerError,
+//   CheckerError, ExecutorError)는 전부 각자의 인터페이스 헤더(TokenizeInterface.h,
+//   AssemblerInterface.h, CheckerInterface.h, ExecuteInterface.h)에 정의된, 줄 번호를
+//   따로 들고 있지 않는 순수 std::exception이다. 줄 번호가 필요하면(Checker, 그리고
+//   Tokenizer의 AssemblyError) 호출부가 메시지에 직접 담는다. Shell은 이들을
+//   catch(const std::exception&) 하나로 잡아 메시지만 그대로 출력한다
+//   (RunPromptShell.cpp 참고) - gist가 요구하는 영어 메시지가 아니라 각 Unit이
+//   실제로 던지는 한글 메시지가 그대로 노출된다.
 // - Checker는 BlockStatement/DeclareStatement/PrintStatement (그리고 그 안의
 //   IdentifierExpression/BinaryExpression)만 검사한다. If/For/Assign 등은 아직
 //   검사하지 않고 통과시킨다.
 // - Executor는 PrintStatement, DeclareStatement, BlockStatement, IfStatement,
 //   ForStatement, 리터럴/산술/비교/대입 연산자를 모두 처리한다. 타입이 맞지 않는
 //   산술 연산은 ExecutorError(다듬어진 영어 메시지가 아니라 한글 메시지, 예:
-//   "타입 오류: ...")를 던진다. ExecutorError는 CodeFabError를 상속하지 않아
-//   줄 번호가 없고, Shell의 catch(const std::exception&) 안전망에서 잡혀
-//   "[N번째 줄]" 접두사 없이 메시지만 출력된다 (RunPromptShell.cpp 참고).
+//   "타입 오류: ...")를 던진다.
 // ============================================================================
 class RunPromptShellIntegrationTest : public ::testing::Test {
 protected:
@@ -403,7 +417,7 @@ TEST_F(RunPromptShellIntegrationTest, DecimalLiteral_PrintsWithDecimalPart) {
     EXPECT_EQ(out.str(), ">>> >>> ");
 }
 
-// --- 2-1. 구문 에러 시나리오: 실제 Assembler가 std::invalid_argument를 던지는 경우 ---
+// --- 2-1. 구문 에러 시나리오: 실제 Assembler가 AssemblerError를 던지는 경우 ---
 // Assembler가 던지는 메시지에는 실제 Tokenizer가 항상 덧붙이는 EOF 토큰 등의 영향으로
 // "(near '...' at line N)" 접미사가 붙을 수 있어, 핵심 문구만 부분 일치로 검증한다.
 
@@ -448,15 +462,11 @@ TEST_F(RunPromptShellIntegrationTest, UnexpectedTokenInExpression_ReportsSyntaxE
 }
 
 // --- 2-2. Checker 정적 에러 시나리오 ---
-// 실제 Checker는 의미 오류를 찾으면 CheckerError(line, message)를 throw하고,
-// Shell은 이를 catch(const CodeFabError&)로 잡아 "[N번째 줄] message" 형식으로 출력한다.
-// (상세 메시지/줄 번호에 대한 단위 테스트는 CheckerTest.cpp도 별도로 검증한다).
-
-// 참고: gist 원문은 이 두 케이스에 영어 메시지를 기대하지만, 실제 Checker는
-// 예외를 던지지 않고 bool만 반환해서 RunPromptShell은 상세 사유 없이 공통 실패
-// 메시지("코드 검사에 실패했습니다.")만 출력한다 (상세 한글 메시지 자체는
-// Checker::checkDetailed()가 만들고 있고, CheckerTest.cpp가 별도로 검증한다).
-// 그래서 여기서는 실제로 구현되어 있는 공통 메시지를 기대값으로 쓴다.
+// 실제 Checker는 의미 오류를 찾으면 줄 번호를 메시지에 직접 담아 CheckerError를
+// throw하고, Shell은 이를 catch(const std::exception&)로 잡아 메시지를 그대로
+// 출력한다 (상세 메시지에 대한 단위 테스트는 CheckerTest.cpp도 별도로 검증한다).
+// 참고: gist 원문은 이 두 케이스에 영어 메시지를 기대하지만, Checker가 실제로
+// 던지는 메시지는 한글이라 그 문구가 그대로 노출된다.
 TEST_F(RunPromptShellIntegrationTest, ReadLocalVariableInOwnInitializer_FailsCheckWithoutExecuting) {
     std::ostringstream out;
     run("{ var a = a; }\n", out);
@@ -489,9 +499,8 @@ TEST_F(RunPromptShellIntegrationTest, UndefinedVariableReference_FailsCheckWitho
 // --- 2-3. 실행 중(런타임) 에러 시나리오 ---
 // 실제 Executor는 타입이 안 맞는 산술 연산에서 ExecutorError를 던지고,
 // 실제로 구현되어 있는 메시지는 gist가 기대하는 다듬어진 영어 문구가 아니라
-// 한글 문구("타입 오류: ...")다. ExecutorError는 CodeFabError를 상속하지 않아
-// 줄 번호가 없으므로, CheckerError와 달리 "[N번째 줄]" 접두사 없이 메시지만
-// 출력된다.
+// 한글 문구("타입 오류: ...")다. ExecutorError는 줄 번호를 담지 않으므로
+// "[N번째 줄]" 접두사 없이 메시지만 출력된다.
 
 TEST_F(RunPromptShellIntegrationTest, MixedTypeAddition_ReportsTypeMismatchError) {
     std::ostringstream out;
