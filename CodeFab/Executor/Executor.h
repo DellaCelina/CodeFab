@@ -2,8 +2,12 @@
 
 #include <functional>
 #include <iostream>
+#include <memory>
+#include <optional>
 #include <typeindex>
 #include <unordered_map>
+#include <utility>
+#include <vector>
 
 #include "Environment.h"
 #include "ExecuteInterface.h"
@@ -48,6 +52,33 @@ public:
 private:
     void registerDefaultHandlers();
     void requireNumberOperands(const Value& left, const Value& right, const char* op) const;
+
+    // 함수/메서드 호출의 공용 절차: 새 스코프를 push하고 (this가 있으면 먼저
+    // bind한 뒤) 파라미터를 bind, body를 실행, ReturnStatement가 던지는
+    // ReturnSignal을 잡아 반환값으로 변환한다. FunctionDeclareStatement(this
+    // 없음)와 MethodDeclareStatement(this 있음, §클래스)가 이 헬퍼 하나를
+    // 공유한다.
+    Value invoke(const Token& name, const std::vector<Token>& params, const std::vector<Statement*>& body,
+        const std::vector<Value>& args, std::optional<Value> boundThis = std::nullopt);
+
+    // 최상위 함수 호출 (this 없음).
+    Value callFunction(const FunctionDeclareStatement* decl, const std::vector<Value>& args);
+
+    // 클래스 메서드 호출 (this 있음) - invoke()를 그대로 재사용한다.
+    Value callMethodDecl(const MethodDeclareStatement* method, const std::vector<Value>& args, Value boundThis);
+
+    // klass를 인스턴스화한다: 필드 저장소를 만들고, init 메서드가 있으면
+    // 호출한다(반환값은 버리고 항상 새 인스턴스를 반환).
+    Value instantiate(const ClassDeclareStatement* klass, const std::vector<Value>& args);
+
+    // callee가 FieldAccessExpression인 CallExpression(메서드 호출) 처리.
+    Value callMethod(FieldAccessExpression* fieldAccess, const std::vector<Expression*>& argExprs);
+
+    // collectionExpr/indexExpr을 평가해 (배열, 검증된 인덱스)를 반환한다. 배열이
+    // 아니거나 인덱스가 숫자가 아니거나 범위를 벗어나면 ExecutorError. 배열
+    // 자체(shared_ptr)를 값으로 반환해서, 호출부가 collectionExpr을 다시
+    // 평가하는 동안에만 살아있는 임시 Value에 원소 참조가 매달리는 일이 없게 한다.
+    std::pair<std::shared_ptr<ArrayValue>, size_t> resolveArrayIndex(Expression* collectionExpr, Expression* indexExpr);
 
     std::ostream& out_;
     Environment environment_;

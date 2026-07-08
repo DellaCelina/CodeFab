@@ -153,6 +153,10 @@
     <ClCompile Include="Executor\ExecutorTest.cpp" />
     <ClCompile Include="Executor\ExecutorVariableTest.cpp" />
     <ClCompile Include="Executor\ExecutorControlFlowTest.cpp" />
+    <ClCompile Include="Executor\ExecutorFunctionTest.cpp" />
+    <ClCompile Include="Executor\ExecutorClassTest.cpp" />
+    <ClCompile Include="Executor\ExecutorArrayTest.cpp" />
+    <ClCompile Include="Executor\ExecutorImportTest.cpp" />
     <ClCompile Include="Executor\Value.cpp" />
     <ClCompile Include="Executor\Environment.cpp" />
     <ClCompile Include="Executor\Scope.cpp" />

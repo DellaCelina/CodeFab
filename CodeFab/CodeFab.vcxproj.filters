@@ -66,6 +66,18 @@
     <ClCompile Include="Executor\ExecutorControlFlowTest.cpp">
       <Filter>Executor</Filter>
     </ClCompile>
+    <ClCompile Include="Executor\ExecutorFunctionTest.cpp">
+      <Filter>Executor</Filter>
+    </ClCompile>
+    <ClCompile Include="Executor\ExecutorClassTest.cpp">
+      <Filter>Executor</Filter>
+    </ClCompile>
+    <ClCompile Include="Executor\ExecutorArrayTest.cpp">
+      <Filter>Executor</Filter>
+    </ClCompile>
+    <ClCompile Include="Executor\ExecutorImportTest.cpp">
+      <Filter>Executor</Filter>
+    </ClCompile>
     <ClCompile Include="Executor\Value.cpp">
       <Filter>Executor</Filter>
     </ClCompile>
