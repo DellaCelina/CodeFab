@@ -1,10 +1,18 @@
 ﻿#include "Checker.h"
 
-Checker::Checker(ExecuteInterface& executor) : executor_(executor) {
-    enterScope();  // 세션 전체에 걸쳐 유지되는 전역 스코프
+namespace {
+
+bool isLiteralExpression(Expression* expr) {
+    return dynamic_cast<NumberExpression*>(expr) != nullptr
+        || dynamic_cast<BooleanExpression*>(expr) != nullptr
+        || dynamic_cast<StringExpression*>(expr) != nullptr;
 }
 
-// scope func.
+}  // namespace
+
+Checker::Checker(ExecuteInterface& executor) : executor_(executor) {
+    enterScope(); // 세션 전체에 걸쳐 유지되는 전역 스코프
+}
 
 void Checker::enterScope() {
     scopes.emplace_back();
@@ -15,12 +23,10 @@ void Checker::exitScope() {
 }
 
 bool Checker::isDeclaredInCurrentScope(const string& name) const {
-    // "같은 블록 내 중복"만 검사하므로 스택의 맨 위(top) 스코프만 확인한다.
     return !scopes.empty() && scopes.back().count(name) > 0;
 }
 
 bool Checker::isDeclaredInAnyScope(const string& name) const {
-    // 바깥쪽 스코프까지 전부 확인 (변수 사용 시점의 유효성 검사용).
     for (auto it = scopes.rbegin(); it != scopes.rend(); ++it) {
         if (it->count(name) > 0) {
             return true;
@@ -36,14 +42,8 @@ void Checker::declare(const string& name) {
 }
 
 void Checker::reportError(int line, const string& message) {
-    // CheckerInterface 계약: 의미 오류는 CheckerError를 throw해서 알린다. CheckerError는
-    // 줄 번호를 따로 들고 있지 않으므로(CheckerInterface.h 참고) 여기서 메시지에 직접 담는다.
     throw CheckerError("[{}번째 줄] {}", line, message);
 }
-
-// ---------------------------------------------------------------------------
-// DFS  (RTTI - accept()가 없어서 dynamic_cast로 타입 분기)
-// ---------------------------------------------------------------------------
 
 void Checker::checkStatement(Statement* stmt) {
     if (stmt == nullptr) {
@@ -65,8 +65,29 @@ void Checker::checkStatement(Statement* stmt) {
     else if (auto* forStmt = dynamic_cast<ForStatement*>(stmt)) {
         checkFor(forStmt);
     }
-    // ASSUMPTION: ExpressionStatement 등 나머지 Statement 타입은
-    // 아직 checker가 다루지 않는다. 필요해지면 분기를 추가한다.
+    else if (auto* exprStmt = dynamic_cast<ExpressionStatement*>(stmt)) {
+        checkExpression(exprStmt->expr);
+    }
+    else if (auto* funcDecl = dynamic_cast<FunctionDeclareStatement*>(stmt)) {
+        const string& name = funcDecl->name.origin;
+        if (isDeclaredInCurrentScope(name)) {
+            reportError(funcDecl->getLine(), "'" + name + "'에러: 이미 해당 이름은 현재 스코프에서 사용중입니다.");
+        }
+        // 바디 검사 전에 이름을 등록해 재귀 호출이 미선언 변수 오류로 잡히지 않게 한다.
+        declare(name);
+        checkFunctionBody(name, funcDecl->params, funcDecl->body, funcDecl->getLine(),
+            /*isMethod=*/false, /*isInit=*/false);
+    }
+    else if (auto* classDecl = dynamic_cast<ClassDeclareStatement*>(stmt)) {
+        checkClass(classDecl);
+    }
+    else if (auto* ret = dynamic_cast<ReturnStatement*>(stmt)) {
+        checkReturn(ret);
+    }
+    else if (auto* importStmt = dynamic_cast<ImportStatement*>(stmt)) {
+        checkImport(importStmt);
+    }
+    // MethodDeclareStatement는 클래스 바디 전용이라 여기 오지 않고 checkClass가 직접 처리한다.
 }
 
 void Checker::checkExpression(Expression* expr) {
@@ -78,25 +99,45 @@ void Checker::checkExpression(Expression* expr) {
         checkIdentifier(id);
     }
     else if (auto* bin = dynamic_cast<BinaryExpression*>(expr)) {
-        // AddExpression, MultExpression 등 모든 이항 연산자가 BinaryExpression을 상속하므로
-        // 여기서 한 번에 처리된다 (왼쪽/오른쪽 자식을 재귀적으로 검사).
         checkBinary(bin);
     }
-    // NumberExpression(숫자 리터럴)은 그 자체로 항상 유효해 검사할 규칙이 없어 분기가 없다.
-    // ASSUMPTION: StringExpression/BooleanExpression/AssignExpression/UnaryExpression 등은
-    // 아직 checker가 다루지 않는다. 필요해지면 분기를 추가한다.
+    else if (auto* assign = dynamic_cast<AssignExpression*>(expr)) {
+        checkExpression(assign->target);
+        checkExpression(assign->value);
+    }
+    else if (auto* un = dynamic_cast<UnaryExpression*>(expr)) {
+        checkExpression(un->operand);
+    }
+    else if (auto* call = dynamic_cast<CallExpression*>(expr)) {
+        // 호출 대상/인자 개수 검증은 런타임 몫이라 여기선 재귀 검사만 한다.
+        checkExpression(call->callee);
+        for (Expression* arg : call->arguments) {
+            checkExpression(arg);
+        }
+    }
+    else if (auto* field = dynamic_cast<FieldAccessExpression*>(expr)) {
+        checkExpression(field->object);
+    }
+    else if (auto* thisExpr = dynamic_cast<ThisExpression*>(expr)) {
+        checkThis(thisExpr);
+    }
+    else if (auto* arr = dynamic_cast<ArrayExpression*>(expr)) {
+        checkExpression(arr->sizeExpr);
+    }
+    else if (auto* idx = dynamic_cast<IndexExpression*>(expr)) {
+        checkExpression(idx->collection);
+        checkExpression(idx->index);
+    }
+    else if (auto* instOf = dynamic_cast<InstanceOfExpression*>(expr)) {
+        // TODO(refactor): instOf->className은 Token이라 정적으로 선언 여부를 확인하지 않는다.
+        checkExpression(instOf->object);
+    }
+    // 리터럴(Number/String/Boolean)은 항상 유효하므로 분기가 없다.
 }
-
-// ---------------------------------------------------------------------------
-// 노드별 검사 로직
-// ---------------------------------------------------------------------------
 
 void Checker::checkBlock(BlockStatement* block) {
     enterScope();
-    // scopes가 세션 전체에 걸쳐 유지되므로(Checker::Checker() 참고), checkStatement가
-    // CheckerError를 throw했을 때도 exitScope()를 반드시 실행해야 한다 - 그러지 않으면
-    // 이 블록이 남긴 스코프가 스택에 영구히 남아 이후 호출(다음 REPL 줄)의 스코프
-    // 판정을 오염시킨다.
+    // scopes가 세션 내내 유지되므로 예외가 나도 exitScope는 반드시 실행돼야 한다.
     try {
         for (Statement* stmt : block->statements) {
             checkStatement(stmt);
@@ -111,23 +152,19 @@ void Checker::checkBlock(BlockStatement* block) {
 void Checker::checkDeclare(DeclareStatement* decl) {
     const string& name = decl->identifier->name;
 
-    // [검사 1] 변수 중복 선언: 같은 스코프에 이미 같은 이름이 있으면 즉시 에러를 던진다.
     if (isDeclaredInCurrentScope(name)) {
         reportError(decl->getLine(),
             "'" + name + "'에러: 이미 해당 변수는 현재 스코프에서 사용중입니다.");
     }
 
-    // [검사 2] 선언 시 자기 참조: var a = a + 1; 처럼 초기화식 안에서 자기 자신을 읽으면 에러.
-    //
-    // 핵심 아이디어: 초기화식을 검사하는 "동안에는" 아직 심볼 테이블에 변수를 등록하지 않는다.
-    // 대신 지금 선언 중인 이름을 currentlyDeclaring에 기억해두고,
-    // checkIdentifier에서 그 이름과 같은 식별자를 만나면 "자기 참조"로 판단한다.
+    // 초기화식 검사 중에는 아직 이름을 등록하지 않고, currentlyDeclaring에 기억해두어
+    // checkIdentifier가 자기 참조(var a = a + 1;)를 잡을 수 있게 한다.
     string previousDeclaring = currentlyDeclaring;
     currentlyDeclaring = name;
 
     checkExpression(decl->expr);
 
-    currentlyDeclaring = previousDeclaring; // 중첩된 선언을 대비해 이전 상태로 복원
+    currentlyDeclaring = previousDeclaring;
 
     declare(name);
 }
@@ -138,60 +175,180 @@ void Checker::checkPrint(PrintStatement* stmt) {
 
 void Checker::checkIf(IfStatement* ifStmt) {
     checkExpression(ifStmt->expr);
-    // thenBranch/elseBranch가 BlockStatement면 checkBlock이 자체 스코프를 새로 열고,
-    // 단일 문장이면 지금 스코프에 그대로 선언된다. elseBranch는 nullptr일 수 있는데
-    // checkStatement 진입부에서 이미 null 체크를 하므로 그대로 넘겨도 안전하다.
-    // if 자체는 반복되는 초기화절이 없어(for와 달리) 별도 스코프가 필요 없다.
     checkStatement(ifStmt->thenBranch);
     checkStatement(ifStmt->elseBranch);
 }
 
 void Checker::checkFor(ForStatement* forStmt) {
-    // for는 init에서 선언한 변수(예: for (var j = 0; ...))가 루프 본문에서만 보여야
-    // 하므로, init/compare/next/loop 전체를 감싸는 전용 스코프를 새로 연다.
-    // scopes가 세션 전체에 걸쳐 유지되므로(Checker::Checker() 참고), 예외가 나도
-    // exitScope()가 반드시 실행돼야 한다 (checkBlock과 동일한 이유).
+    // init에서 선언한 변수가 루프 본문에서만 보여야 하므로 전용 스코프를 연다.
     enterScope();
+    ++forDepth;
     try {
         checkStatement(forStmt->init);
         checkExpression(forStmt->compare);
         checkExpression(forStmt->next);
         checkStatement(forStmt->loop);
     } catch (...) {
+        --forDepth;
         exitScope();
         throw;
     }
+    --forDepth;
     exitScope();
 }
 
 void Checker::checkIdentifier(IdentifierExpression* id) {
-    // 지금 막 선언 중인 변수와 이름이 같다면 -> 자기 참조 에러
     if (!currentlyDeclaring.empty() && id->name == currentlyDeclaring) {
         reportError(id->getLine(), "자신의 초기화식에서 지역변수를 읽을 수 없습니다.");
     }
 
-    // 그 외의 일반적인 경우: 스코프 체인 전체에서 선언 여부 확인.
     if (!isDeclaredInAnyScope(id->name)) {
         reportError(id->getLine(), "'" + id->name + "'에러: 선언되지 않은 변수입니다.");
     }
+
+    resolveIdentifier(id);
 }
 
 void Checker::checkBinary(BinaryExpression* bin) {
     checkExpression(bin->left);
     checkExpression(bin->right);
+    foldConstantIfPossible(bin);
 }
 
+void Checker::foldConstantIfPossible(BinaryExpression* bin) {
+    if (!isLiteralExpression(bin->left) || !isLiteralExpression(bin->right)) {
+        return;
+    }
+    try {
+        executor_.evaluate(bin);
+        // TODO(refactor): 여기서 얻은 값으로 bin 자리를 리터럴 노드로 치환해야 진짜 폴딩이다.
+        // BinaryExpression::left/right가 Expression* const라 지금은 트리를 바꾸지 못하고,
+        // evaluate()가 호출된다는 것만 확인한다.
+    } catch (const ExecutorError&) {
+        // 0으로 나누기 등 - 컴파일 타임에 대신 오류를 내면 안 되므로 조용히 건너뛴다.
+    }
+}
+
+void Checker::checkFunctionBody(const string& name, const vector<Token>& params,
+    const vector<Statement*>& body, int line, bool isMethod, bool isInit) {
+    unordered_set<string> paramNames;
+    for (const Token& param : params) {
+        if (!paramNames.insert(param.origin).second) {
+            reportError(line, "'" + name + "'의 파라미터 이름 '" + param.origin + "'이(가) 중복됩니다.");
+        }
+    }
+
+    enterScope();
+    ++functionDepth;
+    if (isMethod) {
+        ++classMethodDepth;
+        declare("this");
+    }
+    bool previousInInit = inInitMethod;
+    inInitMethod = isInit;
+
+    try {
+        for (const Token& param : params) {
+            declare(param.origin);
+        }
+        for (Statement* stmt : body) {
+            checkStatement(stmt);
+        }
+    } catch (...) {
+        inInitMethod = previousInInit;
+        if (isMethod) {
+            --classMethodDepth;
+        }
+        --functionDepth;
+        exitScope();
+        throw;
+    }
+
+    inInitMethod = previousInInit;
+    if (isMethod) {
+        --classMethodDepth;
+    }
+    --functionDepth;
+    exitScope();
+}
+
+void Checker::checkClass(ClassDeclareStatement* classDecl) {
+    const string& name = classDecl->name.origin;
+    if (isDeclaredInCurrentScope(name)) {
+        reportError(classDecl->getLine(), "'" + name + "'에러: 이미 해당 이름은 현재 스코프에서 사용중입니다.");
+    }
+    declare(name);
+
+    // TODO(refactor): 같은 클래스 안에서 메서드 이름이 중복돼도 지금은 검사하지 않는다.
+    for (MethodDeclareStatement* method : classDecl->methods) {
+        bool isInit = method->name.origin == "init";
+        checkFunctionBody(method->name.origin, method->params, method->body, method->getLine(),
+            /*isMethod=*/true, /*isInit=*/isInit);
+    }
+}
+
+void Checker::checkReturn(ReturnStatement* ret) {
+    if (functionDepth == 0) {
+        reportError(ret->getLine(), "함수(메서드) 밖에서 return을 사용할 수 없습니다.");
+    }
+    if (inInitMethod && ret->value != nullptr) {
+        reportError(ret->getLine(), "init 메서드는 값을 반환할 수 없습니다.");
+    }
+    checkExpression(ret->value);
+}
+
+void Checker::checkImport(ImportStatement* importStmt) {
+    if (forDepth > 0) {
+        reportError(importStmt->getLine(), "반복문(for) 안에서는 import를 사용할 수 없습니다.");
+    }
+
+    const string& alias = importStmt->alias.origin;
+
+    // TODO(refactor): ImportStatement에 원본 path가 없어 "동일 alias"로 대체 검사 중이다.
+    // 서로 다른 alias로 같은 파일을 두 번 import하는 경우는 걸러내지 못한다.
+    if (isDeclaredInCurrentScope(alias)) {
+        reportError(importStmt->getLine(), "'" + alias + "'에러: 이미 해당 이름은 현재 스코프에서 사용중입니다.");
+    }
+    else if (isDeclaredInAnyScope(alias)) {
+        reportError(importStmt->getLine(), "'" + alias + "'에러: 상위 스코프에서 이미 사용중인 이름입니다.");
+    }
+
+    declare(alias);
+
+    // 파일 존재/순환 검사는 Assembler가 이미 끝냈으므로 declarations는 그대로 재귀 검사만 한다.
+    for (Statement* decl : importStmt->declarations) {
+        checkStatement(decl);
+    }
+}
+
+void Checker::checkThis(ThisExpression* thisExpr) {
+    if (classMethodDepth == 0) {
+        reportError(thisExpr->getLine(), "클래스 메서드 밖에서 This를 사용할 수 없습니다.");
+    }
+    // this는 checkFunctionBody가 메서드 스코프에 미리 declare해두므로 여기선 추가 처리가 없다.
+}
+
+void Checker::resolveIdentifier(IdentifierExpression* id) const {
+    for (int distance = 0; distance < static_cast<int>(scopes.size()); ++distance) {
+        const auto& scope = scopes[scopes.size() - 1 - distance];
+        if (scope.count(id->name) > 0) {
+            id->depth = distance;
+            return;
+        }
+    }
+    // checkIdentifier가 먼저 isDeclaredInAnyScope로 확인하므로 이론상 도달하지 않는다.
+    id->depth = std::nullopt;
+}
 
 bool Checker::check(SyntaxTree& tree) {
-    // currentlyDeclaring은 이번 호출(= REPL 한 줄) 한정 상태라 매번 초기화한다.
-    // scopes는 초기화하지 않는다 - 생성자에서 만든 전역 스코프를 세션 내내 유지해야
-    // 서로 다른 호출(줄)에 걸친 변수 선언/사용을 올바르게 추적할 수 있다.
+    // scopes를 제외한 나머지는 이번 호출(REPL 한 줄) 한정 상태라 매번 초기화한다.
     currentlyDeclaring.clear();
+    functionDepth = 0;
+    classMethodDepth = 0;
+    forDepth = 0;
+    inInitMethod = false;
 
-    // ASSUMPTION: SyntaxTree::getRoot()가 프로그램 전체를 감싸는 단일 Statement
-    // (보통 최상위 BlockStatement)를 반환한다고 가정.
     checkStatement(dynamic_cast<Statement*>(tree.getRoot()));
 
-    // 여기까지 예외 없이 도달했다면 의미 오류가 없다는 뜻이다.
     return true;
 }
