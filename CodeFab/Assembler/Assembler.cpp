@@ -252,12 +252,8 @@ private:
         }
     }
 
-    // 실제 Tokenizer는 토큰 목록 끝에 END_OF_FILE 토큰을 덧붙이지만(Tokenizer.cpp
-    // 참고), 단위 테스트에서 수기로 만든 토큰 목록에는 없을 수도 있다. 두 경우 모두
-    // "더 이상 소비할 토큰이 없음"으로 취급해야 parseBlockStatement 등의 종료 조건이
-    // 일관되게 동작한다.
     std::optional<Token> currentToken() const {
-        if (pos >= tokens.size() || tokens[pos].type == TokenType::END_OF_FILE)
+        if (pos >= tokens.size())
             return std::nullopt;
         return tokens[pos];
     }

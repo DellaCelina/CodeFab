@@ -58,8 +58,6 @@ enum class TokenType {
     LEFT_BRACKET,   // [
     RIGHT_BRACKET,  // ]
     COMMA,          // ,
-
-    END_OF_FILE
 };
 
 struct Token {
