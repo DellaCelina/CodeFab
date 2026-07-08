@@ -45,10 +45,7 @@ TEST(CheckerTest, PrintExpressionWithNoErrorsPasses) {
     tree.setRoot(rootRaw);
 
     Checker checker;
-    CheckResult result = checker.checkDetailed(tree);
-
-    EXPECT_TRUE(result.passed);
-    EXPECT_EQ(0u, result.errors.size());
+    EXPECT_TRUE(checker.check(tree));
 }
 
 // ---------------------------------------------------------------------------
@@ -81,12 +78,13 @@ TEST(CheckerTest, DuplicateDeclarationInSameScopeReportsError) {
     tree.setRoot(rootRaw);
 
     Checker checker;
-    CheckResult result = checker.checkDetailed(tree);
-
-    EXPECT_FALSE(result.passed);
-    ASSERT_EQ(1u, result.errors.size());
-    EXPECT_THAT(result.errors[0].message, testing::HasSubstr("이미 해당 변수는 현재 스코프에서 사용중입니다"));
-    EXPECT_THAT(result.errors[0].message, testing::HasSubstr("3번째 줄"));
+    try {
+        checker.check(tree);
+        FAIL() << "CheckerError가 발생해야 합니다.";
+    } catch (const CheckerError& e) {
+        EXPECT_EQ(3, e.line());
+        EXPECT_THAT(std::string(e.what()), testing::HasSubstr("이미 해당 변수는 현재 스코프에서 사용중입니다"));
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -115,10 +113,11 @@ TEST(CheckerTest, SelfReferenceInInitializerReportsError) {
     tree.setRoot(rootRaw);
 
     Checker checker;
-    CheckResult result = checker.checkDetailed(tree);
-
-    EXPECT_FALSE(result.passed);
-    ASSERT_EQ(1u, result.errors.size());
-    EXPECT_THAT(result.errors[0].message, testing::HasSubstr("자신의 초기화식에서 지역변수를 읽을 수 없습니다"));
-    EXPECT_THAT(result.errors[0].message, testing::HasSubstr("2번째 줄"));
+    try {
+        checker.check(tree);
+        FAIL() << "CheckerError가 발생해야 합니다.";
+    } catch (const CheckerError& e) {
+        EXPECT_EQ(2, e.line());
+        EXPECT_THAT(std::string(e.what()), testing::HasSubstr("자신의 초기화식에서 지역변수를 읽을 수 없습니다"));
+    }
 }

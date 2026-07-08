@@ -32,8 +32,10 @@ void Checker::declare(const string& name) {
 }
 
 void Checker::reportError(int line, const string& message) {
-    // error 발생 line 표시
-    errors.push_back(CheckError{ "[" + to_string(line) + "번째 줄] " + message });
+    // CheckerInterface 계약: 의미 오류는 CheckerError(line, message)를 throw해서 알린다.
+    // "[N번째 줄] ..." 포맷은 Shell(RunPromptShell)이 catch 시점에 담당하므로 여기서는
+    // 줄 번호와 순수 메시지만 넘긴다.
+    throw CheckerError(line, message);
 }
 
 // ---------------------------------------------------------------------------
@@ -86,16 +88,18 @@ void Checker::checkBlock(BlockStatement* block) {
         checkStatement(stmt);
     }
     exitScope();
+    // NOTE: checkStatement가 CheckerError를 throw하면 exitScope() 호출 없이 즉시 스택을
+    // 풀며 빠져나간다. check()가 매번 시작할 때 scopes.clear()를 하므로 다음 호출에는
+    // 영향이 없다.
 }
 
 void Checker::checkDeclare(DeclareStatement* decl) {
     const string& name = decl->identifier->name;
 
-    // [검사 1] 변수 중복 선언: 같은 스코프에 이미 같은 이름이 있으면 에러.
+    // [검사 1] 변수 중복 선언: 같은 스코프에 이미 같은 이름이 있으면 즉시 에러를 던진다.
     if (isDeclaredInCurrentScope(name)) {
         reportError(decl->getLine(),
             "'" + name + "'에러: 이미 해당 변수는 현재 스코프에서 사용중입니다.");
-        // 에러가 나도 계속 진행한다 (fail-fast가 아니라 에러를 최대한 누적해서 보여주는 방식).
     }
 
     // [검사 2] 선언 시 자기 참조: var a = a + 1; 처럼 초기화식 안에서 자기 자신을 읽으면 에러.
@@ -121,7 +125,6 @@ void Checker::checkIdentifier(IdentifierExpression* id) {
     // 지금 막 선언 중인 변수와 이름이 같다면 -> 자기 참조 에러
     if (!currentlyDeclaring.empty() && id->name == currentlyDeclaring) {
         reportError(id->getLine(), "자신의 초기화식에서 지역변수를 읽을 수 없습니다.");
-        return;
     }
 
     // 그 외의 일반적인 경우: 스코프 체인 전체에서 선언 여부 확인.
@@ -135,9 +138,7 @@ void Checker::checkBinary(BinaryExpression* bin) {
     checkExpression(bin->right);
 }
 
-
-CheckResult Checker::checkDetailed(SyntaxTree& tree) {
-    errors.clear();
+bool Checker::check(SyntaxTree& tree) {
     scopes.clear();
     currentlyDeclaring.clear();
 
@@ -149,14 +150,6 @@ CheckResult Checker::checkDetailed(SyntaxTree& tree) {
 
     exitScope();
 
-    CheckResult result;
-    result.passed = errors.empty();
-    result.errors = errors;
-    return result;
-}
-
-bool Checker::check(SyntaxTree& tree) {
-    // CheckerInterface 계약: 상세 에러 목록 없이 통과 여부만 알려줘도 된다(주석 참고).
-    // 상세 메시지가 필요한 호출부는 checkDetailed()를 직접 사용한다.
-    return checkDetailed(tree).passed;
+    // 여기까지 예외 없이 도달했다면 의미 오류가 없다는 뜻이다.
+    return true;
 }

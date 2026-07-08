@@ -266,8 +266,9 @@ TEST_F(RunPromptShellTest, ErrorOnOneLine_DoesNotPreventNextLineFromRunning) {
 // 셸의 프롬프트/에러 스트림(out)과는 분리되어 있다 -> 두 스트림을 각각 검증한다.
 //
 // 현재 구현의 실제 한계:
-// - Checker는 예외를 던지지 않고 bool만 반환한다. 실패 시 Shell은 상세 메시지 없이
-//   "코드 검사에 실패했습니다."만 출력한다.
+// - Checker는 의미 오류를 찾으면 CheckerError(line, message)를 throw하고, 통과하면
+//   true를 반환한다 (Shell은 throw 시 "[N번째 줄] message"를, false 반환 시
+//   "코드 검사에 실패했습니다."를 출력한다).
 // - Checker는 BlockStatement/DeclareStatement/PrintStatement (그리고 그 안의
 //   IdentifierExpression/BinaryExpression)만 검사한다. If/For/Assign 등은 아직
 //   검사하지 않고 통과시킨다.
@@ -380,16 +381,16 @@ TEST_F(RunPromptShellIntegrationTest, UnexpectedTokenInExpression_ReportsSyntaxE
 }
 
 // --- 2-2. Checker 정적 에러 시나리오 ---
-// 실제 Checker는 예외를 던지지 않고 bool만 반환하므로, Shell은 상세 사유 없이
-// 공통 실패 메시지만 출력한다 (상세 메시지는 Checker::checkDetailed()로만 얻을 수 있다.
-// CheckerTest.cpp가 그 상세 메시지/줄 번호를 별도로 검증한다).
+// 실제 Checker는 의미 오류를 찾으면 CheckerError(line, message)를 throw하고,
+// Shell은 이를 catch(const CodeFabError&)로 잡아 "[N번째 줄] message" 형식으로 출력한다.
+// (상세 메시지/줄 번호에 대한 단위 테스트는 CheckerTest.cpp도 별도로 검증한다).
 
 TEST_F(RunPromptShellIntegrationTest, ReadLocalVariableInOwnInitializer_FailsCheckWithoutExecuting) {
     std::ostringstream out;
     run("{ var a = a; }\n", out);
 
     EXPECT_EQ(programOutput.str(), "");  // Executor가 호출되지 않았다.
-    EXPECT_EQ(out.str(), ">>> 코드 검사에 실패했습니다.\n>>> ");
+    EXPECT_EQ(out.str(), ">>> [1번째 줄] 자신의 초기화식에서 지역변수를 읽을 수 없습니다.\n>>> ");
 }
 
 TEST_F(RunPromptShellIntegrationTest, DuplicateLocalDeclaration_FailsCheckWithoutExecuting) {
@@ -397,7 +398,7 @@ TEST_F(RunPromptShellIntegrationTest, DuplicateLocalDeclaration_FailsCheckWithou
     run("{ var a = \"hi\"; var a = 3; }\n", out);
 
     EXPECT_EQ(programOutput.str(), "");
-    EXPECT_EQ(out.str(), ">>> 코드 검사에 실패했습니다.\n>>> ");
+    EXPECT_EQ(out.str(), ">>> [1번째 줄] 'a'에러: 이미 해당 변수는 현재 스코프에서 사용중입니다.\n>>> ");
 }
 
 TEST_F(RunPromptShellIntegrationTest, UndefinedVariableReference_FailsCheckWithoutExecuting) {
@@ -406,10 +407,9 @@ TEST_F(RunPromptShellIntegrationTest, UndefinedVariableReference_FailsCheckWitho
 
     // 참고: gist는 이 케이스를 "런타임 에러"로 분류하지만, 실제로는 Checker의
     // "선언되지 않은 변수" 규칙(checkIdentifier의 isDeclaredInAnyScope 검사)이
-    // 이미 이 시점에 잡아내서 Executor까지 도달하지 않는다. Checker는 예외를
-    // 던지지 않고 bool만 반환하므로 상세 메시지는 노출되지 않는다.
+    // 이미 이 시점에 잡아내서 Executor까지 도달하지 않는다.
     EXPECT_EQ(programOutput.str(), "");
-    EXPECT_EQ(out.str(), ">>> 코드 검사에 실패했습니다.\n>>> ");
+    EXPECT_EQ(out.str(), ">>> [1번째 줄] 'notDefined'에러: 선언되지 않은 변수입니다.\n>>> ");
 }
 
 // --- 2-3. 실행 중(런타임) 에러 시나리오 ---
