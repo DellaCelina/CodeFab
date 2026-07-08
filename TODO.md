@@ -116,6 +116,54 @@ CallExpression(FieldAccessExpression(IdentifierExpression("sum"), "func"), []))]
 원인 파악 후 의도된 red 테스트라면 이 항목은 지우고, 실제 버그라면 별도 항목으로
 분리한다.
 
+## 5. 클래스 상속(Super, `:`)이 Architecture.md/Implement.md에 설계만 있고 미확정
+
+3일차 PDF에는 상속(`Class B : A`), `Super` 키워드로 상위 클래스 메서드 호출, 메서드
+오버라이딩, `instanceof`가 부모 클래스에 대해서도 `true`를 반환해야 한다는 요구사항이
+들어있다. 그런데 Architecture.md §4.5는 "상속 확장 지점(이번 범위 제외)"라는 제목
+그대로, 나중에 추가할 때 손댈 지점만 짧게 나열해둔 **스텁(stub)**이고, 실제 문법/의미
+검사/실행 규칙은 하나도 확정되어 있지 않다. Implement.md에는 상속 관련 내용이 아예
+없다(Assembler/Checker/Executor 담당자 가이드 어디에도 `Super`/`SuperExpression`/
+`superclass`가 등장하지 않음).
+
+**해야 할 일** (아래 항목들이 먼저 정리되어야 "# Integration test"의 §2-1 상속
+시나리오를 실제 테스트로 옮길 수 있다):
+
+- [ ] Architecture.md §2.1에 `SUPER`, `COLON`(`:`) 토큰 추가하고, §2.2에
+      `ClassDeclareStatement.superclass: IdentifierExpression*`(nullable) 필드와
+      `SuperExpression(keyword, method)` 노드를 정식으로 추가(지금은 §4.5에
+      아이디어만 있고 노드 스펙이 없음).
+- [ ] Assembler 파싱 규칙 확정: `classDeclStmt -> CLASS IDENTIFIER (COLON IDENTIFIER)?
+      LEFT_BRACE methodDeclStmt* RIGHT_BRACE`, `Super.method(...)` 파싱(우변이 항상
+      메서드 호출 형태로 강제되는지, 아니면 `Super.field`처럼 필드 접근도 허용하는지
+      팀 결정 필요) — Implement.md §2(Assembler)에 의사코드 추가.
+- [ ] Checker 의미 검사 확정: 자기 자신 상속(`Class A : A`) 금지, 클래스가 아닌 대상
+      상속 금지, 클래스 외부에서 `Super` 사용 금지, **부모 없는 클래스에서 `Super`
+      사용 금지** — Implement.md §3(Checker)에 추가.
+- [ ] Executor 실행 규칙 확정: 메서드 탐색을 `klass->methods` → 없으면
+      `klass->superclass->methods`로 재귀 확장(오버라이딩은 이 탐색이 자식 클래스부터
+      먼저 찾으므로 자연히 해결됨), `Super.method(...)` 호출은 **현재 인스턴스(this)는
+      그대로 유지한 채** 메서드 탐색 시작점만 `this`가 속한 클래스가 아니라
+      `superclass`로 강제 이동 — Implement.md §4(Executor)에 추가.
+- [ ] `InstanceOfExpression` 평가 로직을 "정확히 같은 클래스인지"(포인터 비교 1회)에서
+      "`instance.klass`부터 `superclass` 체인을 따라 올라가며 일치하는 게 있는지"로
+      확장(Architecture.md §8.2, Implement.md §4 "할 일 4" 갱신).
+- [ ] 필드 저장소(`InstanceValue.fields`)는 상속 여부와 무관하게 인스턴스당 하나로
+      계속 충분한지 재확인(Architecture.md §4.5는 "충분하다"고 되어 있으나, 부모
+      클래스의 `init`이 자식과 다른 필드를 설정하는 경우까지 고려했을 때 실제로
+      문제없는지 시나리오로 검증 필요 — 아래 Integration test §2-1 참고).
+
+## 6. 인스턴스 필드 동적 추가 요구사항 자체는 이미 설계에 반영되어 있음(확인 완료)
+
+"`init`으로 선언되지 않은 필드도 `instance.field = 1;`처럼 외부에서 대입하면 새로
+생겨야 한다"는 요구사항은 **이미 Architecture.md §4.3에 명시되어 있고 별도 구현이
+필요 없다** — `InstanceValue.fields`가 기존 `Scope`를 그대로 재사용하고,
+`Scope::define()`이 원래부터 "없으면 생성/있으면 갱신"(upsert)으로 동작하기 때문에
+`AssignExpression`의 target이 `FieldAccessExpression`일 때 그냥
+`instance.fields->define(name, value)`만 호출하면 자동으로 만족된다. 새로 설계하거나
+문서를 고칠 필요는 없고, **Executor 구현 시 이 동작을 놓치지 않도록 아래 Integration
+test §2의 "동적 필드 추가" 시나리오로 회귀를 막아두는 것**만 필요하다.
+
 # Integration test
 
 Architecture.md/3일차 PDF에 기술된 기능들이 실제로 구현되고 나면
@@ -163,6 +211,54 @@ Architecture.md/3일차 PDF에 기술된 기능들이 실제로 구현되고 나
   런타임 오류.
 - **에러: 인스턴스가 아닌 값의 필드 접근**: `var x = "hello"; x.field = 1;` → 런타임
   오류.
+- **동적 필드 추가**: `Class Robot { }`처럼 필드를 하나도 선언/초기화하지 않는(즉
+  `init`도 없는) 클래스로 인스턴스를 만든 뒤, `var r = Robot(); r.speed = 10;
+  print r.speed;`처럼 생성 이후 처음 보는 이름에 바로 대입하면 그 필드가 새로
+  생겨서 읽을 수 있어야 한다(3일차 요구사항: "없는 필드일 경우 새로 생성"). 아래
+  두 케이스를 모두 확인한다.
+  - `init`이 전혀 없는 클래스에 필드를 동적으로 추가하는 경우.
+  - `init`이 일부 필드만 설정해둔 클래스에서, `init`이 건드리지 않은 **새 이름**의
+    필드를 생성 이후에 동적으로 추가하는 경우(`Class Robot { init(name) {
+    This.name = name; } } var r = Robot("A"); r.speed = 5; print r.name + "," +
+    r.speed;` → `A,5`). `init`이 설정한 필드와 동적으로 추가한 필드가 같은
+    인스턴스에 공존해야 한다.
+
+## 2-1. 클래스 상속 (§5 "TODO" 목록에서 설계가 먼저 확정되어야 함)
+
+**주의**: 아래 시나리오는 3일차 PDF의 요구사항이지만, 현재 Architecture.md는
+상속을 "이번 범위 제외 + 확장 지점만 기록"으로 남겨두고 있어 문법(`Super`, `:`)과
+실행 규칙이 아직 확정되어 있지 않다(위 "# TODO"의 5번 항목 참고). 아래 시나리오는
+그 설계가 끝난 뒤에 구현 순서대로 테스트로 옮긴다.
+
+- **메서드 오버라이딩**: 부모 클래스 `Robot`과 자식 클래스 `SpeedRobot : Robot`이
+  같은 이름의 메서드를 각각 정의했을 때, 자식 인스턴스에서 그 메서드를 호출하면
+  **자식의 구현이 실행**되어야 한다(`Class Robot { move(dist) { print "move"; } }
+  Class SpeedRobot : Robot { move(dist) { print "speed move"; } }
+  SpeedRobot().move(3);` → `speed move` 출력).
+- **오버라이드하지 않은 메서드는 부모 것을 그대로 상속**: 자식 클래스가 재정의하지
+  않은 메서드를 자식 인스턴스에서 호출하면 부모의 구현이 실행되어야 한다.
+- **Super로 부모 메서드 호출**: 자식이 메서드를 오버라이드하면서 그 안에서
+  `Super.move(dist)`로 부모의 구현을 호출하면, 오버라이드된 자식 구현이 아니라
+  **부모의 구현이 실행**되어야 한다(`Class SpeedRobot : Robot { move(dist) {
+  Super.move(dist); print "speed!"; } }` 호출 시 `move`(부모 출력) → `speed!` 순서로
+  출력).
+- **Super로 호출해도 필드는 같은 인스턴스를 가리킴**: `Super.move(dist)`가 부모
+  구현을 실행하는 동안 `This.position`처럼 필드에 접근하면, 별도의 부모 인스턴스가
+  아니라 **원래 호출한 자식 인스턴스와 같은 필드 저장소**를 읽고 써야 한다.
+- **다단계 상속(조부모까지)**: `Class C : B`, `Class B : A`처럼 2단계 이상 상속했을 때
+  `C`의 인스턴스가 `A`에만 있는 메서드도 호출할 수 있어야 한다.
+- **instanceof가 부모 클래스에 대해서도 true**: `Class Robot { } Class SpeedRobot :
+  Robot { } var w = SpeedRobot(); print (w instanceof SpeedRobot);` → `true`,
+  `print (w instanceof Robot);` → **`true`**(자기 자신뿐 아니라 부모 클래스여도
+  성립해야 한다는 게 핵심 - 단순 포인터 비교 1회로는 이 케이스를 못 잡는다).
+- **instanceof가 관계 없는 클래스에는 false**: `SpeedRobot` 인스턴스가 `SpeedRobot`/
+  `Robot`과 상속 관계가 없는 별도의 `Class Other { }`에 대해서는 `false`를 반환해야
+  한다.
+- **에러: 자기 자신을 상속**: `Class Robot : Robot { }` → 의미 오류.
+- **에러: 클래스가 아닌 대상을 상속**: `var x = 10; Class Robot : x { }` → 의미 오류.
+- **에러: 클래스 외부에서 Super 사용**: 최상위 코드에서 `Super.move();` → 의미 오류.
+- **에러: 부모가 없는 클래스 안에서 Super 사용**: 상속하지 않은 클래스의 메서드
+  안에서 `Super.move();` → 의미 오류.
 
 ## 3. 정적 배열
 
