@@ -652,3 +652,24 @@ TEST_F(RunPromptShellIntegrationTest, ForLoop_WithVarInitializer_PrintsZeroOneTw
     EXPECT_EQ(programOutput.str(), "0\n1\n2\n");
     EXPECT_EQ(out.str(), ">>> >>> ");
 }
+
+// --- 5. 논리 연산자(and/or) ---
+// PDF 스펙(Assembly Unit 핵심원리 - Expr 예시)이 요구하는 Logical Expr(and/or)은
+// 아직 Tokenizer/Assembler/Executor 어디에도 구현되어 있지 않다. 이 테스트들은
+// 현재 시점에는 FAIL 하도록 의도적으로 추가한 것으로, 미구현 기능을 추적하기 위한
+// 표시용(TDD red) 테스트다. and/or를 구현하면 이 테스트들이 통과해야 한다.
+TEST_F(RunPromptShellIntegrationTest, LogicalAnd_PrintsFalseWhenLeftOperandIsFalse) {
+    std::ostringstream out;
+    run("print false and true;\n", out);
+
+    EXPECT_EQ(programOutput.str(), "false\n");
+    EXPECT_EQ(out.str(), ">>> >>> ");
+}
+
+TEST_F(RunPromptShellIntegrationTest, LogicalOr_PrintsTrueWhenLeftOperandIsFalseButRightIsTrue) {
+    std::ostringstream out;
+    run("print false or true;\n", out);
+
+    EXPECT_EQ(programOutput.str(), "true\n");
+    EXPECT_EQ(out.str(), ">>> >>> ");
+}
