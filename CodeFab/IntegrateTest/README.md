@@ -13,7 +13,7 @@ gtest로 검증한 시나리오를 그대로 옮긴 것이라, 여기서 나온 
 Release 빌드 산출물이 있는 `CodeFab\x64\Release` 안에서 실행하는 경우:
 
 ```
-CodeFab.exe run ..\..\IntegrateTest\01_arithmetic_precedence.txt
+CodeFab.exe run ..\..\CodeFab\IntegrateTest\01_arithmetic_precedence.txt
 ```
 
 파일마다 표준출력(stdout)에 찍히는 `print` 결과와 종료 코드(exit code)를 아래 표와
