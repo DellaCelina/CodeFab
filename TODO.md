@@ -236,7 +236,7 @@ if (!dynamic_cast<DeclareStatement*>(decl) && !dynamic_cast<FunctionDeclareState
 }
 ```
 
-반면 `Executor.cpp:25-36`(`declaredNameOf`)은 `ClassDeclareStatement`까지 이름을
+반면 `Executor.cpp:26-37`(`declaredNameOf`)은 `ClassDeclareStatement`까지 이름을
 뽑아낼 수 있도록 분기가 이미 만들어져 있다. 즉 Executor는 "모듈에서 클래스를
 import해서 이름을 등록하는" 경로를 준비해 뒀는데, 그 앞단인 Assembler가 애초에
 그런 트리를 만들지 못하게 막고 있어 `declaredNameOf`의 클래스 분기가 죽은 코드다.
@@ -505,24 +505,40 @@ Shell의 File/Debug 모드가 구현되면, 기존 REPL 통합 테스트와 별�
 - [ ] 전체 코드베이스에서 코드와 내용이 맞지 않는 주석 파악 및 수정
 - [ ] 코드만으로 충분히 이해되는 불필요한 주석 제거
 
-## 3. `Environment::lookupAt`/`assignAt`에 범위 검사 없음
+## 3. `Environment::lookupAt`/`assignAt`에 범위 검사 없음 (master 병합 후 실전 위험으로 격상)
 
 `Environment.cpp:42-50`에서 `distance`가 현재 스코프 깊이보다 크면
 `size_t index = scopes_.size() - 1 - distance;`가 언더플로우로 거대한 값이 되고,
 뒤이은 `scopes_[index]`는 `std::vector::operator[]`라 범위를 벗어나도 예외 없이
-크래시/메모리 오염으로 이어진다. 현재는 `IdentifierExpression`에 depth를 채워 넣는
-Resolver가 아직 없어 이 경로에 잘못된 `distance`가 들어올 일이 없지만, 정적 바인딩
-관련 Resolver가 추가되는 순간 재현하기 어려운 버그로 튈 수 있는 지점이라 미리
-방어해두는 게 안전하다.
+크래시/메모리 오염으로 이어진다.
+
+이 항목을 처음 적을 때는 "`IdentifierExpression`에 depth를 채워 넣는 Resolver가
+아직 없어 이 경로에 잘못된 `distance`가 들어올 일이 없다"고 적었는데, master에
+`Checker::resolveIdentifier`(`Checker.cpp:331-341`)가 merge되면서 depth가 실제로
+채워지고 `Executor.cpp:149-151`, `183-185`에서 바로 쓰이기 시작했다 - 즉 더 이상
+가상의 위험이 아니라 지금 당장 스코프 계산이 어긋나면 바로 재현되는 위험이다.
+
+실제로 어긋날 수 있는 구체적인 지점 하나가 이미 PR
+[#36](https://github.com/DellaCelina/CodeFab/pull/36#discussion_r3541866636)
+리뷰에서 지적됐다: `Checker::checkImport`가 import 내부 선언들을 검사할 때
+`enterScope()`/`exitScope()` 없이 현재 스코프에서 바로 `checkStatement(decl)`을
+호출해서, import 내부 선언 이름이 바깥 스코프로 그대로 새어나간다(`checkBlock`/
+`checkFor`의 enterScope + try/catch(exitScope, rethrow) 패턴을 똑같이 적용하자는
+해법까지 리뷰에서 나온 상태 - 별도 항목으로 안 만들고 여기서 연결만 해둔다).
+Checker와 Executor가 계산하는 스코프 개수가 이렇게 어긋나면, 그 어긋난 만큼
+`distance`가 잘못된 값으로 Executor에 전달되고, 방어 코드가 없는 `lookupAt`/
+`assignAt`가 그 값을 그대로 써서 범위를 벗어난 접근으로 이어질 수 있다.
 
 **해야 할 일**:
 - [ ] `distance`가 `scopes_.size()`보다 크거나 같으면 예외를 던지도록 방어 코드 추가
 - [ ] `scopes_[index]` 대신 `scopes_.at(index)`로 바꿔 최소한 UB 대신 명확한 예외가
       나도록 변경(성능이 문제라면 디버그 빌드에서만 `at` 사용 검토)
+- [ ] PR #36의 `checkImport` 스코프 누락 수정이 실제로 반영됐는지 확인(Checker
+      담당 항목이지만, 이 항목의 전제 조건이라 함께 트래킹)
 
 ## 4. 클래스 메서드 탐색 로직 중복 (`instantiate`/`callMethod`)
 
-`Executor.cpp:455-460`(`instantiate`에서 `init` 탐색)과 `Executor.cpp:486-491`
+`Executor.cpp:480-484`(`instantiate`에서 `init` 탐색)과 `Executor.cpp:511-516`
 (`callMethod`에서 임의 메서드 탐색)이 `klass->methods`를 선형 탐색하는 거의 동일한
 루프를 각자 가지고 있다.
 
@@ -534,8 +550,8 @@ Resolver가 아직 없어 이 경로에 잘못된 `distance`가 들어올 일이
 
 ## 5. 인자 평가(`evaluate(arg)`) 패턴 3곳 중복
 
-`Executor.cpp:287-289`(`CallExpression`), `475-477`(`callMethod` 모듈 분기),
-`497-499`(`callMethod` 인스턴스 분기)에서 `for (Expression* arg : argExprs) {
+`Executor.cpp:312-314`(`CallExpression`), `500-502`(`callMethod` 모듈 분기),
+`522-524`(`callMethod` 인스턴스 분기)에서 `for (Expression* arg : argExprs) {
 args.push_back(evaluate(arg)); }` 패턴이 그대로 반복된다.
 
 **해야 할 일**:
