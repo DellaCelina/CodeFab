@@ -317,6 +317,19 @@ void Executor::registerDefaultHandlers() {
         return array->items[i];
     };
 
+    expressionHandlers_[std::type_index(typeid(InstanceOfExpression))] = [this](Expression* expr) {
+        auto* instOf = static_cast<InstanceOfExpression*>(expr);
+        Value object = evaluate(instOf->object);
+        if (!object.isInstance()) {
+            return Value(false);
+        }
+        auto classValue = environment_.lookup(instOf->className.origin);
+        if (!classValue || !classValue->isClass()) {
+            throw ExecutorError("'{}'은(는) 클래스가 아닙니다.", instOf->className.origin);
+        }
+        return Value(object.asInstance()->klass == classValue->asClass());
+    };
+
     expressionHandlers_[std::type_index(typeid(ThisExpression))] = [this](Expression*) {
         // This는 항상 "this"라는 고정 이름으로 동적 조회한다 - 메서드 호출
         // 스코프 최상단에 있어서 조회 비용이 낮고, depth 캐싱의 이점이 작다.

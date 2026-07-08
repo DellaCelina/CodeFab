@@ -142,3 +142,63 @@ TEST(ExecutorClassTest, ThisOutsideMethod_ThrowsExecutorError) {
 
     EXPECT_THROW(executor.evaluate(&thisExpr), ExecutorError);
 }
+
+TEST(ExecutorClassTest, InstanceOf_SameClass_ReturnsTrue) {
+    std::ostringstream out;
+    Executor executor(out);
+
+    std::vector<MethodDeclareStatement*> methods;
+    ClassDeclareStatement robotClass({}, Token{ TokenType::IDENTIFIER, "Robot", 0 }, methods);
+    executor.execute(&robotClass);
+
+    IdentifierExpression calleeRef({}, "Robot");
+    std::vector<Expression*> noArgs;
+    CallExpression construct({}, &calleeRef, noArgs);
+    IdentifierExpression rIdent({}, "r");
+    DeclareStatement declareR({}, &rIdent, &construct);
+    executor.execute(&declareR);
+
+    IdentifierExpression rRef({}, "r");
+    InstanceOfExpression instOf({}, &rRef, Token{ TokenType::IDENTIFIER, "Robot", 0 });
+
+    EXPECT_TRUE(executor.evaluate(&instOf).asBoolean());
+}
+
+TEST(ExecutorClassTest, InstanceOf_DifferentClass_ReturnsFalse) {
+    std::ostringstream out;
+    Executor executor(out);
+
+    std::vector<MethodDeclareStatement*> robotMethods;
+    ClassDeclareStatement robotClass({}, Token{ TokenType::IDENTIFIER, "Robot", 0 }, robotMethods);
+    executor.execute(&robotClass);
+
+    std::vector<MethodDeclareStatement*> catMethods;
+    ClassDeclareStatement catClass({}, Token{ TokenType::IDENTIFIER, "Cat", 0 }, catMethods);
+    executor.execute(&catClass);
+
+    IdentifierExpression calleeRef({}, "Robot");
+    std::vector<Expression*> noArgs;
+    CallExpression construct({}, &calleeRef, noArgs);
+    IdentifierExpression rIdent({}, "r");
+    DeclareStatement declareR({}, &rIdent, &construct);
+    executor.execute(&declareR);
+
+    IdentifierExpression rRef({}, "r");
+    InstanceOfExpression instOf({}, &rRef, Token{ TokenType::IDENTIFIER, "Cat", 0 });
+
+    EXPECT_FALSE(executor.evaluate(&instOf).asBoolean());
+}
+
+TEST(ExecutorClassTest, InstanceOf_NonInstanceOperand_ReturnsFalse) {
+    std::ostringstream out;
+    Executor executor(out);
+
+    std::vector<MethodDeclareStatement*> methods;
+    ClassDeclareStatement robotClass({}, Token{ TokenType::IDENTIFIER, "Robot", 0 }, methods);
+    executor.execute(&robotClass);
+
+    NumberExpression notAnInstance({}, 1);
+    InstanceOfExpression instOf({}, &notAnInstance, Token{ TokenType::IDENTIFIER, "Robot", 0 });
+
+    EXPECT_FALSE(executor.evaluate(&instOf).asBoolean());
+}
