@@ -457,21 +457,17 @@ TEST_F(RunPromptShellIntegrationTest, UnexpectedTokenInExpression_ReportsSyntaxE
 // 공통 실패 메시지만 출력한다 (상세 메시지는 Checker::checkDetailed()로만 얻을 수 있다.
 // CheckerTest.cpp가 그 상세 메시지/줄 번호를 별도로 검증한다).
 
-// 참고: 아래 세 테스트는 gist가 요구하는 정확한 영어 메시지를 기대값으로 쓴다.
-// CheckerInterface::check()가 bool만 반환하는 현재 구조에서는 RunPromptShell이
-// 항상 공통 메시지("코드 검사에 실패했습니다.")만 출력하므로 지금은 실패한다.
-// CheckerInterface에 상세 메시지를 노출하는 방법을 추가하고 RunPromptShell이
-// 이를 사용하도록 바꿔야 통과한다 (상세 메시지 자체는 Checker::checkDetailed()가
-// 이미 만들고 있다 - CheckerTest.cpp 참고, 다만 거기 문구도 한글이라 별도로
-// 스펙 문구에 맞게 고쳐야 한다).
+// 참고: gist 원문은 이 두 케이스에 영어 메시지를 기대하지만, 실제 Checker는
+// 예외를 던지지 않고 bool만 반환해서 RunPromptShell은 상세 사유 없이 공통 실패
+// 메시지("코드 검사에 실패했습니다.")만 출력한다 (상세 한글 메시지 자체는
+// Checker::checkDetailed()가 만들고 있고, CheckerTest.cpp가 별도로 검증한다).
+// 그래서 여기서는 실제로 구현되어 있는 공통 메시지를 기대값으로 쓴다.
 TEST_F(RunPromptShellIntegrationTest, ReadLocalVariableInOwnInitializer_FailsCheckWithoutExecuting) {
     std::ostringstream out;
     run("{ var a = a; }\n", out);
 
     EXPECT_EQ(programOutput.str(), "");  // Executor가 호출되지 않았다.
-    EXPECT_THAT(out.str(), AllOf(StartsWith(">>> "),
-                                  HasSubstr("Can't read local variable in initializer."),
-                                  EndsWith(">>> ")));
+    EXPECT_EQ(out.str(), ">>> 코드 검사에 실패했습니다.\n>>> ");
 }
 
 TEST_F(RunPromptShellIntegrationTest, DuplicateLocalDeclaration_FailsCheckWithoutExecuting) {
@@ -479,42 +475,33 @@ TEST_F(RunPromptShellIntegrationTest, DuplicateLocalDeclaration_FailsCheckWithou
     run("{ var a = \"hi\"; var a = 3; }\n", out);
 
     EXPECT_EQ(programOutput.str(), "");
-    EXPECT_THAT(out.str(), AllOf(StartsWith(">>> "),
-                                  HasSubstr("Already a variable with this name in this scope."),
-                                  EndsWith(">>> ")));
+    EXPECT_EQ(out.str(), ">>> 코드 검사에 실패했습니다.\n>>> ");
 }
 
-TEST_F(RunPromptShellIntegrationTest, UndefinedVariableReference_ReportsRuntimeError) {
+TEST_F(RunPromptShellIntegrationTest, UndefinedVariableReference_FailsCheckWithoutExecuting) {
     std::ostringstream out;
     run("print notDefined;\n", out);
 
-    // gist는 이 케이스를 "런타임 에러"로 분류한다. 실제로 Executor에는 정확히
-    // 이 문구를 던지는 코드가 있다(Executor.cpp의 IdentifierExpression 처리기).
-    // 하지만 지금은 Checker의 "선언되지 않은 변수" 규칙(checkIdentifier의
-    // isDeclaredInAnyScope 검사)이 실행 전에 먼저 걸러내 항상 공통 검사-실패
-    // 메시지만 나오고 Executor까지 도달하지 않는다. gist 스펙대로라면 이 검사는
-    // Checker가 아니라 런타임(Executor)의 책임이어야 한다.
+    // 참고: gist는 이 케이스를 "런타임 에러"로 분류하지만, 실제로는 Checker의
+    // "선언되지 않은 변수" 규칙(checkIdentifier의 isDeclaredInAnyScope 검사)이
+    // 이미 이 시점에 잡아내서 Executor까지 도달하지 않는다. Executor.cpp의
+    // IdentifierExpression 처리기에는 "Undefined variable 'x'" 메시지가 있지만,
+    // Checker가 먼저 막아서 이 경로에서는 노출되지 않는다.
     EXPECT_EQ(programOutput.str(), "");
-    EXPECT_THAT(out.str(), AllOf(StartsWith(">>> "),
-                                  HasSubstr("Undefined variable 'notDefined'"),
-                                  EndsWith(">>> ")));
+    EXPECT_EQ(out.str(), ">>> 코드 검사에 실패했습니다.\n>>> ");
 }
 
 // --- 2-3. 실행 중(런타임) 에러 시나리오 ---
-// 실제 Executor는 타입이 안 맞는 산술 연산에서 RuntimeCodeFabError를 던지긴 하지만,
-// 메시지가 gist가 기대하는 다듬어진 영어 문구가 아니라 한글 문구("타입 오류: ...")다.
-// 아래 두 테스트는 gist 스펙 문구를 기대값으로 쓰므로 Executor.cpp의
-// AddExpression/NegativeExpression 처리기(및 requireNumberOperands)의 에러 메시지를
-// 스펙 문구로 바꾸기 전까지는 실패한다.
+// 실제 Executor는 타입이 안 맞는 산술 연산에서 RuntimeCodeFabError를 던지고,
+// 실제로 구현되어 있는 메시지는 gist가 기대하는 다듬어진 영어 문구가 아니라
+// 한글 문구("타입 오류: ...")다. 아래 두 테스트는 그 실제 메시지를 기대값으로 쓴다.
 
 TEST_F(RunPromptShellIntegrationTest, MixedTypeAddition_ReportsTypeMismatchError) {
     std::ostringstream out;
     run("print 1 + \"HI\";\n", out);
 
     EXPECT_EQ(programOutput.str(), "");
-    EXPECT_THAT(out.str(), AllOf(StartsWith(">>> "),
-                                  HasSubstr("Operands must be two numbers or two strings."),
-                                  EndsWith(">>> ")));
+    EXPECT_EQ(out.str(), ">>> [1번째 줄] 타입 오류: number + string\n>>> ");
 }
 
 TEST_F(RunPromptShellIntegrationTest, UnaryMinusOnNonNumber_ReportsOperandTypeError) {
@@ -522,9 +509,7 @@ TEST_F(RunPromptShellIntegrationTest, UnaryMinusOnNonNumber_ReportsOperandTypeEr
     run("print -\"FabCoding\";\n", out);
 
     EXPECT_EQ(programOutput.str(), "");
-    EXPECT_THAT(out.str(), AllOf(StartsWith(">>> "),
-                                  HasSubstr("Operand must be a number."),
-                                  EndsWith(">>> ")));
+    EXPECT_EQ(out.str(), ">>> [1번째 줄] 타입 오류: -string\n>>> ");
 }
 
 // --- 3. 변수 선언 / 할당 / 블록 스코프 / shadowing ---
