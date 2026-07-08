@@ -12,8 +12,8 @@
 // (current) scope. Lookup/assign walk from innermost to global.
 //
 // Deliberately does not throw on undefined-variable/redeclaration itself:
-// it reports success/failure via bool/optional so the Executor can raise a
-// RuntimeCodeFabError with the offending node's line number attached.
+// it reports success/failure via bool/optional so the Executor can raise
+// an ExecutorError.
 class Environment {
 public:
     Environment();

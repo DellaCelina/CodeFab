@@ -45,10 +45,7 @@ TEST(CheckerTest, PrintExpressionWithNoErrorsPasses) {
     tree.setRoot(rootRaw);
 
     Checker checker;
-    CheckResult result = checker.checkDetailed(tree);
-
-    EXPECT_TRUE(result.passed);
-    EXPECT_EQ(0u, result.errors.size());
+    EXPECT_TRUE(checker.check(tree));
 }
 
 // ---------------------------------------------------------------------------
@@ -81,12 +78,13 @@ TEST(CheckerTest, DuplicateDeclarationInSameScopeReportsError) {
     tree.setRoot(rootRaw);
 
     Checker checker;
-    CheckResult result = checker.checkDetailed(tree);
-
-    EXPECT_FALSE(result.passed);
-    ASSERT_EQ(1u, result.errors.size());
-    EXPECT_THAT(result.errors[0].message, testing::HasSubstr("이미 해당 변수는 현재 스코프에서 사용중입니다"));
-    EXPECT_THAT(result.errors[0].message, testing::HasSubstr("3번째 줄"));
+    try {
+        checker.check(tree);
+        FAIL() << "CheckerError가 발생해야 합니다.";
+    } catch (const CheckerError& e) {
+        EXPECT_EQ(3, e.line());
+        EXPECT_THAT(std::string(e.what()), testing::HasSubstr("이미 해당 변수는 현재 스코프에서 사용중입니다"));
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -115,21 +113,22 @@ TEST(CheckerTest, SelfReferenceInInitializerReportsError) {
     tree.setRoot(rootRaw);
 
     Checker checker;
-    CheckResult result = checker.checkDetailed(tree);
-
-    EXPECT_FALSE(result.passed);
-    ASSERT_EQ(1u, result.errors.size());
-    EXPECT_THAT(result.errors[0].message, testing::HasSubstr("자신의 초기화식에서 지역변수를 읽을 수 없습니다"));
-    EXPECT_THAT(result.errors[0].message, testing::HasSubstr("2번째 줄"));
+    try {
+        checker.check(tree);
+        FAIL() << "CheckerError가 발생해야 합니다.";
+    } catch (const CheckerError& e) {
+        EXPECT_EQ(2, e.line());
+        EXPECT_THAT(std::string(e.what()), testing::HasSubstr("자신의 초기화식에서 지역변수를 읽을 수 없습니다"));
+    }
 }
 
 // ---------------------------------------------------------------------------
-// var a = 10;   (1번째 checkDetailed 호출)
-// print a;      (2번째 checkDetailed 호출, 같은 Checker 인스턴스)
+// var a = 10;   (1번째 check() 호출)
+// print a;      (2번째 check() 호출, 같은 Checker 인스턴스)
 //
-// RunPromptShell은 REPL 한 줄마다 checkDetailed()를 새로 호출하지만 Checker는
-// Executor의 Environment처럼 세션 전체에서 재사용되는 하나의 인스턴스다. 그래서
-// 첫 호출에서 선언한 전역 변수는 다음 호출에서도 "선언된 변수"로 남아있어야 한다.
+// RunPromptShell은 REPL 한 줄마다 check()를 새로 호출하지만 Checker는 Executor의
+// Environment처럼 세션 전체에서 재사용되는 하나의 인스턴스다. 그래서 첫 호출에서
+// 선언한 전역 변수는 다음 호출에서도 "선언된 변수"로 남아있어야 한다.
 // ---------------------------------------------------------------------------
 TEST(CheckerTest, VariableDeclaredInEarlierCallIsVisibleToLaterCall) {
     Checker checker;
@@ -144,8 +143,7 @@ TEST(CheckerTest, VariableDeclaredInEarlierCallIsVisibleToLaterCall) {
     declareTree.add(std::move(declA));
     declareTree.setRoot(declareRoot);
 
-    CheckResult declareResult = checker.checkDetailed(declareTree);
-    ASSERT_TRUE(declareResult.passed);
+    ASSERT_TRUE(checker.check(declareTree));
 
     SyntaxTree printTree;
     auto idA = std::make_unique<IdentifierExpression>(testTokens(TokenType::IDENTIFIER, "a", 2), "a");
@@ -155,10 +153,7 @@ TEST(CheckerTest, VariableDeclaredInEarlierCallIsVisibleToLaterCall) {
     printTree.add(std::move(printA));
     printTree.setRoot(printRoot);
 
-    CheckResult printResult = checker.checkDetailed(printTree);
-
-    EXPECT_TRUE(printResult.passed);
-    EXPECT_EQ(0u, printResult.errors.size());
+    EXPECT_TRUE(checker.check(printTree));
 }
 
 // ---------------------------------------------------------------------------
@@ -175,9 +170,10 @@ TEST(CheckerTest, UndefinedVariableAcrossCallsStillReportsError) {
     tree.add(std::move(printStmt));
     tree.setRoot(root);
 
-    CheckResult result = checker.checkDetailed(tree);
-
-    EXPECT_FALSE(result.passed);
-    ASSERT_EQ(1u, result.errors.size());
-    EXPECT_THAT(result.errors[0].message, testing::HasSubstr("'notDefined'에러: 선언되지 않은 변수입니다"));
+    try {
+        checker.check(tree);
+        FAIL() << "CheckerError가 발생해야 합니다.";
+    } catch (const CheckerError& e) {
+        EXPECT_THAT(std::string(e.what()), testing::HasSubstr("'notDefined'에러: 선언되지 않은 변수입니다"));
+    }
 }
