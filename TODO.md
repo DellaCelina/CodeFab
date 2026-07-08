@@ -250,6 +250,38 @@ import해서 이름을 등록하는" 경로를 준비해 뒀는데, 그 앞단�
       분기 제거(도달 불가능한 죽은 코드 정리)
 - [ ] 결정된 내용을 `ExecutorImportTest.cpp`/`AssemblerImportTest`에 회귀 테스트로 추가
 
+## 10. Checker와 Optimizer(상수 폴딩)를 SRP에 맞게 분리하는 리팩토링 (PR 논의 정리)
+
+**배경**: Architecture.md의 상수 폴딩(§6.2) 설계 PR([#24](https://github.com/DellaCelina/CodeFab/pull/24))
+리뷰에서 나온 논의다. 현재 설계는 `Checker`가 생성자에서 `ExecuteInterface&`(정확히는
+`ExecutorInterface`)를 주입받아 의미 오류 검사와 상수 폴딩(값 계산)을 함께 수행한다.
+
+- 의존성 방향: `Checker`가 구체 `Executor`가 아니라 `ExecutorInterface`(추상화)에
+  의존하므로, Checker → Executor로의 역방향 의존이 아니라 DIP(의존성 역전)를 만족하는
+  형태로 설계되어 있다 - 이 부분은 이미 정리된 결론.
+- 책임 확장 문제: 원래 "의미 오류만 검사"하던 `Checker`가 "상수 계산(값 평가)"까지
+  맡게 되어 SRP 관점에서 책임이 두 개로 늘어난 상태다.
+- 테스트 비용: `Checker`를 테스트할 때마다 Fake `ExecuteInterface`가 필요해지는데,
+  이는 Fixture로 어느 정도 완화 가능하다는 의견까지만 나오고 구체적인 해법은
+  확정되지 않았다.
+- 현재는 문서(Architecture.md)에 이미 기술된 대로 "Checker 안에서 처리"하는 방식으로
+  우선 구현하고, 아래 분리는 추후 리팩토링 과제로 미룬 상태다.
+
+**제안된 방향(팀 합의, 상세 설계는 미확정)**:
+- 오류 검사는 `Checker`, 상수 계산/최적화는 별도 `Optimizer`로 책임 분리.
+- 상수 계산 로직 자체는 이미 `Executor`가 담당하고 있으므로, `Optimizer`는
+  `Checker`와 동일하게 `ExecutorInterface`에 의존하는 편이 DIP를 유지하는 데
+  자연스럽다.
+
+**해야 할 일**:
+- [ ] `Checker`/`Optimizer` 분리 시점과 범위를 팀 논의로 확정(다음 스프린트 vs
+      상수 폴딩 기능 안정화 이후 등)
+- [ ] `Optimizer`가 맡을 책임의 경계를 Architecture.md에 명시(상수 폴딩 외에 추가로
+      가져갈 최적화가 있는지 포함)
+- [ ] 분리 후 `Checker`/`Optimizer` 각각이 필요로 하는 `ExecutorInterface` 의존
+      방식(생성자 주입 등)과 테스트용 Fake/Fixture 구조를 재설계
+- [ ] Architecture.md/Implement.md에 분리된 구조로 갱신
+
 # Integration test
 
 Architecture.md/3일차 PDF에 기술된 기능들이 실제로 구현되고 나면
