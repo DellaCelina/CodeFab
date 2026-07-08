@@ -1,8 +1,14 @@
 ﻿#include "Checker.h"
 
-// TODO(refactor): ConstantFolder는 아직 구현하지 못했다. BinaryExpression::left/right 등이
-// 여전히 Expression* const라 폴딩 결과로 트리를 덮어쓸 방법이 없다. Assembler 쪽에서
-// 해당 필드들의 constness를 완화해야 이어서 구현할 수 있다.
+namespace {
+
+bool isLiteralExpression(Expression* expr) {
+    return dynamic_cast<NumberExpression*>(expr) != nullptr
+        || dynamic_cast<BooleanExpression*>(expr) != nullptr
+        || dynamic_cast<StringExpression*>(expr) != nullptr;
+}
+
+}  // namespace
 
 Checker::Checker(ExecuteInterface& executor) : executor_(executor) {
     enterScope(); // 세션 전체에 걸쳐 유지되는 전역 스코프
@@ -206,6 +212,21 @@ void Checker::checkIdentifier(IdentifierExpression* id) {
 void Checker::checkBinary(BinaryExpression* bin) {
     checkExpression(bin->left);
     checkExpression(bin->right);
+    foldConstantIfPossible(bin);
+}
+
+void Checker::foldConstantIfPossible(BinaryExpression* bin) {
+    if (!isLiteralExpression(bin->left) || !isLiteralExpression(bin->right)) {
+        return;
+    }
+    try {
+        executor_.evaluate(bin);
+        // TODO(refactor): 여기서 얻은 값으로 bin 자리를 리터럴 노드로 치환해야 진짜 폴딩이다.
+        // BinaryExpression::left/right가 Expression* const라 지금은 트리를 바꾸지 못하고,
+        // evaluate()가 호출된다는 것만 확인한다.
+    } catch (const ExecutorError&) {
+        // 0으로 나누기 등 - 컴파일 타임에 대신 오류를 내면 안 되므로 조용히 건너뛴다.
+    }
 }
 
 void Checker::checkFunctionBody(const string& name, const vector<Token>& params,

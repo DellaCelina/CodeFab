@@ -13,7 +13,7 @@ class Checker : public CheckerInterface {
 
 public:
     // scopes는 REPL 세션 내내 유지된다(Executor의 Environment와 동일).
-    // executor는 ConstantFolder용으로 받아두었지만 아직 사용하지 않는다.
+    // executor는 ConstantFolder가 executor_.evaluate()를 호출하는 데 쓰인다.
     explicit Checker(ExecuteInterface& executor);
 
     // 의미 오류 발견 시 CheckerError를 throw, 통과하면 true 반환.
@@ -48,6 +48,12 @@ private:
     void checkFor(ForStatement* forStmt);
     void checkIdentifier(IdentifierExpression* id);
     void checkBinary(BinaryExpression* bin);
+
+    // ConstantFolder: 양쪽 자식이 모두 리터럴이면 executor_.evaluate()를 호출해본다.
+    // TODO(refactor): BinaryExpression::left/right가 여전히 Expression* const라 계산된
+    // 값으로 트리를 치환하지는 못한다. 지금은 evaluate()가 올바른 대상/횟수로 호출되는지만
+    // (Fake/Mock ExecuteInterface로) 테스트로 검증한다 - 실제 폴딩은 Assembler와 협의 후 추가.
+    void foldConstantIfPossible(BinaryExpression* bin);
 
     // FunctionDeclareStatement/MethodDeclareStatement가 필드 모양이 같아 공용으로 처리한다.
     void checkFunctionBody(const string& name, const vector<Token>& params,
