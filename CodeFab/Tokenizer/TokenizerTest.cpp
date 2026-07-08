@@ -229,3 +229,27 @@ TEST_F(TokenizerFixture, ArrayIsReservedKeyword) {
     auto tokens = tokenizer.tokenize("Array");
     EXPECT_EQ(tokens[0].type, TokenType::ARRAY);
 }
+
+// 논리 연산자 키워드
+TEST_F(TokenizerFixture, AndOrKeywords) {
+    auto tokens = tokenizer.tokenize("and or");
+    EXPECT_THAT(getTypes(tokens), ElementsAre(
+        TokenType::AND, TokenType::OR, TokenType::END_OF_FILE
+    ));
+}
+
+// and/or origin 확인
+TEST_F(TokenizerFixture, AndOrOrigins) {
+    auto tokens = tokenizer.tokenize("and or");
+    EXPECT_EQ(tokens[0].origin, "and");
+    EXPECT_EQ(tokens[1].origin, "or");
+}
+
+// 나머지 연산자
+TEST_F(TokenizerFixture, PercentOperator) {
+    auto tokens = tokenizer.tokenize("10 % 3");
+    EXPECT_THAT(getTypes(tokens), ElementsAre(
+        TokenType::NUMBER, TokenType::PERCENT, TokenType::NUMBER, TokenType::END_OF_FILE
+    ));
+    EXPECT_EQ(tokens[1].origin, "%");
+}
