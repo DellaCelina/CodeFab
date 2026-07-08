@@ -438,27 +438,23 @@ TEST_F(RunPromptShellIntegrationTest, UnaryMinusOnNonNumber_CurrentlyThrowsOnTyp
     EXPECT_THAT(out.str(), AllOf(StartsWith(">>> "), EndsWith(">>> ")));
 }
 
-// --- 3. 아직 지원하지 않는 문장 종류: 셸이 죽지 않고 에러로 보고하는지만 확인 ---
-// gist에는 있었지만 Checker/Executor가 아직 다루지 않는 문장 종류(선언+블록 스코프,
-// if/else, for)는 실제 언어 동작 검증이 불가능하다. 대신 이런 미지원 입력에서도
-// RunPromptShell의 catch-all 덕분에 셸이 죽지 않고 에러로 보고되는지만 확인해 둔다.
-// Checker/Executor가 해당 문장을 지원하게 되면 이 테스트들을 실제 출력 검증으로
-// 교체해야 한다 (이전 버전은 git 이력 참고).
+// --- 3. 블록 스코프 / if-else: Checker/Executor가 지원하므로 실제 출력을 검증한다 ---
+// for문은 Assembler가 초기화절에 var 선언을 아직 지원하지 않아 별도로 다룬다(아래 참고).
 
-TEST_F(RunPromptShellIntegrationTest, BlockScope_NotYetSupportedByExecutor_DoesNotCrashShell) {
+TEST_F(RunPromptShellIntegrationTest, BlockScope_PrintsInner) {
     std::ostringstream out;
-    run("{ var x = \"inner\"; print x; }\n", out);  // expect(실제 언어 동작): inner
+    run("{ var x = \"inner\"; print x; }\n", out);
 
-    EXPECT_EQ(programOutput.str(), "");
-    EXPECT_THAT(out.str(), AllOf(StartsWith(">>> "), EndsWith(">>> ")));
+    EXPECT_EQ(programOutput.str(), "inner\n");
+    EXPECT_EQ(out.str(), ">>> >>> ");
 }
 
-TEST_F(RunPromptShellIntegrationTest, IfElse_NotYetSupportedByExecutor_DoesNotCrashShell) {
+TEST_F(RunPromptShellIntegrationTest, IfElse_PrintsKfc) {
     std::ostringstream out;
-    run("if (false) print \"no\"; else print \"kfc\";\n", out);  // expect(실제 언어 동작): kfc
+    run("if (false) print \"no\"; else print \"kfc\";\n", out);
 
-    EXPECT_EQ(programOutput.str(), "");
-    EXPECT_THAT(out.str(), AllOf(StartsWith(">>> "), EndsWith(">>> ")));
+    EXPECT_EQ(programOutput.str(), "kfc\n");
+    EXPECT_EQ(out.str(), ">>> >>> ");
 }
 
 TEST_F(RunPromptShellIntegrationTest, ForLoop_NotYetSupportedByExecutor_DoesNotCrashShell) {
