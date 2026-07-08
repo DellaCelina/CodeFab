@@ -1,5 +1,4 @@
-﻿#include <stdexcept>
-#include <vector>
+﻿#include <vector>
 
 #include "gmock/gmock.h"
 #include "Assembler.h"
@@ -358,7 +357,7 @@ TEST_F(AssemblerTester, MissingSemicolonThrowsTest) {
         { TokenType::NUMBER, "2", 0},
     };
 
-    EXPECT_THROW(assembler.assemble(tokens), std::invalid_argument);
+    EXPECT_THROW(assembler.assemble(tokens), AssemblerError);
 }
 
 TEST_F(AssemblerTester, MissingClosingParenThrowsTest) {
@@ -372,7 +371,7 @@ TEST_F(AssemblerTester, MissingClosingParenThrowsTest) {
         { TokenType::SEMICOLON, ";", 0},
     };
 
-    EXPECT_THROW(assembler.assemble(tokens), std::invalid_argument);
+    EXPECT_THROW(assembler.assemble(tokens), AssemblerError);
 }
 
 TEST_F(AssemblerTester, InvalidAssignmentTargetThrowsTest) {
@@ -386,7 +385,7 @@ TEST_F(AssemblerTester, InvalidAssignmentTargetThrowsTest) {
         { TokenType::SEMICOLON, ";", 0},
     };
 
-    EXPECT_THROW(assembler.assemble(tokens), std::invalid_argument);
+    EXPECT_THROW(assembler.assemble(tokens), AssemblerError);
 }
 
 TEST_F(AssemblerTester, UnexpectedTokenThrowsTest) {
@@ -398,7 +397,7 @@ TEST_F(AssemblerTester, UnexpectedTokenThrowsTest) {
         { TokenType::SEMICOLON, ";", 0},
     };
 
-    EXPECT_THROW(assembler.assemble(tokens), std::invalid_argument);
+    EXPECT_THROW(assembler.assemble(tokens), AssemblerError);
 }
 
 
