@@ -1,5 +1,4 @@
 ﻿#include "Tokenizer.h"
-#include <stdexcept>
 #include <cctype>
 #include <unordered_map>
 
@@ -35,14 +34,7 @@ std::vector<Token> Tokenizer::scanTokens(const std::string& src) {
 }
 
 std::vector<Token> Tokenizer::tokenize(const std::string& src) {
-    try {
-        return scanTokens(src);
-    } catch (const std::runtime_error& e) {
-        // IncompleteInputError는 std::exception을 직접 상속해(std::runtime_error가
-        // 아니다) 여기서 잡히지 않고 그대로 통과한다. 그 외의 문법 오류만 줄 번호를
-        // 담아 AssemblyError로 변환한다.
-        throw AssemblyError("[{}번째 줄] {}", line, e.what());
-    }
+    return scanTokens(src);
 }
 
 bool Tokenizer::isAtEnd() {
@@ -135,7 +127,7 @@ void Tokenizer::scanString() {
 void Tokenizer::scanDefault(char c) {
     if (isDigit(c))      scanNumber();
     else if (isAlpha(c)) scanIdentifier();
-    else throw std::runtime_error(std::string("알 수 없는 문자: '") + c + "'");
+    else throw AssemblyError("[{}번째 줄] 알 수 없는 문자: '{}'", line, c);
 }
 
 void Tokenizer::scanNumber() {
