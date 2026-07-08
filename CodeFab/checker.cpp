@@ -1,5 +1,9 @@
 ﻿#include "Checker.h"
 
+Checker::Checker() {
+    enterScope();  // 세션 전체에 걸쳐 유지되는 전역 스코프
+}
+
 // scope func.
 
 void Checker::enterScope() {
@@ -137,17 +141,15 @@ void Checker::checkBinary(BinaryExpression* bin) {
 
 
 CheckResult Checker::checkDetailed(SyntaxTree& tree) {
+    // errors/currentlyDeclaring은 이번 호출(= REPL 한 줄) 한정 상태라 매번 초기화한다.
+    // scopes는 초기화하지 않는다 - 생성자에서 만든 전역 스코프를 세션 내내 유지해야
+    // 서로 다른 호출(줄)에 걸친 변수 선언/사용을 올바르게 추적할 수 있다.
     errors.clear();
-    scopes.clear();
     currentlyDeclaring.clear();
-
-    enterScope();
 
     // ASSUMPTION: SyntaxTree::getRoot()가 프로그램 전체를 감싸는 단일 Statement
     // (보통 최상위 BlockStatement)를 반환한다고 가정.
     checkStatement(dynamic_cast<Statement*>(tree.getRoot()));
-
-    exitScope();
 
     CheckResult result;
     result.passed = errors.empty();

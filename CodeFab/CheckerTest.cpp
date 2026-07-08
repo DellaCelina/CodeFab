@@ -122,3 +122,62 @@ TEST(CheckerTest, SelfReferenceInInitializerReportsError) {
     EXPECT_THAT(result.errors[0].message, testing::HasSubstr("자신의 초기화식에서 지역변수를 읽을 수 없습니다"));
     EXPECT_THAT(result.errors[0].message, testing::HasSubstr("2번째 줄"));
 }
+
+// ---------------------------------------------------------------------------
+// var a = 10;   (1번째 checkDetailed 호출)
+// print a;      (2번째 checkDetailed 호출, 같은 Checker 인스턴스)
+//
+// RunPromptShell은 REPL 한 줄마다 checkDetailed()를 새로 호출하지만 Checker는
+// Executor의 Environment처럼 세션 전체에서 재사용되는 하나의 인스턴스다. 그래서
+// 첫 호출에서 선언한 전역 변수는 다음 호출에서도 "선언된 변수"로 남아있어야 한다.
+// ---------------------------------------------------------------------------
+TEST(CheckerTest, VariableDeclaredInEarlierCallIsVisibleToLaterCall) {
+    Checker checker;
+
+    SyntaxTree declareTree;
+    auto declIdent = std::make_unique<IdentifierExpression>(testTokens(TokenType::IDENTIFIER, "a", 1), "a");
+    auto lit10 = std::make_unique<NumberExpression>(testTokens(TokenType::NUMBER, "10", 1), 10.0);
+    auto declA = std::make_unique<DeclareStatement>(testTokens(TokenType::VAR, "var", 1), declIdent.get(), lit10.get());
+    SyntaxNode* declareRoot = declA.get();
+    declareTree.add(std::move(declIdent));
+    declareTree.add(std::move(lit10));
+    declareTree.add(std::move(declA));
+    declareTree.setRoot(declareRoot);
+
+    CheckResult declareResult = checker.checkDetailed(declareTree);
+    ASSERT_TRUE(declareResult.passed);
+
+    SyntaxTree printTree;
+    auto idA = std::make_unique<IdentifierExpression>(testTokens(TokenType::IDENTIFIER, "a", 2), "a");
+    auto printA = std::make_unique<PrintStatement>(testTokens(TokenType::PRINT, "print", 2), idA.get());
+    SyntaxNode* printRoot = printA.get();
+    printTree.add(std::move(idA));
+    printTree.add(std::move(printA));
+    printTree.setRoot(printRoot);
+
+    CheckResult printResult = checker.checkDetailed(printTree);
+
+    EXPECT_TRUE(printResult.passed);
+    EXPECT_EQ(0u, printResult.errors.size());
+}
+
+// ---------------------------------------------------------------------------
+// print notDefined;   (선언된 적 없는 변수 - 세션 전체에 걸쳐도 여전히 에러여야 한다)
+// ---------------------------------------------------------------------------
+TEST(CheckerTest, UndefinedVariableAcrossCallsStillReportsError) {
+    Checker checker;
+
+    SyntaxTree tree;
+    auto idNotDefined = std::make_unique<IdentifierExpression>(testTokens(TokenType::IDENTIFIER, "notDefined", 1), "notDefined");
+    auto printStmt = std::make_unique<PrintStatement>(testTokens(TokenType::PRINT, "print", 1), idNotDefined.get());
+    SyntaxNode* root = printStmt.get();
+    tree.add(std::move(idNotDefined));
+    tree.add(std::move(printStmt));
+    tree.setRoot(root);
+
+    CheckResult result = checker.checkDetailed(tree);
+
+    EXPECT_FALSE(result.passed);
+    ASSERT_EQ(1u, result.errors.size());
+    EXPECT_THAT(result.errors[0].message, testing::HasSubstr("'notDefined'에러: 선언되지 않은 변수입니다"));
+}

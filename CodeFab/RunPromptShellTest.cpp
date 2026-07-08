@@ -272,12 +272,6 @@ TEST_F(RunPromptShellTest, ErrorOnOneLine_DoesNotPreventNextLineFromRunning) {
 //   gist가 요구하는 영어 메시지("Can't read local variable in initializer." 등)는
 //   RunPromptShell 통합 레벨에서는 절대 노출되지 않는다 (CheckerInterface에 상세
 //   메시지를 얻는 방법을 추가하고 RunPromptShell이 이를 사용하도록 바꿔야 한다).
-// - Checker::checkDetailed()는 호출될 때마다 scopes를 초기화한다(checker.cpp 참고).
-//   RunPromptShell은 한 줄(또는 완결된 블록)마다 checker_.check()를 새로 호출하므로,
-//   변수 선언과 사용이 서로 다른 REPL 줄에 걸쳐 있으면 Checker가 이전 줄에서
-//   선언된 변수를 "선언되지 않음"으로 오판해 검사에 실패한다. Executor의
-//   Environment는 세션 전체에 걸쳐 유지되므로 Executor 자체는 문제없이 동작하지만,
-//   Checker가 먼저 막아버려 실행까지 도달하지 못한다.
 // - Executor는 PrintStatement, DeclareStatement, BlockStatement, IfStatement,
 //   ForStatement, 리터럴/산술/비교/대입 연산자를 모두 처리한다. 다만 타입이 맞지
 //   않는 산술 연산은 다듬어진 영어 메시지가 아니라 한글 메시지("타입 오류: ...")를
@@ -510,13 +504,10 @@ TEST_F(RunPromptShellIntegrationTest, UnaryMinusOnNonNumber_ReportsOperandTypeEr
 }
 
 // --- 3. 변수 선언 / 할당 / 블록 스코프 / shadowing ---
-// 참고: 아래 시나리오들은 gist 원문처럼 선언과 사용을 서로 다른 REPL 줄로 나눠
-// 테스트한다. Executor의 Environment는 세션 전체에 걸쳐 유지되므로 실행 자체는
-// 문제없이 동작하지만, Checker::checkDetailed()가 호출될 때마다 scopes를
-// 초기화하기 때문에(checker.cpp 참고) 이전 줄에서 선언한 변수를 다음 줄에서
-// "선언되지 않음"으로 오판해 검사에서 막힌다. 그래서 아래 테스트들은 Checker가
-// 줄(호출) 단위가 아니라 세션 전체에 걸쳐 선언 상태를 기억하도록 고치기 전까지는
-// 실패한다.
+// 아래 시나리오들은 gist 원문처럼 선언과 사용을 서로 다른 REPL 줄로 나눠 테스트한다.
+// Checker는 Executor의 Environment와 마찬가지로 세션 전체에 걸쳐 유지되는 전역
+// 스코프를 갖고 있어서(checker.cpp의 Checker::Checker() 참고), 한 줄에서 선언한
+// 변수를 다음 줄에서도 "선언된 변수"로 인식한다.
 
 TEST_F(RunPromptShellIntegrationTest, VariableDeclarationAndUse_PrintsSum) {
     std::ostringstream out;
@@ -539,7 +530,7 @@ TEST_F(RunPromptShellIntegrationTest, BlockScopeShadowing_InnerHidesOuterButOute
     run("var x = \"global\";\n{ var x = \"inner\"; print x; }\nprint x;\n", out);
 
     EXPECT_EQ(programOutput.str(), "inner\nglobal\n");
-    EXPECT_EQ(out.str(), ">>> >>> >>> ");
+    EXPECT_EQ(out.str(), ">>> >>> >>> >>> ");
 }
 
 TEST_F(RunPromptShellIntegrationTest, MutatingOuterVariableFromInnerBlock_UpdatesOuter) {
@@ -547,7 +538,7 @@ TEST_F(RunPromptShellIntegrationTest, MutatingOuterVariableFromInnerBlock_Update
     run("var count = 0;\n{ count = count + 1; }\nprint count;\n", out);
 
     EXPECT_EQ(programOutput.str(), "1\n");
-    EXPECT_EQ(out.str(), ">>> >>> >>> ");
+    EXPECT_EQ(out.str(), ">>> >>> >>> >>> ");
 }
 
 TEST_F(RunPromptShellIntegrationTest, NestedScopeResolution_ReferencesOuterAndInnerVariables) {
@@ -555,7 +546,7 @@ TEST_F(RunPromptShellIntegrationTest, NestedScopeResolution_ReferencesOuterAndIn
     run("var outer = \"A\";\n{ var inner = \"B\"; { print outer + inner; } }\n", out);
 
     EXPECT_EQ(programOutput.str(), "AB\n");
-    EXPECT_EQ(out.str(), ">>> >>> ");
+    EXPECT_EQ(out.str(), ">>> >>> >>> ");
 }
 
 // --- 4. 제어 흐름: 블록 스코프 / if-else / for ---
