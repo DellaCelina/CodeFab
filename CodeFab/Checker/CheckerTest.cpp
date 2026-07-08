@@ -24,10 +24,17 @@ public:
     MOCK_METHOD(const Environment&, environment, (), (const, override));
 };
 
-// print 1 + 2 * 3;   // expect: 7
-TEST(CheckerTest, PrintExpressionWithNoErrorsPasses) {
+// 대부분의 테스트가 공유하는 준비물: 빈 트리 하나, 실제 Executor, 그 위의 Checker.
+class CheckerTest : public ::testing::Test {
+protected:
     SyntaxTree tree;
+    std::ostringstream executorOutput;
+    Executor executor{ executorOutput };
+    Checker checker{ executor };
+};
 
+// print 1 + 2 * 3;   // expect: 7
+TEST_F(CheckerTest, PrintExpressionWithNoErrorsPasses) {
     auto lit1 = std::make_unique<NumberExpression>(testTokens(TokenType::NUMBER, "1", 1), 1.0);
     auto lit2 = std::make_unique<NumberExpression>(testTokens(TokenType::NUMBER, "2", 1), 2.0);
     auto lit3 = std::make_unique<NumberExpression>(testTokens(TokenType::NUMBER, "3", 1), 3.0);
@@ -49,16 +56,11 @@ TEST(CheckerTest, PrintExpressionWithNoErrorsPasses) {
     tree.add(std::move(block));
     tree.setRoot(rootRaw);
 
-    std::ostringstream executorOutput;
-    Executor executor(executorOutput);
-    Checker checker(executor);
     EXPECT_TRUE(checker.check(tree));
 }
 
 // { var a = 10; var a = 12; }   // 2번째 var a 에서 중복 선언 에러 (p.72)
-TEST(CheckerTest, DuplicateDeclarationInSameScopeReportsError) {
-    SyntaxTree tree;
-
+TEST_F(CheckerTest, DuplicateDeclarationInSameScopeReportsError) {
     // DeclareStatement는 이름을 string이 아니라 IdentifierExpression*로 받으므로
     // "선언 대상 a"를 나타내는 식별자 노드를 별도로 만들어야 한다.
     auto declIdent1 = std::make_unique<IdentifierExpression>(testTokens(TokenType::IDENTIFIER, "a", 2), "a");
@@ -82,9 +84,6 @@ TEST(CheckerTest, DuplicateDeclarationInSameScopeReportsError) {
     tree.add(std::move(block));
     tree.setRoot(rootRaw);
 
-    std::ostringstream executorOutput;
-    Executor executor(executorOutput);
-    Checker checker(executor);
     try {
         checker.check(tree);
         FAIL() << "CheckerError가 발생해야 합니다.";
@@ -97,9 +96,7 @@ TEST(CheckerTest, DuplicateDeclarationInSameScopeReportsError) {
 }
 
 // { var a = a + 1; }   // 자신의 초기화식에서 자기 자신을 참조 -> 에러 (p.73)
-TEST(CheckerTest, SelfReferenceInInitializerReportsError) {
-    SyntaxTree tree;
-
+TEST_F(CheckerTest, SelfReferenceInInitializerReportsError) {
     // 선언 대상(declIdent)과 초기화식 안에서 참조하는 식별자(idA)는 이름은 같지만
     // 서로 다른 노드 인스턴스다 (실제 파서도 이렇게 별도 토큰/노드로 만든다).
     auto declIdent = std::make_unique<IdentifierExpression>(testTokens(TokenType::IDENTIFIER, "a", 2), "a");
@@ -119,9 +116,6 @@ TEST(CheckerTest, SelfReferenceInInitializerReportsError) {
     tree.add(std::move(block));
     tree.setRoot(rootRaw);
 
-    std::ostringstream executorOutput;
-    Executor executor(executorOutput);
-    Checker checker(executor);
     try {
         checker.check(tree);
         FAIL() << "CheckerError가 발생해야 합니다.";
@@ -134,11 +128,7 @@ TEST(CheckerTest, SelfReferenceInInitializerReportsError) {
 // var a = 10;   (1번째 check() 호출)
 // print a;      (2번째 check() 호출, 같은 Checker 인스턴스)
 // REPL 한 줄마다 check()가 새로 호출되지만 scopes는 세션 내내 유지되므로 통과해야 한다.
-TEST(CheckerTest, VariableDeclaredInEarlierCallIsVisibleToLaterCall) {
-    std::ostringstream executorOutput;
-    Executor executor(executorOutput);
-    Checker checker(executor);
-
+TEST_F(CheckerTest, VariableDeclaredInEarlierCallIsVisibleToLaterCall) {
     SyntaxTree declareTree;
     auto declIdent = std::make_unique<IdentifierExpression>(testTokens(TokenType::IDENTIFIER, "a", 1), "a");
     auto lit10 = std::make_unique<NumberExpression>(testTokens(TokenType::NUMBER, "10", 1), 10.0);
@@ -163,12 +153,7 @@ TEST(CheckerTest, VariableDeclaredInEarlierCallIsVisibleToLaterCall) {
 }
 
 // print notDefined;   (선언된 적 없는 변수 - 세션 전체에 걸쳐도 여전히 에러여야 한다)
-TEST(CheckerTest, UndefinedVariableAcrossCallsStillReportsError) {
-    std::ostringstream executorOutput;
-    Executor executor(executorOutput);
-    Checker checker(executor);
-
-    SyntaxTree tree;
+TEST_F(CheckerTest, UndefinedVariableAcrossCallsStillReportsError) {
     auto idNotDefined = std::make_unique<IdentifierExpression>(testTokens(TokenType::IDENTIFIER, "notDefined", 1), "notDefined");
     auto printStmt = std::make_unique<PrintStatement>(testTokens(TokenType::PRINT, "print", 1), idNotDefined.get());
     SyntaxNode* root = printStmt.get();
@@ -186,9 +171,7 @@ TEST(CheckerTest, UndefinedVariableAcrossCallsStillReportsError) {
 
 // if (true) { var a = 1; var a = 2; }
 // checkStatement가 IfStatement의 thenBranch까지 재귀해서 내부 블록도 검사하는지 확인한다.
-TEST(CheckerTest, DuplicateDeclarationInsideIfBlockReportsError) {
-    SyntaxTree tree;
-
+TEST_F(CheckerTest, DuplicateDeclarationInsideIfBlockReportsError) {
     auto cond = std::make_unique<BooleanExpression>(testTokens(TokenType::TRUE, "true", 1), true);
 
     auto declIdent1 = std::make_unique<IdentifierExpression>(testTokens(TokenType::IDENTIFIER, "a", 2), "a");
@@ -215,9 +198,6 @@ TEST(CheckerTest, DuplicateDeclarationInsideIfBlockReportsError) {
     tree.add(std::move(ifStmt));
     tree.setRoot(rootRaw);
 
-    std::ostringstream executorOutput;
-    Executor executor(executorOutput);
-    Checker checker(executor);
     try {
         checker.check(tree);
         FAIL() << "CheckerError가 발생해야 합니다.";
@@ -229,9 +209,7 @@ TEST(CheckerTest, DuplicateDeclarationInsideIfBlockReportsError) {
 
 // if (true) { var a = a + 1; }
 // checkStatement가 IfStatement의 thenBranch 안 자기 참조도 잡아내는지 확인한다.
-TEST(CheckerTest, SelfReferenceInsideIfBlockReportsError) {
-    SyntaxTree tree;
-
+TEST_F(CheckerTest, SelfReferenceInsideIfBlockReportsError) {
     auto cond = std::make_unique<BooleanExpression>(testTokens(TokenType::TRUE, "true", 1), true);
 
     auto declIdent = std::make_unique<IdentifierExpression>(testTokens(TokenType::IDENTIFIER, "a", 2), "a");
@@ -255,9 +233,6 @@ TEST(CheckerTest, SelfReferenceInsideIfBlockReportsError) {
     tree.add(std::move(ifStmt));
     tree.setRoot(rootRaw);
 
-    std::ostringstream executorOutput;
-    Executor executor(executorOutput);
-    Checker checker(executor);
     try {
         checker.check(tree);
         FAIL() << "CheckerError가 발생해야 합니다.";
@@ -270,9 +245,7 @@ TEST(CheckerTest, SelfReferenceInsideIfBlockReportsError) {
 // for (var j = 0; true; 0) { var a = 1; var a = 2; }
 // checkStatement가 ForStatement의 loop 본문까지 재귀해서 내부 블록도 검사하는지,
 // 그리고 init에서 선언한 j가 for 전용 스코프에 들어가는지 함께 확인한다.
-TEST(CheckerTest, DuplicateDeclarationInsideForBlockReportsError) {
-    SyntaxTree tree;
-
+TEST_F(CheckerTest, DuplicateDeclarationInsideForBlockReportsError) {
     auto jIdent = std::make_unique<IdentifierExpression>(testTokens(TokenType::IDENTIFIER, "j", 1), "j");
     auto jInit = std::make_unique<NumberExpression>(testTokens(TokenType::NUMBER, "0", 1), 0.0);
     auto initDecl = std::make_unique<DeclareStatement>(testTokens(TokenType::VAR, "var", 1), jIdent.get(), jInit.get());
@@ -308,9 +281,6 @@ TEST(CheckerTest, DuplicateDeclarationInsideForBlockReportsError) {
     tree.add(std::move(forStmt));
     tree.setRoot(rootRaw);
 
-    std::ostringstream executorOutput;
-    Executor executor(executorOutput);
-    Checker checker(executor);
     try {
         checker.check(tree);
         FAIL() << "CheckerError가 발생해야 합니다.";
@@ -322,9 +292,7 @@ TEST(CheckerTest, DuplicateDeclarationInsideForBlockReportsError) {
 
 // for (var j = 0; true; 0) { var a = a + 1; }
 // checkStatement가 ForStatement의 loop 본문 안 자기 참조도 잡아내는지 확인한다.
-TEST(CheckerTest, SelfReferenceInsideForBlockReportsError) {
-    SyntaxTree tree;
-
+TEST_F(CheckerTest, SelfReferenceInsideForBlockReportsError) {
     auto jIdent = std::make_unique<IdentifierExpression>(testTokens(TokenType::IDENTIFIER, "j", 1), "j");
     auto jInit = std::make_unique<NumberExpression>(testTokens(TokenType::NUMBER, "0", 1), 0.0);
     auto initDecl = std::make_unique<DeclareStatement>(testTokens(TokenType::VAR, "var", 1), jIdent.get(), jInit.get());
@@ -357,9 +325,6 @@ TEST(CheckerTest, SelfReferenceInsideForBlockReportsError) {
     tree.add(std::move(forStmt));
     tree.setRoot(rootRaw);
 
-    std::ostringstream executorOutput;
-    Executor executor(executorOutput);
-    Checker checker(executor);
     try {
         checker.check(tree);
         FAIL() << "CheckerError가 발생해야 합니다.";
@@ -372,9 +337,7 @@ TEST(CheckerTest, SelfReferenceInsideForBlockReportsError) {
 // for (var j = 0; ...) { ... }  다음 for (var j = 0; ...) { ... }
 // for의 init에서 선언한 루프 변수는 전용 스코프에 갇혀야 하므로, 같은 이름의 루프
 // 변수를 쓰는 두 개의 for문이 연달아 있어도 "중복 선언" 오류가 나면 안 된다.
-TEST(CheckerTest, ForLoopVariableDoesNotLeakIntoEnclosingScope) {
-    SyntaxTree tree;
-
+TEST_F(CheckerTest, ForLoopVariableDoesNotLeakIntoEnclosingScope) {
     auto jIdent1 = std::make_unique<IdentifierExpression>(testTokens(TokenType::IDENTIFIER, "j", 1), "j");
     auto jInit1 = std::make_unique<NumberExpression>(testTokens(TokenType::NUMBER, "0", 1), 0.0);
     auto initDecl1 = std::make_unique<DeclareStatement>(testTokens(TokenType::VAR, "var", 1), jIdent1.get(), jInit1.get());
@@ -414,9 +377,6 @@ TEST(CheckerTest, ForLoopVariableDoesNotLeakIntoEnclosingScope) {
     tree.add(std::move(outerBlock));
     tree.setRoot(rootRaw);
 
-    std::ostringstream executorOutput;
-    Executor executor(executorOutput);
-    Checker checker(executor);
     EXPECT_TRUE(checker.check(tree));
 }
 
@@ -425,16 +385,12 @@ TEST(CheckerTest, ForLoopVariableDoesNotLeakIntoEnclosingScope) {
 // ===========================================================================
 
 // return;   (함수 밖)
-TEST(CheckerTest, ReturnOutsideFunctionReportsError) {
-    SyntaxTree tree;
+TEST_F(CheckerTest, ReturnOutsideFunctionReportsError) {
     auto ret = std::make_unique<ReturnStatement>(testTokens(TokenType::RETURN, "return", 1));
     SyntaxNode* root = ret.get();
     tree.add(std::move(ret));
     tree.setRoot(root);
 
-    std::ostringstream executorOutput;
-    Executor executor(executorOutput);
-    Checker checker(executor);
     try {
         checker.check(tree);
         FAIL() << "CheckerError가 발생해야 합니다.";
@@ -444,8 +400,7 @@ TEST(CheckerTest, ReturnOutsideFunctionReportsError) {
 }
 
 // Func f(a, a) { }   (파라미터 이름 중복)
-TEST(CheckerTest, DuplicateParameterNameReportsError) {
-    SyntaxTree tree;
+TEST_F(CheckerTest, DuplicateParameterNameReportsError) {
     Token nameToken{ TokenType::IDENTIFIER, "f", 1 };
     std::vector<Token> params{
         Token{ TokenType::IDENTIFIER, "a", 1 },
@@ -457,9 +412,6 @@ TEST(CheckerTest, DuplicateParameterNameReportsError) {
     tree.add(std::move(funcDecl));
     tree.setRoot(root);
 
-    std::ostringstream executorOutput;
-    Executor executor(executorOutput);
-    Checker checker(executor);
     try {
         checker.check(tree);
         FAIL() << "CheckerError가 발생해야 합니다.";
@@ -470,8 +422,7 @@ TEST(CheckerTest, DuplicateParameterNameReportsError) {
 
 // Func fact(n) { return fact(n); }
 // 함수 이름을 바디 검사 "전에" 등록해야 재귀 호출이 미선언 변수 오류로 잘못 걸리지 않는다.
-TEST(CheckerTest, RecursiveFunctionCallPasses) {
-    SyntaxTree tree;
+TEST_F(CheckerTest, RecursiveFunctionCallPasses) {
     Token factName{ TokenType::IDENTIFIER, "fact", 1 };
     Token nParam{ TokenType::IDENTIFIER, "n", 1 };
 
@@ -494,9 +445,6 @@ TEST(CheckerTest, RecursiveFunctionCallPasses) {
     tree.add(std::move(funcDecl));
     tree.setRoot(root);
 
-    std::ostringstream executorOutput;
-    Executor executor(executorOutput);
-    Checker checker(executor);
     EXPECT_TRUE(checker.check(tree));
 }
 
@@ -505,8 +453,7 @@ TEST(CheckerTest, RecursiveFunctionCallPasses) {
 // ===========================================================================
 
 // print This;   (클래스 밖)
-TEST(CheckerTest, ThisOutsideClassReportsError) {
-    SyntaxTree tree;
+TEST_F(CheckerTest, ThisOutsideClassReportsError) {
     auto thisExpr = std::make_unique<ThisExpression>(testTokens(TokenType::THIS, "This", 1));
     auto printStmt = std::make_unique<PrintStatement>(testTokens(TokenType::PRINT, "print", 1), thisExpr.get());
     SyntaxNode* root = printStmt.get();
@@ -514,9 +461,6 @@ TEST(CheckerTest, ThisOutsideClassReportsError) {
     tree.add(std::move(printStmt));
     tree.setRoot(root);
 
-    std::ostringstream executorOutput;
-    Executor executor(executorOutput);
-    Checker checker(executor);
     try {
         checker.check(tree);
         FAIL() << "CheckerError가 발생해야 합니다.";
@@ -526,8 +470,7 @@ TEST(CheckerTest, ThisOutsideClassReportsError) {
 }
 
 // Class C { m() { print This; } }
-TEST(CheckerTest, ThisInsideMethodPasses) {
-    SyntaxTree tree;
+TEST_F(CheckerTest, ThisInsideMethodPasses) {
     Token className{ TokenType::IDENTIFIER, "C", 1 };
     Token methodName{ TokenType::IDENTIFIER, "m", 1 };
 
@@ -546,15 +489,11 @@ TEST(CheckerTest, ThisInsideMethodPasses) {
     tree.add(std::move(classDecl));
     tree.setRoot(root);
 
-    std::ostringstream executorOutput;
-    Executor executor(executorOutput);
-    Checker checker(executor);
     EXPECT_TRUE(checker.check(tree));
 }
 
 // Class C { init() { return 1; } }   (init은 값 있는 return 금지)
-TEST(CheckerTest, InitMethodWithReturnValueReportsError) {
-    SyntaxTree tree;
+TEST_F(CheckerTest, InitMethodWithReturnValueReportsError) {
     Token className{ TokenType::IDENTIFIER, "C", 1 };
     Token initName{ TokenType::IDENTIFIER, "init", 1 };
 
@@ -573,9 +512,6 @@ TEST(CheckerTest, InitMethodWithReturnValueReportsError) {
     tree.add(std::move(classDecl));
     tree.setRoot(root);
 
-    std::ostringstream executorOutput;
-    Executor executor(executorOutput);
-    Checker checker(executor);
     try {
         checker.check(tree);
         FAIL() << "CheckerError가 발생해야 합니다.";
@@ -585,8 +521,7 @@ TEST(CheckerTest, InitMethodWithReturnValueReportsError) {
 }
 
 // Class C { init() { return; } }   (값 없는 return은 init에서도 허용)
-TEST(CheckerTest, InitMethodWithBareReturnPasses) {
-    SyntaxTree tree;
+TEST_F(CheckerTest, InitMethodWithBareReturnPasses) {
     Token className{ TokenType::IDENTIFIER, "C", 1 };
     Token initName{ TokenType::IDENTIFIER, "init", 1 };
 
@@ -603,9 +538,6 @@ TEST(CheckerTest, InitMethodWithBareReturnPasses) {
     tree.add(std::move(classDecl));
     tree.setRoot(root);
 
-    std::ostringstream executorOutput;
-    Executor executor(executorOutput);
-    Checker checker(executor);
     EXPECT_TRUE(checker.check(tree));
 }
 
@@ -614,8 +546,7 @@ TEST(CheckerTest, InitMethodWithBareReturnPasses) {
 // ===========================================================================
 
 // for (0; true; 0) { import "m" alias m; }   (for 안 import 금지)
-TEST(CheckerTest, ImportInsideForBlockReportsError) {
-    SyntaxTree tree;
+TEST_F(CheckerTest, ImportInsideForBlockReportsError) {
     auto initExpr = std::make_unique<NumberExpression>(testTokens(TokenType::NUMBER, "0", 1), 0.0);
     auto init = std::make_unique<ExpressionStatement>(testTokens(1), initExpr.get());
     auto compare = std::make_unique<BooleanExpression>(testTokens(TokenType::TRUE, "true", 1), true);
@@ -640,9 +571,6 @@ TEST(CheckerTest, ImportInsideForBlockReportsError) {
     tree.add(std::move(forStmt));
     tree.setRoot(root);
 
-    std::ostringstream executorOutput;
-    Executor executor(executorOutput);
-    Checker checker(executor);
     try {
         checker.check(tree);
         FAIL() << "CheckerError가 발생해야 합니다.";
@@ -652,8 +580,7 @@ TEST(CheckerTest, ImportInsideForBlockReportsError) {
 }
 
 // { import "a" alias m; import "b" alias m; }   (같은 스코프 alias 중복)
-TEST(CheckerTest, DuplicateImportAliasInSameScopeReportsError) {
-    SyntaxTree tree;
+TEST_F(CheckerTest, DuplicateImportAliasInSameScopeReportsError) {
     Token alias1{ TokenType::IDENTIFIER, "m", 1 };
     auto import1 = std::make_unique<ImportStatement>(
         testTokens(TokenType::IMPORT, "import", 1), alias1, std::vector<Statement*>{});
@@ -671,9 +598,6 @@ TEST(CheckerTest, DuplicateImportAliasInSameScopeReportsError) {
     tree.add(std::move(block));
     tree.setRoot(root);
 
-    std::ostringstream executorOutput;
-    Executor executor(executorOutput);
-    Checker checker(executor);
     try {
         checker.check(tree);
         FAIL() << "CheckerError가 발생해야 합니다.";
@@ -684,8 +608,7 @@ TEST(CheckerTest, DuplicateImportAliasInSameScopeReportsError) {
 
 // import "sum.txt" alias sum; { import "sum.txt" alias sum; }
 // 상위 스코프에서 이미 import된 이름을 하위 스코프에서 다시 import하면 에러 (PDF p.27)
-TEST(CheckerTest, ImportInNestedScopeWhenAlreadyImportedInOuterScopeReportsError) {
-    SyntaxTree tree;
+TEST_F(CheckerTest, ImportInNestedScopeWhenAlreadyImportedInOuterScopeReportsError) {
     Token alias1{ TokenType::IDENTIFIER, "sum", 1 };
     auto import1 = std::make_unique<ImportStatement>(
         testTokens(TokenType::IMPORT, "import", 1), alias1, std::vector<Statement*>{});
@@ -706,9 +629,6 @@ TEST(CheckerTest, ImportInNestedScopeWhenAlreadyImportedInOuterScopeReportsError
     tree.add(std::move(outerBlock));
     tree.setRoot(root);
 
-    std::ostringstream executorOutput;
-    Executor executor(executorOutput);
-    Checker checker(executor);
     try {
         checker.check(tree);
         FAIL() << "CheckerError가 발생해야 합니다.";
@@ -719,8 +639,7 @@ TEST(CheckerTest, ImportInNestedScopeWhenAlreadyImportedInOuterScopeReportsError
 
 // { import "sum.txt" alias sum; } { import "sum.txt" alias sum; }
 // 서로 다른 형제 스코프에서는 같은 이름을 다시 import해도 된다 (PDF p.27)
-TEST(CheckerTest, ImportSameAliasInSiblingScopesPasses) {
-    SyntaxTree tree;
+TEST_F(CheckerTest, ImportSameAliasInSiblingScopesPasses) {
     Token alias1{ TokenType::IDENTIFIER, "sum", 1 };
     auto import1 = std::make_unique<ImportStatement>(
         testTokens(TokenType::IMPORT, "import", 1), alias1, std::vector<Statement*>{});
@@ -744,16 +663,12 @@ TEST(CheckerTest, ImportSameAliasInSiblingScopesPasses) {
     tree.add(std::move(rootBlock));
     tree.setRoot(root);
 
-    std::ostringstream executorOutput;
-    Executor executor(executorOutput);
-    Checker checker(executor);
     EXPECT_TRUE(checker.check(tree));
 }
 
 // { import "sum.txt" alias sum; } import "sum.txt" alias sum;
 // 블록이 끝난 뒤 같은 레벨에서 같은 이름을 다시 import해도 된다 (PDF p.27)
-TEST(CheckerTest, ImportSameAliasAfterBlockEndsPasses) {
-    SyntaxTree tree;
+TEST_F(CheckerTest, ImportSameAliasAfterBlockEndsPasses) {
     Token alias1{ TokenType::IDENTIFIER, "sum", 1 };
     auto import1 = std::make_unique<ImportStatement>(
         testTokens(TokenType::IMPORT, "import", 1), alias1, std::vector<Statement*>{});
@@ -774,15 +689,11 @@ TEST(CheckerTest, ImportSameAliasAfterBlockEndsPasses) {
     tree.add(std::move(rootBlock));
     tree.setRoot(root);
 
-    std::ostringstream executorOutput;
-    Executor executor(executorOutput);
-    Checker checker(executor);
     EXPECT_TRUE(checker.check(tree));
 }
 
 // { var sum = 1; import "sum.txt" alias sum; }   (alias가 기존 변수 이름과 충돌, PDF p.28)
-TEST(CheckerTest, ImportAliasConflictsWithExistingVariableReportsError) {
-    SyntaxTree tree;
+TEST_F(CheckerTest, ImportAliasConflictsWithExistingVariableReportsError) {
     auto declIdent = std::make_unique<IdentifierExpression>(testTokens(TokenType::IDENTIFIER, "sum", 1), "sum");
     auto lit = std::make_unique<NumberExpression>(testTokens(TokenType::NUMBER, "1", 1), 1.0);
     auto declSum = std::make_unique<DeclareStatement>(testTokens(TokenType::VAR, "var", 1), declIdent.get(), lit.get());
@@ -802,9 +713,6 @@ TEST(CheckerTest, ImportAliasConflictsWithExistingVariableReportsError) {
     tree.add(std::move(block));
     tree.setRoot(root);
 
-    std::ostringstream executorOutput;
-    Executor executor(executorOutput);
-    Checker checker(executor);
     try {
         checker.check(tree);
         FAIL() << "CheckerError가 발생해야 합니다.";
@@ -818,8 +726,7 @@ TEST(CheckerTest, ImportAliasConflictsWithExistingVariableReportsError) {
 // ===========================================================================
 
 // { var a = 1; print a; }   -> a는 현재(같은) 스코프에서 바로 찾으므로 depth == 0
-TEST(CheckerTest, ResolverAssignsDepthZeroForSameScopeVariable) {
-    SyntaxTree tree;
+TEST_F(CheckerTest, ResolverAssignsDepthZeroForSameScopeVariable) {
     auto declIdent = std::make_unique<IdentifierExpression>(testTokens(TokenType::IDENTIFIER, "a", 1), "a");
     auto lit = std::make_unique<NumberExpression>(testTokens(TokenType::NUMBER, "1", 1), 1.0);
     auto declA = std::make_unique<DeclareStatement>(testTokens(TokenType::VAR, "var", 1), declIdent.get(), lit.get());
@@ -841,9 +748,6 @@ TEST(CheckerTest, ResolverAssignsDepthZeroForSameScopeVariable) {
     tree.add(std::move(block));
     tree.setRoot(root);
 
-    std::ostringstream executorOutput;
-    Executor executor(executorOutput);
-    Checker checker(executor);
     ASSERT_TRUE(checker.check(tree));
 
     ASSERT_TRUE(usageRaw->depth.has_value());
@@ -851,8 +755,7 @@ TEST(CheckerTest, ResolverAssignsDepthZeroForSameScopeVariable) {
 }
 
 // { var a = 1; { print a; } }   -> a는 한 단계 바깥 스코프에 있으므로 depth == 1
-TEST(CheckerTest, ResolverAssignsDepthOneForOuterScopeVariable) {
-    SyntaxTree tree;
+TEST_F(CheckerTest, ResolverAssignsDepthOneForOuterScopeVariable) {
     auto declIdent = std::make_unique<IdentifierExpression>(testTokens(TokenType::IDENTIFIER, "a", 1), "a");
     auto lit = std::make_unique<NumberExpression>(testTokens(TokenType::NUMBER, "1", 1), 1.0);
     auto declA = std::make_unique<DeclareStatement>(testTokens(TokenType::VAR, "var", 1), declIdent.get(), lit.get());
@@ -877,9 +780,6 @@ TEST(CheckerTest, ResolverAssignsDepthOneForOuterScopeVariable) {
     tree.add(std::move(outerBlock));
     tree.setRoot(root);
 
-    std::ostringstream executorOutput;
-    Executor executor(executorOutput);
-    Checker checker(executor);
     ASSERT_TRUE(checker.check(tree));
 
     ASSERT_TRUE(usageRaw->depth.has_value());
@@ -890,9 +790,16 @@ TEST(CheckerTest, ResolverAssignsDepthOneForOuterScopeVariable) {
 // ConstantFolder (호출 검증 - 실제 트리 치환은 하지 않음, TODO(refactor) 참고)
 // ===========================================================================
 
-// print 1 + 2;   -> 두 자식이 모두 리터럴이므로 evaluate()가 정확히 한 번 호출된다.
-TEST(CheckerTest, ConstantFolderCallsEvaluateOnceForLiteralBinaryExpression) {
+// 실제 Executor 대신 MockExecuteInterface를 주입한 Checker가 필요한 테스트 전용 fixture.
+class CheckerConstantFolderTest : public ::testing::Test {
+protected:
     SyntaxTree tree;
+    MockExecuteInterface executor;
+    Checker checker{ executor };
+};
+
+// print 1 + 2;   -> 두 자식이 모두 리터럴이므로 evaluate()가 정확히 한 번 호출된다.
+TEST_F(CheckerConstantFolderTest, ConstantFolderCallsEvaluateOnceForLiteralBinaryExpression) {
     auto lit1 = std::make_unique<NumberExpression>(testTokens(TokenType::NUMBER, "1", 1), 1.0);
     auto lit2 = std::make_unique<NumberExpression>(testTokens(TokenType::NUMBER, "2", 1), 2.0);
     auto add = std::make_unique<AddExpression>(testTokens(TokenType::PLUS, "+", 1), lit1.get(), lit2.get());
@@ -906,20 +813,17 @@ TEST(CheckerTest, ConstantFolderCallsEvaluateOnceForLiteralBinaryExpression) {
     tree.add(std::move(printStmt));
     tree.setRoot(root);
 
-    MockExecuteInterface executor;
     EXPECT_CALL(executor, evaluate(static_cast<Expression*>(addRaw)))
         .Times(1)
         .WillOnce(testing::Return(Value(3.0)));
 
-    Checker checker(executor);
     EXPECT_TRUE(checker.check(tree));
 }
 
 // print 1 + 2 * 3;   -> mult(2, 3)는 자식이 모두 리터럴이라 폴딩 대상이지만, add의 오른쪽
 // 자식은 (트리를 아직 치환하지 않으므로) 여전히 BinaryExpression이라 리터럴이 아니다.
 // 그래서 evaluate()는 mult에 대해서만 한 번 호출돼야 한다.
-TEST(CheckerTest, ConstantFolderOnlyFoldsDirectlyNestedLiteralOperands) {
-    SyntaxTree tree;
+TEST_F(CheckerConstantFolderTest, ConstantFolderOnlyFoldsDirectlyNestedLiteralOperands) {
     auto lit1 = std::make_unique<NumberExpression>(testTokens(TokenType::NUMBER, "1", 1), 1.0);
     auto lit2 = std::make_unique<NumberExpression>(testTokens(TokenType::NUMBER, "2", 1), 2.0);
     auto lit3 = std::make_unique<NumberExpression>(testTokens(TokenType::NUMBER, "3", 1), 3.0);
@@ -937,18 +841,15 @@ TEST(CheckerTest, ConstantFolderOnlyFoldsDirectlyNestedLiteralOperands) {
     tree.add(std::move(printStmt));
     tree.setRoot(root);
 
-    MockExecuteInterface executor;
     EXPECT_CALL(executor, evaluate(static_cast<Expression*>(multRaw)))
         .Times(1)
         .WillOnce(testing::Return(Value(6.0)));
 
-    Checker checker(executor);
     EXPECT_TRUE(checker.check(tree));
 }
 
 // print a + 2;   -> a가 변수(리터럴이 아님)라 폴딩 대상이 아니다. evaluate()가 호출되면 안 된다.
-TEST(CheckerTest, ConstantFolderDoesNotCallEvaluateWhenOperandIsVariable) {
-    SyntaxTree tree;
+TEST_F(CheckerConstantFolderTest, ConstantFolderDoesNotCallEvaluateWhenOperandIsVariable) {
     auto declIdent = std::make_unique<IdentifierExpression>(testTokens(TokenType::IDENTIFIER, "a", 1), "a");
     auto lit1 = std::make_unique<NumberExpression>(testTokens(TokenType::NUMBER, "1", 1), 1.0);
     auto declA = std::make_unique<DeclareStatement>(testTokens(TokenType::VAR, "var", 1), declIdent.get(), lit1.get());
@@ -972,17 +873,14 @@ TEST(CheckerTest, ConstantFolderDoesNotCallEvaluateWhenOperandIsVariable) {
     tree.add(std::move(block));
     tree.setRoot(root);
 
-    MockExecuteInterface executor;
     EXPECT_CALL(executor, evaluate(testing::_)).Times(0);
 
-    Checker checker(executor);
     EXPECT_TRUE(checker.check(tree));
 }
 
 // print 1 / 0;   -> evaluate()가 ExecutorError를 던지면 폴딩을 조용히 건너뛰고 계속 통과한다
 // (컴파일 타임에 대신 오류를 내면 안 되고, Executor가 런타임에 오류를 내야 한다).
-TEST(CheckerTest, ConstantFolderSwallowsExecutorErrorAndStillPasses) {
-    SyntaxTree tree;
+TEST_F(CheckerConstantFolderTest, ConstantFolderSwallowsExecutorErrorAndStillPasses) {
     auto lit1 = std::make_unique<NumberExpression>(testTokens(TokenType::NUMBER, "1", 1), 1.0);
     auto lit0 = std::make_unique<NumberExpression>(testTokens(TokenType::NUMBER, "0", 1), 0.0);
     auto divide = std::make_unique<DivideExpression>(testTokens(TokenType::SLASH, "/", 1), lit1.get(), lit0.get());
@@ -995,10 +893,8 @@ TEST(CheckerTest, ConstantFolderSwallowsExecutorErrorAndStillPasses) {
     tree.add(std::move(printStmt));
     tree.setRoot(root);
 
-    MockExecuteInterface executor;
     EXPECT_CALL(executor, evaluate(testing::_))
         .WillOnce(testing::Throw(ExecutorError("0으로 나눌 수 없습니다.")));
 
-    Checker checker(executor);
     EXPECT_TRUE(checker.check(tree));
 }
