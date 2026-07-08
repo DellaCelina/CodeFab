@@ -174,6 +174,42 @@ TEST_F(RunPromptShellTest, MultilineBlock_CompletesWhenBraceClosesAndTokenizerSt
     EXPECT_EQ(out.str(), ">>> ... ... >>> ");
 }
 
+TEST_F(RunPromptShellTest, LineEndingWithBackslash_WaitsForNextLineWithoutTokenizing) {
+    EXPECT_CALL(tokenizer, tokenize(_)).Times(0);
+
+    std::ostringstream out;
+    run("var a = \\\n", out);
+
+    EXPECT_EQ(out.str(), ">>> ... ");
+}
+
+TEST_F(RunPromptShellTest, MultilineViaBackslash_JoinsLinesAndTokenizesOnceOnFinalLine) {
+    InSequence seq;
+    EXPECT_CALL(tokenizer, tokenize(std::string("var a =\n3;")))
+        .WillOnce(Return(std::vector<Token>{}));
+    EXPECT_CALL(assembler, assemble(_)).WillOnce(Return(ByMove(SyntaxTree())));
+    EXPECT_CALL(checker, check(_)).WillOnce(Return(true));
+    EXPECT_CALL(executor, execute(_));
+
+    std::ostringstream out;
+    run("var a =\\\n3;\n", out);
+
+    EXPECT_EQ(out.str(), ">>> ... >>> ");
+}
+
+TEST_F(RunPromptShellTest, MultilineViaBackslash_AcrossThreeLinesJoinsAllBeforeTokenizing) {
+    EXPECT_CALL(tokenizer, tokenize(std::string("var a =\n1 +\n2;")))
+        .WillOnce(Return(std::vector<Token>{}));
+    EXPECT_CALL(assembler, assemble(_)).WillOnce(Return(ByMove(SyntaxTree())));
+    EXPECT_CALL(checker, check(_)).WillOnce(Return(true));
+    EXPECT_CALL(executor, execute(_));
+
+    std::ostringstream out;
+    run("var a =\\\n1 +\\\n2;\n", out);
+
+    EXPECT_EQ(out.str(), ">>> ... ... >>> ");
+}
+
 TEST_F(RunPromptShellTest, TokenizeError_IsReportedAndRestOfPipelineIsSkipped) {
     // 실제 Tokenizer는 인식 불가능한 문자를 만나면 줄 번호를 메시지에 직접 담아
     // AssemblyError를 던진다 (TokenizeInterface.h/Tokenizer.cpp 참고).
@@ -417,7 +453,26 @@ TEST_F(RunPromptShellIntegrationTest, DecimalLiteral_PrintsWithDecimalPart) {
     EXPECT_EQ(out.str(), ">>> >>> ");
 }
 
-// --- 2-1. 구문 에러 시나리오: 실제 Assembler가 AssemblerError를 던지는 경우 ---
+
+// --- 1-1. '\' 줄 이음 시나리오: 실제 파이프라인으로 여러 줄에 걸쳐 입력해도 정상 처리된다 ---
+
+TEST_F(RunPromptShellIntegrationTest, LineEndingWithBackslash_JoinsWithNextLineAndPrintsThree) {
+    std::ostringstream out;
+    run("print 1 + \\\n2;\n", out);
+
+    EXPECT_EQ(programOutput.str(), "3\n");
+    EXPECT_EQ(out.str(), ">>> ... >>> ");
+}
+
+TEST_F(RunPromptShellIntegrationTest, LineEndingWithBackslash_AcrossThreeLinesJoinsAllAndPrintsInner) {
+    std::ostringstream out;
+    run("{ var x = \\\n\"inner\"; \\\nprint x; }\n", out);
+
+    EXPECT_EQ(programOutput.str(), "inner\n");
+    EXPECT_EQ(out.str(), ">>> ... ... >>> ");
+}
+
+// --- 2-1. 구문 에러 시나리오: 실제 Assembler가 std::invalid_argument를 던지는 경우 ---
 // Assembler가 던지는 메시지에는 실제 Tokenizer가 항상 덧붙이는 EOF 토큰 등의 영향으로
 // "(near '...' at line N)" 접미사가 붙을 수 있어, 핵심 문구만 부분 일치로 검증한다.
 

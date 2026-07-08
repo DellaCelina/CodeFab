@@ -18,6 +18,16 @@ bool IsBlank(const std::string& s) {
     return true;
 }
 
+// 입력한 한 줄이 '\'로 끝나면 아직 입력이 끝나지 않은 것으로 보고,
+// 다음 줄을 이어받기 위해 true를 반환한다. 이때 줄 끝의 '\'는 버퍼에서 제거한다.
+bool ConsumeLineContinuation(std::string& line) {
+    if (!line.empty() && line.back() == '\\') {
+        line.pop_back();
+        return true;
+    }
+    return false;
+}
+
 }  // namespace
 
 RunPromptShell::RunPromptShell(TokenizeInterface& tokenizer,
@@ -37,10 +47,18 @@ void RunPromptShell::run(std::istream& in, std::ostream& out) {
             return;
         }
 
+        bool lineContinues = ConsumeLineContinuation(line);
+
         if (!buffer.empty()) {
             buffer += "\n";
         }
         buffer += line;
+
+        if (lineContinues) {
+            // '\'로 끝난 줄: 아직 입력이 끝나지 않았으므로 실행하지 않고 다음 줄을 이어받는다.
+            out << kContinuationPrompt;
+            continue;
+        }
 
         if (IsBlank(buffer)) {
             buffer.clear();
