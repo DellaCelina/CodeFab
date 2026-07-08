@@ -1,5 +1,6 @@
 ﻿#include "FileRunMode.h"
 
+#include <filesystem>
 #include <fstream>
 #include <sstream>
 #include <vector>
@@ -9,12 +10,23 @@ FileRunMode::FileRunMode(TokenizeInterface& tokenizer, AssemblerInterface& assem
     : tokenizer_(tokenizer), assembler_(assembler), checker_(checker), executor_(executor) {
 }
 
-bool FileRunMode::run(const std::string& path, std::ostream& out) {
-    std::ifstream file(path);
+bool FileRunMode::run(const std::string& filePath, std::ostream& out) {
+    // filePath는 항상 파일 1개(단일 파일)의 경로여야 한다. 디렉터리 등 파일이
+    // 아닌 경로가 오면(예: 실수로 폴더 경로를 넘긴 경우) ifstream이 플랫폼에
+    // 따라 애매하게 동작할 수 있으므로, 여기서 명시적으로 걸러 분명한 오류로
+    // 보고한다. 경로가 아예 존재하지 않는 경우는 이 검사를 통과시키고 바로
+    // 아래 ifstream 오픈 실패로 처리한다(존재 여부와 무관하게 exists()가
+    // false를 던지지 않으므로 안전).
+    if (std::filesystem::exists(filePath) && !std::filesystem::is_regular_file(filePath)) {
+        out << "path는 파일 1개(단일 파일)여야 합니다: " << filePath << "\n";
+        return false;
+    }
+
+    std::ifstream file(filePath);
     if (!file) {
         // FileSourceReader::read()(Assembler/FileSourceReader.cpp)와 동일한
         // 문구를 사용해 "파일을 열 수 없다"는 오류 메시지의 표현을 통일한다.
-        out << "파일을 열 수 없습니다: " << path << "\n";
+        out << "파일을 열 수 없습니다: " << filePath << "\n";
         return false;
     }
 

@@ -1,4 +1,4 @@
-#include "FileRunMode.h"
+﻿#include "FileRunMode.h"
 
 #include <filesystem>
 #include <fstream>
@@ -91,6 +91,18 @@ TEST_F(FileRunModeTest, FileNotFound_ReportsErrorWithoutTokenizingAndReturnsFals
 
     EXPECT_FALSE(result);
     EXPECT_THAT(out.str(), HasSubstr("이런_파일은_없습니다.fab"));
+}
+
+TEST_F(FileRunModeTest, PathIsDirectory_ReportsErrorWithoutTokenizingAndReturnsFalse) {
+    // filePath는 항상 파일 1개(단일 파일)여야 한다. 디렉터리가 오면 파이프라인을
+    // 시작하지 않고 명확한 오류로 거부해야 한다.
+    EXPECT_CALL(tokenizer, tokenize(_)).Times(0);
+
+    std::ostringstream out;
+    bool result = mode.run(std::filesystem::temp_directory_path().string(), out);
+
+    EXPECT_FALSE(result);
+    EXPECT_THAT(out.str(), HasSubstr("파일 1개"));
 }
 
 TEST_F(FileRunModeTest, ValidFile_CallsPipelineInOrderAndReturnsTrue) {
@@ -265,4 +277,15 @@ TEST_F(FileRunModeIntegrationTest, FileDoesNotExist_ReportsErrorAndReturnsFalse)
     EXPECT_FALSE(result);
     EXPECT_EQ(programOutput.str(), "");
     EXPECT_THAT(out.str(), HasSubstr(missing.string()));
+}
+
+TEST_F(FileRunModeIntegrationTest, PathIsDirectory_ReportsErrorAndReturnsFalse) {
+    // 파일 1개(단일 파일)가 아닌 디렉터리 경로를 넘기면, 실제 파이프라인까지
+    // 가지 않고 명확한 오류로 거부해야 한다.
+    std::ostringstream out;
+    bool result = mode.run(std::filesystem::temp_directory_path().string(), out);
+
+    EXPECT_FALSE(result);
+    EXPECT_EQ(programOutput.str(), "");
+    EXPECT_THAT(out.str(), HasSubstr("파일 1개"));
 }
