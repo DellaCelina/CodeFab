@@ -2,9 +2,11 @@
 
 #include <functional>
 #include <iostream>
+#include <memory>
 #include <optional>
 #include <typeindex>
 #include <unordered_map>
+#include <utility>
 #include <vector>
 
 #include "Environment.h"
@@ -71,6 +73,12 @@ private:
 
     // callee가 FieldAccessExpression인 CallExpression(메서드 호출) 처리.
     Value callMethod(FieldAccessExpression* fieldAccess, const std::vector<Expression*>& argExprs);
+
+    // collectionExpr/indexExpr을 평가해 (배열, 검증된 인덱스)를 반환한다. 배열이
+    // 아니거나 인덱스가 숫자가 아니거나 범위를 벗어나면 ExecutorError. 배열
+    // 자체(shared_ptr)를 값으로 반환해서, 호출부가 collectionExpr을 다시
+    // 평가하는 동안에만 살아있는 임시 Value에 원소 참조가 매달리는 일이 없게 한다.
+    std::pair<std::shared_ptr<ArrayValue>, size_t> resolveArrayIndex(Expression* collectionExpr, Expression* indexExpr);
 
     std::ostream& out_;
     Environment environment_;

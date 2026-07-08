@@ -3,6 +3,7 @@
 #include <stdexcept>
 #include <utility>
 
+#include "ArrayValue.h"
 #include "InstanceValue.h"
 
 namespace {
@@ -150,8 +151,13 @@ void Executor::registerDefaultHandlers() {
             return value;
         }
 
-        // 그 외의 대입 대상(IndexExpression 등, 3일차 확장 §5.3)이 추가되면 이
-        // 자리에 분기를 늘리면 된다.
+        if (auto* indexTarget = dynamic_cast<IndexExpression*>(assign->target)) {
+            auto [array, i] = resolveArrayIndex(indexTarget->collection, indexTarget->index);
+            Value value = evaluate(assign->value);
+            array->items[i] = value;
+            return value;
+        }
+
         auto* identifier = dynamic_cast<IdentifierExpression*>(assign->target);
         if (!identifier) {
             throw ExecutorError("아직 지원하지 않는 대입 대상입니다.");
@@ -294,6 +300,23 @@ void Executor::registerDefaultHandlers() {
         throw ExecutorError("'{}' 필드가 존재하지 않습니다.", access->name.origin);
     };
 
+    expressionHandlers_[std::type_index(typeid(ArrayExpression))] = [this](Expression* expr) {
+        auto* arrayExpr = static_cast<ArrayExpression*>(expr);
+        Value size = evaluate(arrayExpr->sizeExpr);
+        if (!size.isNumber()) {
+            throw ExecutorError("배열의 사이즈는 반드시 number여야 합니다.");
+        }
+        auto array = std::make_shared<ArrayValue>();
+        array->items.resize(static_cast<size_t>(size.asNumber()));  // 전부 Nil로 채워짐.
+        return Value(array);
+    };
+
+    expressionHandlers_[std::type_index(typeid(IndexExpression))] = [this](Expression* expr) {
+        auto* index = static_cast<IndexExpression*>(expr);
+        auto [array, i] = resolveArrayIndex(index->collection, index->index);
+        return array->items[i];
+    };
+
     expressionHandlers_[std::type_index(typeid(ThisExpression))] = [this](Expression*) {
         // This는 항상 "this"라는 고정 이름으로 동적 조회한다 - 메서드 호출
         // 스코프 최상단에 있어서 조회 비용이 낮고, depth 캐싱의 이점이 작다.
@@ -409,6 +432,23 @@ Value Executor::callMethod(FieldAccessExpression* fieldAccess, const std::vector
         args.push_back(evaluate(arg));
     }
     return callMethodDecl(method, args, object);
+}
+
+std::pair<std::shared_ptr<ArrayValue>, size_t> Executor::resolveArrayIndex(Expression* collectionExpr, Expression* indexExpr) {
+    Value collection = evaluate(collectionExpr);
+    if (!collection.isArray()) {
+        throw ExecutorError("index 접근은 오직 배열만 지원합니다.");
+    }
+    Value indexValue = evaluate(indexExpr);
+    if (!indexValue.isNumber()) {
+        throw ExecutorError("인덱스는 반드시 숫자여야 합니다.");
+    }
+    auto array = collection.asArray();
+    auto i = static_cast<size_t>(indexValue.asNumber());
+    if (i >= array->items.size()) {
+        throw ExecutorError("배열 인덱스 범위를 벗어났습니다.");
+    }
+    return { array, i };
 }
 
 Value Executor::evaluate(Expression* expr) {
