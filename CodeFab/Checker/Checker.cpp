@@ -206,7 +206,16 @@ void Checker::checkIdentifier(IdentifierExpression* id) {
         reportError(id->getLine(), "'" + id->name + "'에러: 선언되지 않은 변수입니다.");
     }
 
-    resolveIdentifier(id);
+    // 함수/메서드 본문 안에서는 정적 바인딩을 건너뛴다: Environment는 함수 호출마다
+    // (재귀 호출 포함) 스코프를 하나씩 더 쌓는 콜스택 구조라, 여기서 계산하는 "몇 단계
+    // 위 스코프인지"는 선언 시점 기준일 뿐 재귀 호출 깊이에 따라 실제 런타임 스코프
+    // 깊이와 달라진다 - 예: fact가 자기 자신을 재귀 호출하면 재귀가 한 단계 깊어질
+    // 때마다 실제로는 몇 단계를 더 올라가야 fact를 찾는데 depth는 1로 고정돼 있어
+    // 엉뚱한 스코프를 가리키게 된다. 함수/메서드 밖(블록/전역)은 재귀 호출 없이
+    // 코드 구조 그대로 스코프가 쌓이므로 정적 바인딩이 여전히 안전하다.
+    if (functionDepth == 0) {
+        resolveIdentifier(id);
+    }
 }
 
 void Checker::checkBinary(BinaryExpression* bin) {
