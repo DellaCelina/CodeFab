@@ -19,6 +19,22 @@ struct ReturnSignal {
     Value value;
 };
 
+// import 대상 파일의 최상위 선언 하나가 등록하는 이름을 알아낸다. moduleScope로
+// 옮길 값을 찾을 때 쓴다 - Scope에 "내용을 훑는" API를 새로 추가하지 않고도,
+// 어떤 이름이 선언될지는 노드 자체에서 이미 알 수 있기 때문이다.
+std::string declaredNameOf(Statement* decl) {
+    if (auto* var = dynamic_cast<DeclareStatement*>(decl)) {
+        return var->identifier->name;
+    }
+    if (auto* func = dynamic_cast<FunctionDeclareStatement*>(decl)) {
+        return func->name.origin;
+    }
+    if (auto* klass = dynamic_cast<ClassDeclareStatement*>(decl)) {
+        return klass->name.origin;
+    }
+    throw ExecutorError("import 대상으로 지원하지 않는 선언입니다.");
+}
+
 // Pushes a new scope on construction and guarantees it's popped when the
 // block ends, whether that's normal control flow or an exception unwinding
 // through it (e.g. a statement inside the block throwing).
@@ -286,9 +302,31 @@ void Executor::registerDefaultHandlers() {
         environment_.define(decl->name.origin, Value(decl));
     };
 
+    statementHandlers_[std::type_index(typeid(ImportStatement))] = [this](Statement* stmt) {
+        auto* importStmt = static_cast<ImportStatement*>(stmt);
+        auto moduleScope = std::make_shared<Scope>();
+
+        {
+            ScopeGuard guard(environment_);  // declarations 실행용 임시 프레임.
+            for (Statement* decl : importStmt->declarations) {
+                execute(decl);
+                std::string name = declaredNameOf(decl);
+                moduleScope->define(name, *environment_.lookup(name));
+            }
+        }  // 임시 프레임은 여기서 pop된다 - alias는 바깥(호출 시점) 스코프에 등록한다.
+
+        environment_.define(importStmt->alias.origin, Value(moduleScope));
+    };
+
     expressionHandlers_[std::type_index(typeid(FieldAccessExpression))] = [this](Expression* expr) {
         auto* access = static_cast<FieldAccessExpression*>(expr);
         Value object = evaluate(access->object);
+        if (object.isModule()) {
+            if (auto value = object.asModule()->get(access->name.origin)) {
+                return *value;
+            }
+            throw ExecutorError("모듈에 '{}'이(가) 없습니다.", access->name.origin);
+        }
         if (!object.isInstance()) {
             throw ExecutorError("인스턴스가 아닌 대상의 필드에 접근했습니다.");
         }
@@ -425,6 +463,21 @@ Value Executor::instantiate(const ClassDeclareStatement* klass, const std::vecto
 
 Value Executor::callMethod(FieldAccessExpression* fieldAccess, const std::vector<Expression*>& argExprs) {
     Value object = evaluate(fieldAccess->object);
+
+    if (object.isModule()) {
+        // alias.add(...): 모듈 스코프에서 이름을 찾아 함수처럼 호출한다.
+        auto member = object.asModule()->get(fieldAccess->name.origin);
+        if (!member || !member->isFunction()) {
+            throw ExecutorError("모듈에 '{}' 함수가 없습니다.", fieldAccess->name.origin);
+        }
+        std::vector<Value> moduleArgs;
+        moduleArgs.reserve(argExprs.size());
+        for (Expression* arg : argExprs) {
+            moduleArgs.push_back(evaluate(arg));
+        }
+        return callFunction(member->asFunction(), moduleArgs);
+    }
+
     if (!object.isInstance()) {
         throw ExecutorError("인스턴스가 아닌 대상의 메서드를 호출했습니다.");
     }
