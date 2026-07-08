@@ -66,6 +66,18 @@
     <ClCompile Include="Executor\ExecutorControlFlowTest.cpp">
       <Filter>Executor</Filter>
     </ClCompile>
+    <ClCompile Include="Executor\ExecutorFunctionTest.cpp">
+      <Filter>Executor</Filter>
+    </ClCompile>
+    <ClCompile Include="Executor\ExecutorClassTest.cpp">
+      <Filter>Executor</Filter>
+    </ClCompile>
+    <ClCompile Include="Executor\ExecutorArrayTest.cpp">
+      <Filter>Executor</Filter>
+    </ClCompile>
+    <ClCompile Include="Executor\ExecutorImportTest.cpp">
+      <Filter>Executor</Filter>
+    </ClCompile>
     <ClCompile Include="Executor\Value.cpp">
       <Filter>Executor</Filter>
     </ClCompile>
@@ -85,6 +97,12 @@
       <Filter>Shell</Filter>
     </ClCompile>
     <ClCompile Include="Shell\RunPromptShellTest.cpp">
+      <Filter>Shell</Filter>
+    </ClCompile>
+    <ClCompile Include="Shell\CommandLineArgs.cpp">
+      <Filter>Shell</Filter>
+    </ClCompile>
+    <ClCompile Include="Shell\CommandLineArgsTest.cpp">
       <Filter>Shell</Filter>
     </ClCompile>
   </ItemGroup>
@@ -141,6 +159,9 @@
       <Filter>Executor</Filter>
     </ClInclude>
     <ClInclude Include="Shell\RunPromptShell.h">
+      <Filter>Shell</Filter>
+    </ClInclude>
+    <ClInclude Include="Shell\CommandLineArgs.h">
       <Filter>Shell</Filter>
     </ClInclude>
   </ItemGroup>

@@ -3,10 +3,36 @@
 #include <stdexcept>
 #include <utility>
 
+#include "ArrayValue.h"
+#include "InstanceValue.h"
+
 namespace {
 
 ExecutorError undefinedVariableError(const std::string& name) {
     return ExecutorError("'{}' 변수가 정의되지 않았습니다.", name);
+}
+
+// return 문이 함수/메서드 호출 스택을 즉시 빠져나가기 위해 던지는 내부 전용
+// 제어 흐름 신호. Executor 밖으로 노출하지 않는다(공개 헤더에 없음) - 일반
+// ExecutorError와 섞이지 않도록 별도 타입으로 둔다.
+struct ReturnSignal {
+    Value value;
+};
+
+// import 대상 파일의 최상위 선언 하나가 등록하는 이름을 알아낸다. moduleScope로
+// 옮길 값을 찾을 때 쓴다 - Scope에 "내용을 훑는" API를 새로 추가하지 않고도,
+// 어떤 이름이 선언될지는 노드 자체에서 이미 알 수 있기 때문이다.
+std::string declaredNameOf(Statement* decl) {
+    if (auto* var = dynamic_cast<DeclareStatement*>(decl)) {
+        return var->identifier->name;
+    }
+    if (auto* func = dynamic_cast<FunctionDeclareStatement*>(decl)) {
+        return func->name.origin;
+    }
+    if (auto* klass = dynamic_cast<ClassDeclareStatement*>(decl)) {
+        return klass->name.origin;
+    }
+    throw ExecutorError("import 대상으로 지원하지 않는 선언입니다.");
 }
 
 // Pushes a new scope on construction and guarantees it's popped when the
@@ -130,10 +156,24 @@ void Executor::registerDefaultHandlers() {
 
     expressionHandlers_[std::type_index(typeid(AssignExpression))] = [this](Expression* expr) {
         auto* assign = static_cast<AssignExpression*>(expr);
-        // 지금은 target이 항상 IdentifierExpression이다 (Assembler가 그 외의
-        // 대입 대상을 아직 만들지 않는다). FieldAccessExpression/IndexExpression
-        // 대입(3일차 확장, Architecture.md §4.3/§5.3)이 추가되면 이 자리에 분기를
-        // 늘리면 된다.
+
+        if (auto* fieldTarget = dynamic_cast<FieldAccessExpression*>(assign->target)) {
+            Value object = evaluate(fieldTarget->object);
+            if (!object.isInstance()) {
+                throw ExecutorError("인스턴스가 아닌 대상에 필드를 대입했습니다.");
+            }
+            Value value = evaluate(assign->value);
+            object.asInstance()->fields->define(fieldTarget->name.origin, value);  // 없으면 새로 생성.
+            return value;
+        }
+
+        if (auto* indexTarget = dynamic_cast<IndexExpression*>(assign->target)) {
+            auto [array, i] = resolveArrayIndex(indexTarget->collection, indexTarget->index);
+            Value value = evaluate(assign->value);
+            array->items[i] = value;
+            return value;
+        }
+
         auto* identifier = dynamic_cast<IdentifierExpression*>(assign->target);
         if (!identifier) {
             throw ExecutorError("아직 지원하지 않는 대입 대상입니다.");
@@ -217,6 +257,126 @@ void Executor::registerDefaultHandlers() {
         auto* notExpr = static_cast<NotExpression*>(expr);
         return Value(!evaluate(notExpr->operand).isTruthy());
     };
+
+    statementHandlers_[std::type_index(typeid(FunctionDeclareStatement))] = [this](Statement* stmt) {
+        auto* decl = static_cast<FunctionDeclareStatement*>(stmt);
+        // 선언 시점에 이름부터 현재 스코프에 등록해둔다 - 그래야 body 안에서
+        // 자기 자신을 부르는 재귀 호출이 자연스럽게 동작한다(호출은 실제로
+        // 실행될 때 일어나므로, 그 시점엔 이미 이름이 등록되어 있다).
+        environment_.define(decl->name.origin, Value(decl));
+    };
+
+    statementHandlers_[std::type_index(typeid(ReturnStatement))] = [this](Statement* stmt) {
+        auto* ret = static_cast<ReturnStatement*>(stmt);
+        throw ReturnSignal{ ret->value ? evaluate(ret->value) : Value() };
+    };
+
+    expressionHandlers_[std::type_index(typeid(CallExpression))] = [this](Expression* expr) {
+        auto* call = static_cast<CallExpression*>(expr);
+
+        // callee가 r.move(5)처럼 FieldAccessExpression이면 메서드 호출이다 -
+        // object를 "값으로 읽는" 일반 FieldAccessExpression 평가(필드 조회)를
+        // 타지 않도록 여기서 먼저 가로챈다.
+        if (auto* fieldAccess = dynamic_cast<FieldAccessExpression*>(call->callee)) {
+            return callMethod(fieldAccess, call->arguments);
+        }
+
+        Value callee = evaluate(call->callee);
+        std::vector<Value> args;
+        args.reserve(call->arguments.size());
+        for (Expression* arg : call->arguments) {
+            args.push_back(evaluate(arg));
+        }
+
+        if (callee.isFunction()) {
+            return callFunction(callee.asFunction(), args);
+        }
+        if (callee.isClass()) {
+            return instantiate(callee.asClass(), args);
+        }
+        throw ExecutorError("호출할 수 없는 대상입니다.");
+    };
+
+    statementHandlers_[std::type_index(typeid(ClassDeclareStatement))] = [this](Statement* stmt) {
+        auto* decl = static_cast<ClassDeclareStatement*>(stmt);
+        environment_.define(decl->name.origin, Value(decl));
+    };
+
+    statementHandlers_[std::type_index(typeid(ImportStatement))] = [this](Statement* stmt) {
+        auto* importStmt = static_cast<ImportStatement*>(stmt);
+        auto moduleScope = std::make_shared<Scope>();
+
+        {
+            ScopeGuard guard(environment_);  // declarations 실행용 임시 프레임.
+            for (Statement* decl : importStmt->declarations) {
+                execute(decl);
+                std::string name = declaredNameOf(decl);
+                moduleScope->define(name, *environment_.lookup(name));
+            }
+        }  // 임시 프레임은 여기서 pop된다 - alias는 바깥(호출 시점) 스코프에 등록한다.
+
+        environment_.define(importStmt->alias.origin, Value(moduleScope));
+    };
+
+    expressionHandlers_[std::type_index(typeid(FieldAccessExpression))] = [this](Expression* expr) {
+        auto* access = static_cast<FieldAccessExpression*>(expr);
+        Value object = evaluate(access->object);
+        if (object.isModule()) {
+            if (auto value = object.asModule()->get(access->name.origin)) {
+                return *value;
+            }
+            throw ExecutorError("모듈에 '{}'이(가) 없습니다.", access->name.origin);
+        }
+        if (!object.isInstance()) {
+            throw ExecutorError("인스턴스가 아닌 대상의 필드에 접근했습니다.");
+        }
+        if (auto field = object.asInstance()->fields->get(access->name.origin)) {
+            return *field;
+        }
+        // 값 읽기 문맥에서 메서드에 접근한 경우: 메서드 호출은 CallExpression
+        // 쪽(callMethod)이 전담하므로 여기서는 에러로 처리한다.
+        throw ExecutorError("'{}' 필드가 존재하지 않습니다.", access->name.origin);
+    };
+
+    expressionHandlers_[std::type_index(typeid(ArrayExpression))] = [this](Expression* expr) {
+        auto* arrayExpr = static_cast<ArrayExpression*>(expr);
+        Value size = evaluate(arrayExpr->sizeExpr);
+        if (!size.isNumber()) {
+            throw ExecutorError("배열의 사이즈는 반드시 number여야 합니다.");
+        }
+        auto array = std::make_shared<ArrayValue>();
+        array->items.resize(static_cast<size_t>(size.asNumber()));  // 전부 Nil로 채워짐.
+        return Value(array);
+    };
+
+    expressionHandlers_[std::type_index(typeid(IndexExpression))] = [this](Expression* expr) {
+        auto* index = static_cast<IndexExpression*>(expr);
+        auto [array, i] = resolveArrayIndex(index->collection, index->index);
+        return array->items[i];
+    };
+
+    expressionHandlers_[std::type_index(typeid(InstanceOfExpression))] = [this](Expression* expr) {
+        auto* instOf = static_cast<InstanceOfExpression*>(expr);
+        Value object = evaluate(instOf->object);
+        if (!object.isInstance()) {
+            return Value(false);
+        }
+        auto classValue = environment_.lookup(instOf->className.origin);
+        if (!classValue || !classValue->isClass()) {
+            throw ExecutorError("'{}'은(는) 클래스가 아닙니다.", instOf->className.origin);
+        }
+        return Value(object.asInstance()->klass == classValue->asClass());
+    };
+
+    expressionHandlers_[std::type_index(typeid(ThisExpression))] = [this](Expression*) {
+        // This는 항상 "this"라는 고정 이름으로 동적 조회한다 - 메서드 호출
+        // 스코프 최상단에 있어서 조회 비용이 낮고, depth 캐싱의 이점이 작다.
+        auto value = environment_.lookup("this");
+        if (!value) {
+            throw ExecutorError("클래스 외부에서 This를 사용했습니다.");
+        }
+        return *value;
+    };
 }
 
 void Executor::execute(SyntaxTree& tree) {
@@ -249,6 +409,112 @@ void Executor::setStatementHook(StatementHook hook) {
 void Executor::requireNumberOperands(const Value& left, const Value& right, const char* op) const {
     if (!left.isNumber() || !right.isNumber())
         throw ExecutorError("타입 오류: {} {} {}", left.typeName(), op, right.typeName());
+}
+
+Value Executor::invoke(const Token& name, const std::vector<Token>& params, const std::vector<Statement*>& body,
+    const std::vector<Value>& args, std::optional<Value> boundThis) {
+    if (args.size() != params.size()) {
+        throw ExecutorError("'{}' 호출에는 인자 {}개가 필요합니다 (전달된 인자: {}개)",
+            name.origin, params.size(), args.size());
+    }
+
+    // ScopeGuard가 소멸자에서 popScope()를 보장하므로, body 실행 중 던져진
+    // ReturnSignal이나 다른 예외로 스택을 빠져나가도 스코프가 안전하게 정리된다.
+    ScopeGuard guard(environment_);
+    if (boundThis) {
+        environment_.define("this", *boundThis);
+    }
+    for (size_t i = 0; i < params.size(); ++i) {
+        environment_.define(params[i].origin, args[i]);
+    }
+
+    try {
+        for (Statement* stmt : body) {
+            execute(stmt);
+        }
+    } catch (const ReturnSignal& ret) {
+        return ret.value;
+    }
+    return Value();  // return 없이 끝나면 Nil.
+}
+
+Value Executor::callFunction(const FunctionDeclareStatement* decl, const std::vector<Value>& args) {
+    return invoke(decl->name, decl->params, decl->body, args);
+}
+
+Value Executor::callMethodDecl(const MethodDeclareStatement* method, const std::vector<Value>& args, Value boundThis) {
+    return invoke(method->name, method->params, method->body, args, boundThis);
+}
+
+Value Executor::instantiate(const ClassDeclareStatement* klass, const std::vector<Value>& args) {
+    auto instance = std::make_shared<InstanceValue>();
+    instance->klass = klass;
+    instance->fields = std::make_shared<Scope>();
+    Value instanceValue(instance);
+
+    for (MethodDeclareStatement* method : klass->methods) {
+        if (method->name.origin == "init") {
+            callMethodDecl(method, args, instanceValue);  // 반환값은 버린다.
+            break;
+        }
+    }
+    return instanceValue;
+}
+
+Value Executor::callMethod(FieldAccessExpression* fieldAccess, const std::vector<Expression*>& argExprs) {
+    Value object = evaluate(fieldAccess->object);
+
+    if (object.isModule()) {
+        // alias.add(...): 모듈 스코프에서 이름을 찾아 함수처럼 호출한다.
+        auto member = object.asModule()->get(fieldAccess->name.origin);
+        if (!member || !member->isFunction()) {
+            throw ExecutorError("모듈에 '{}' 함수가 없습니다.", fieldAccess->name.origin);
+        }
+        std::vector<Value> moduleArgs;
+        moduleArgs.reserve(argExprs.size());
+        for (Expression* arg : argExprs) {
+            moduleArgs.push_back(evaluate(arg));
+        }
+        return callFunction(member->asFunction(), moduleArgs);
+    }
+
+    if (!object.isInstance()) {
+        throw ExecutorError("인스턴스가 아닌 대상의 메서드를 호출했습니다.");
+    }
+    auto& instance = object.asInstance();
+    MethodDeclareStatement* method = nullptr;
+    for (MethodDeclareStatement* candidate : instance->klass->methods) {
+        if (candidate->name.origin == fieldAccess->name.origin) {
+            method = candidate;
+            break;
+        }
+    }
+    if (!method) {
+        throw ExecutorError("'{}' 메서드가 존재하지 않습니다.", fieldAccess->name.origin);
+    }
+    std::vector<Value> args;
+    args.reserve(argExprs.size());
+    for (Expression* arg : argExprs) {
+        args.push_back(evaluate(arg));
+    }
+    return callMethodDecl(method, args, object);
+}
+
+std::pair<std::shared_ptr<ArrayValue>, size_t> Executor::resolveArrayIndex(Expression* collectionExpr, Expression* indexExpr) {
+    Value collection = evaluate(collectionExpr);
+    if (!collection.isArray()) {
+        throw ExecutorError("index 접근은 오직 배열만 지원합니다.");
+    }
+    Value indexValue = evaluate(indexExpr);
+    if (!indexValue.isNumber()) {
+        throw ExecutorError("인덱스는 반드시 숫자여야 합니다.");
+    }
+    auto array = collection.asArray();
+    auto i = static_cast<size_t>(indexValue.asNumber());
+    if (i >= array->items.size()) {
+        throw ExecutorError("배열 인덱스 범위를 벗어났습니다.");
+    }
+    return { array, i };
 }
 
 Value Executor::evaluate(Expression* expr) {

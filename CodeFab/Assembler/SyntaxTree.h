@@ -287,6 +287,42 @@ struct DivideExpression : public BinaryExpression {
     }
 };
 
+struct ModExpression : public BinaryExpression {
+    ModExpression(const std::vector<Token>& tokens, Expression* left, Expression* right)
+        : BinaryExpression(tokens, left, right) {}
+
+    bool operator==(const SyntaxNode& op) const override {
+        auto node = dynamic_cast<const ModExpression*>(&op);
+        if (!node)
+            return false;
+        return BinaryExpression::operator==(op);
+    }
+};
+
+struct AndExpression : public BinaryExpression {
+    AndExpression(const std::vector<Token>& tokens, Expression* left, Expression* right)
+        : BinaryExpression(tokens, left, right) {}
+
+    bool operator==(const SyntaxNode& op) const override {
+        auto node = dynamic_cast<const AndExpression*>(&op);
+        if (!node)
+            return false;
+        return BinaryExpression::operator==(op);
+    }
+};
+
+struct OrExpression : public BinaryExpression {
+    OrExpression(const std::vector<Token>& tokens, Expression* left, Expression* right)
+        : BinaryExpression(tokens, left, right) {}
+
+    bool operator==(const SyntaxNode& op) const override {
+        auto node = dynamic_cast<const OrExpression*>(&op);
+        if (!node)
+            return false;
+        return BinaryExpression::operator==(op);
+    }
+};
+
 struct EqualExpression : public BinaryExpression {
     EqualExpression(const std::vector<Token>& tokens, Expression* left, Expression* right)
         : BinaryExpression(tokens, left, right) {}

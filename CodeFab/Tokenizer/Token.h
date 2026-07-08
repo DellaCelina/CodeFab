@@ -35,6 +35,11 @@ enum class TokenType {
     MINUS,          // -
     STAR,           // *
     SLASH,          // /
+    PERCENT,        // %
+
+    // 논리 연산자
+    AND,            // and
+    OR,             // or
 
     // 대입 / 비교 연산자
     EQUAL,          // =
