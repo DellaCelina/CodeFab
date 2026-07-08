@@ -275,3 +275,78 @@ TEST_F(ExecutorTester, Execute_SyntaxTree_ThrowsIfRootIsNotStatement) {
 
     EXPECT_THROW(executor.execute(tree), std::logic_error);
 }
+
+// % 연산자
+TEST_F(ExecutorTester, Evaluate_ModExpression_ReturnsRemainder) {
+    NumberExpression ten({}, 10);
+    NumberExpression three({}, 3);
+    ModExpression mod({}, &ten, &three);
+
+    Value result = executor.evaluate(&mod);
+
+    EXPECT_EQ(result.asNumber(), 1.0);
+}
+
+TEST_F(ExecutorTester, Evaluate_ModExpression_ThrowsOnZero) {
+    NumberExpression ten({}, 10);
+    NumberExpression zero({}, 0);
+    ModExpression mod({}, &ten, &zero);
+
+    EXPECT_THROW(executor.evaluate(&mod), ExecutorError);
+}
+
+// and 연산자
+TEST_F(ExecutorTester, Evaluate_AndExpression_TrueAndTrue_ReturnsTrue) {
+    BooleanExpression t1({}, true);
+    BooleanExpression t2({}, true);
+    AndExpression andExpr({}, &t1, &t2);
+
+    EXPECT_EQ(executor.evaluate(&andExpr).asBoolean(), true);
+}
+
+TEST_F(ExecutorTester, Evaluate_AndExpression_FalseAndTrue_ReturnsFalse) {
+    BooleanExpression f({}, false);
+    BooleanExpression t({}, true);
+    AndExpression andExpr({}, &f, &t);
+
+    EXPECT_EQ(executor.evaluate(&andExpr).asBoolean(), false);
+}
+
+TEST_F(ExecutorTester, Evaluate_AndExpression_ShortCircuit_DoesNotEvaluateRight) {
+    // 좌변이 false면 우변을 평가하지 않는다(단락 평가)
+    BooleanExpression f({}, false);
+    NumberExpression zero({}, 0);
+    NumberExpression zero2({}, 0);
+    DivideExpression div({}, &zero, &zero2); // 평가 시 0 나누기 에러
+    AndExpression andExpr({}, &f, &div);
+
+    EXPECT_NO_THROW(executor.evaluate(&andExpr));
+}
+
+// or 연산자
+TEST_F(ExecutorTester, Evaluate_OrExpression_FalseOrTrue_ReturnsTrue) {
+    BooleanExpression f({}, false);
+    BooleanExpression t({}, true);
+    OrExpression orExpr({}, &f, &t);
+
+    EXPECT_EQ(executor.evaluate(&orExpr).asBoolean(), true);
+}
+
+TEST_F(ExecutorTester, Evaluate_OrExpression_FalseOrFalse_ReturnsFalse) {
+    BooleanExpression f1({}, false);
+    BooleanExpression f2({}, false);
+    OrExpression orExpr({}, &f1, &f2);
+
+    EXPECT_EQ(executor.evaluate(&orExpr).asBoolean(), false);
+}
+
+TEST_F(ExecutorTester, Evaluate_OrExpression_ShortCircuit_DoesNotEvaluateRight) {
+    // 좌변이 true면 우변을 평가하지 않는다(단락 평가)
+    BooleanExpression t({}, true);
+    NumberExpression zero({}, 0);
+    NumberExpression zero2({}, 0);
+    DivideExpression div({}, &zero, &zero2); // 평가 시 0 나누기 에러
+    OrExpression orExpr({}, &t, &div);
+
+    EXPECT_NO_THROW(executor.evaluate(&orExpr));
+}
