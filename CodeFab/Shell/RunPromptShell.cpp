@@ -40,6 +40,7 @@ RunPromptShell::RunPromptShell(TokenizeInterface& tokenizer,
 void RunPromptShell::run(std::istream& in, std::ostream& out) {
     std::string buffer;
     std::string line;
+    std::vector<SyntaxTree> sessionTrees; // Func/Class 선언 노드 수명을 세션 전체로 유지
 
     out << kPrompt;
     while (std::getline(in, line)) {
@@ -71,6 +72,7 @@ void RunPromptShell::run(std::istream& in, std::ostream& out) {
             SyntaxTree tree = assembler_.assemble(tokens);
             if (checker_.check(tree)) {
                 executor_.execute(tree);
+                sessionTrees.push_back(std::move(tree));
             } else {
                 out << "코드 검사에 실패했습니다.\n";
             }
