@@ -8,20 +8,28 @@
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 
+#include "Assembler.h"
 #include "AssemblerInterface.h"
+#include "Checker.h"
 #include "CheckerInterface.h"
 #include "ExecuteInterface.h"
+#include "Executor.h"
 #include "ShellErrors.h"
 #include "SyntaxTree.h"
 #include "Token.h"
 #include "TokenizeInterface.h"
+#include "Tokenizer.h"
 
 using ::testing::_;
+using ::testing::AllOf;
 using ::testing::ByMove;
+using ::testing::EndsWith;
+using ::testing::HasSubstr;
 using ::testing::InSequence;
 using ::testing::Invoke;
 using ::testing::NiceMock;
 using ::testing::Return;
+using ::testing::StartsWith;
 using ::testing::Throw;
 
 namespace {
@@ -193,7 +201,7 @@ TEST_F(RunPromptShellTest, AssemblyError_IsReportedAndCheckerExecutorAreSkipped)
     EXPECT_EQ(out.str(), ">>> [1번째 줄] '+' 다음에 피연산자가 필요합니다.\n>>> ");
 }
 
-TEST_F(RunPromptShellTest, CheckErrorThrown_IsReportedAndExecutorIsSkipped) {
+TEST_F(RunPromptShellTest, CheckerErrorThrown_IsReportedAndExecutorIsSkipped) {
     EXPECT_CALL(tokenizer, tokenize(_)).WillOnce(Return(std::vector<Token>{}));
     EXPECT_CALL(assembler, assemble(_)).WillOnce(Return(ByMove(SyntaxTree())));
     EXPECT_CALL(checker, check(_))
@@ -248,4 +256,218 @@ TEST_F(RunPromptShellTest, ErrorOnOneLine_DoesNotPreventNextLineFromRunning) {
     run("x = 5;\nvar y = 1;\n", out);
 
     EXPECT_EQ(out.str(), ">>> [1번째 줄] 미정의된 변수 'x'\n>>> >>> ");
+}
+
+// ============================================================================
+// Integration Test (시나리오 출처: https://gist.github.com/aijeonghwan-star/d1535e870aeb6a4a928142d4d57c191e)
+//
+// Tokenizer/Assembler/Checker/Executor 전부 실제 구현을 사용한다 (더 이상 Mock 없음).
+// Executor는 생성자로 받은 스트림(programOutput)에 프로그램의 print 결과를 쓰고,
+// 셸의 프롬프트/에러 스트림(out)과는 분리되어 있다 -> 두 스트림을 각각 검증한다.
+//
+// 현재 구현의 실제 한계:
+// - Checker는 예외를 던지지 않고 bool만 반환한다. 실패 시 Shell은 상세 메시지 없이
+//   "코드 검사에 실패했습니다."만 출력한다.
+// - Checker는 BlockStatement/DeclareStatement/PrintStatement (그리고 그 안의
+//   IdentifierExpression/BinaryExpression)만 검사한다. If/For/Assign 등은 아직
+//   검사하지 않고 통과시킨다.
+// - Executor는 PrintStatement 하나와, 리터럴(Number/String/Boolean)·산술·비교
+//   연산자만 처리한다. 변수 참조(IdentifierExpression), 선언/블록/if/for 문은
+//   처리기가 없어 std::logic_error를 던진다. 타입이 맞지 않는 산술 연산은
+//   std::bad_variant_access를 던진다. RunPromptShell은 이 둘을 std::exception
+//   catch-all로 잡아 보고만 하고 죽지 않는다 (RunPromptShell.cpp 참고).
+// ============================================================================
+class RunPromptShellIntegrationTest : public ::testing::Test {
+protected:
+    Tokenizer tokenizer;
+    Assembler assembler;
+    Checker checker;
+    std::ostringstream programOutput;  // Executor가 print 결과를 쓰는 곳 (out과는 별개)
+    Executor executor{programOutput};
+
+    RunPromptShell shell{tokenizer, assembler, checker, executor};
+
+    void run(const std::string& input, std::ostringstream& out) {
+        std::istringstream in(input);
+        shell.run(in, out);
+    }
+};
+
+// --- 1. 정상 동작 시나리오: 실제 파이프라인을 끝까지 돌려 실제 출력값을 검증 ---
+
+TEST_F(RunPromptShellIntegrationTest, ArithmeticPrecedence_PrintsSeven) {
+    std::ostringstream out;
+    run("print 1 + 2 * 3;\n", out);
+
+    EXPECT_EQ(programOutput.str(), "7\n");
+    EXPECT_EQ(out.str(), ">>> >>> ");
+}
+
+TEST_F(RunPromptShellIntegrationTest, ParenthesizedExpression_PrintsNine) {
+    std::ostringstream out;
+    run("print (1 + 2) * 3;\n", out);
+
+    EXPECT_EQ(programOutput.str(), "9\n");
+    EXPECT_EQ(out.str(), ">>> >>> ");
+}
+
+TEST_F(RunPromptShellIntegrationTest, StringConcatenation_PrintsConcatenatedString) {
+    std::ostringstream out;
+    run("print \"Hello, \" + \"CodeFab!\";\n", out);
+
+    EXPECT_EQ(programOutput.str(), "Hello, CodeFab!\n");
+    EXPECT_EQ(out.str(), ">>> >>> ");
+}
+
+TEST_F(RunPromptShellIntegrationTest, ComparisonExpression_PrintsTrue) {
+    std::ostringstream out;
+    run("print 1 < 2;\n", out);
+
+    EXPECT_EQ(programOutput.str(), "true\n");
+    EXPECT_EQ(out.str(), ">>> >>> ");
+}
+
+TEST_F(RunPromptShellIntegrationTest, BooleanLiteral_PrintsTrue) {
+    std::ostringstream out;
+    run("print true;\n", out);
+
+    EXPECT_EQ(programOutput.str(), "true\n");
+    EXPECT_EQ(out.str(), ">>> >>> ");
+}
+
+// --- 2-1. 구문 에러 시나리오: 실제 Assembler가 std::invalid_argument를 던지는 경우 ---
+// Assembler가 던지는 메시지에는 실제 Tokenizer가 항상 덧붙이는 EOF 토큰 등의 영향으로
+// "(near '...' at line N)" 접미사가 붙을 수 있어, 핵심 문구만 부분 일치로 검증한다.
+
+TEST_F(RunPromptShellIntegrationTest, MissingSemicolon_ReportsSyntaxError) {
+    std::ostringstream out;
+    run("print 1 + 2\n", out);
+
+    EXPECT_EQ(programOutput.str(), "");  // Executor까지 도달하지 않았다.
+    EXPECT_THAT(out.str(), AllOf(StartsWith(">>> "), HasSubstr("Expect ';' after value."),
+                                  EndsWith(">>> ")));
+}
+
+TEST_F(RunPromptShellIntegrationTest, MissingClosingParen_ReportsSyntaxError) {
+    std::ostringstream out;
+    // 참고: gist 원문 "print (1 + 2;"은 괄호 개수가 안 맞아 실제 Tokenizer가
+    // "입력이 아직 완결되지 않음"으로 판단해 계속 입력을 기다리게 된다 (Assembler까지
+    // 도달하지 못함). 그래서 괄호 개수는 맞지만 ')' 자리에 다른 토큰이 오는 문장으로
+    // 대체해 동일한 "Expect ')' after expression." 오류 경로를 재현한다.
+    run("print (1 + 2 3);\n", out);
+
+    EXPECT_EQ(programOutput.str(), "");
+    EXPECT_THAT(out.str(), AllOf(StartsWith(">>> "), HasSubstr("Expect ')' after expression."),
+                                  EndsWith(">>> ")));
+}
+
+TEST_F(RunPromptShellIntegrationTest, InvalidAssignmentTarget_ReportsSyntaxError) {
+    std::ostringstream out;
+    run("a + b = 3;\n", out);
+
+    EXPECT_EQ(programOutput.str(), "");
+    EXPECT_THAT(out.str(), AllOf(StartsWith(">>> "), HasSubstr("Invalid assignment target."),
+                                  EndsWith(">>> ")));
+}
+
+TEST_F(RunPromptShellIntegrationTest, UnexpectedTokenInExpression_ReportsSyntaxError) {
+    std::ostringstream out;
+    run("print * 5;\n", out);
+
+    EXPECT_EQ(programOutput.str(), "");
+    EXPECT_THAT(out.str(), AllOf(StartsWith(">>> "), HasSubstr("Expect expression."),
+                                  EndsWith(">>> ")));
+}
+
+// --- 2-2. Checker 정적 에러 시나리오 ---
+// 실제 Checker는 예외를 던지지 않고 bool만 반환하므로, Shell은 상세 사유 없이
+// 공통 실패 메시지만 출력한다 (상세 메시지는 Checker::checkDetailed()로만 얻을 수 있다.
+// CheckerTest.cpp가 그 상세 메시지/줄 번호를 별도로 검증한다).
+
+TEST_F(RunPromptShellIntegrationTest, ReadLocalVariableInOwnInitializer_FailsCheckWithoutExecuting) {
+    std::ostringstream out;
+    run("{ var a = a; }\n", out);
+
+    EXPECT_EQ(programOutput.str(), "");  // Executor가 호출되지 않았다.
+    EXPECT_EQ(out.str(), ">>> 코드 검사에 실패했습니다.\n>>> ");
+}
+
+TEST_F(RunPromptShellIntegrationTest, DuplicateLocalDeclaration_FailsCheckWithoutExecuting) {
+    std::ostringstream out;
+    run("{ var a = \"hi\"; var a = 3; }\n", out);
+
+    EXPECT_EQ(programOutput.str(), "");
+    EXPECT_EQ(out.str(), ">>> 코드 검사에 실패했습니다.\n>>> ");
+}
+
+TEST_F(RunPromptShellIntegrationTest, UndefinedVariableReference_FailsCheckWithoutExecuting) {
+    std::ostringstream out;
+    run("print notDefined;\n", out);
+
+    // 참고: gist는 이 케이스를 "런타임 에러"로 분류하지만, 실제로는 Checker의
+    // "선언되지 않은 변수" 규칙(checkIdentifier의 isDeclaredInAnyScope 검사)이
+    // 이미 이 시점에 잡아내서 Executor까지 도달하지 않는다. Checker는 예외를
+    // 던지지 않고 bool만 반환하므로 상세 메시지는 노출되지 않는다.
+    EXPECT_EQ(programOutput.str(), "");
+    EXPECT_EQ(out.str(), ">>> 코드 검사에 실패했습니다.\n>>> ");
+}
+
+// --- 2-3. 실행 중(런타임) 에러 시나리오 ---
+// 실제 Executor는 아직 타입 검증을 지원하지 않는다 (Executor.cpp의
+// registerDefaultHandlers 참고: 산술 연산은 asNumber()/asString()에서 타입이
+// 안 맞으면 std::bad_variant_access를 던진다). 그래서 gist가 기대하는
+// "Operands must be two numbers or two strings." 같은 다듬어진 메시지는 아직 없고,
+// RunPromptShell의 catch-all(std::exception)이 잡은 원본 예외 메시지가 그대로 노출된다.
+// Executor가 이 케이스들을 제대로 지원하게 되면 아래 기대값도 다듬어진 메시지로 바꿔야 한다.
+
+TEST_F(RunPromptShellIntegrationTest, MixedTypeAddition_CurrentlyThrowsOnTypeMismatch) {
+    std::ostringstream out;
+    run("print 1 + \"HI\";\n", out);
+
+    // std::bad_variant_access::what()의 정확한 문구는 표준 라이브러리 구현에 따라
+    // 달라질 수 있어 내용은 검증하지 않고, "출력 없이 에러로 보고됐는지"만 확인한다.
+    EXPECT_EQ(programOutput.str(), "");
+    EXPECT_THAT(out.str(), AllOf(StartsWith(">>> "), EndsWith(">>> ")));
+}
+
+TEST_F(RunPromptShellIntegrationTest, UnaryMinusOnNonNumber_CurrentlyThrowsOnTypeMismatch) {
+    std::ostringstream out;
+    run("print -\"FabCoding\";\n", out);
+
+    EXPECT_EQ(programOutput.str(), "");
+    EXPECT_THAT(out.str(), AllOf(StartsWith(">>> "), EndsWith(">>> ")));
+}
+
+// --- 3. 아직 지원하지 않는 문장 종류: 셸이 죽지 않고 에러로 보고하는지만 확인 ---
+// gist에는 있었지만 Checker/Executor가 아직 다루지 않는 문장 종류(선언+블록 스코프,
+// if/else, for)는 실제 언어 동작 검증이 불가능하다. 대신 이런 미지원 입력에서도
+// RunPromptShell의 catch-all 덕분에 셸이 죽지 않고 에러로 보고되는지만 확인해 둔다.
+// Checker/Executor가 해당 문장을 지원하게 되면 이 테스트들을 실제 출력 검증으로
+// 교체해야 한다 (이전 버전은 git 이력 참고).
+
+TEST_F(RunPromptShellIntegrationTest, BlockScope_NotYetSupportedByExecutor_DoesNotCrashShell) {
+    std::ostringstream out;
+    run("{ var x = \"inner\"; print x; }\n", out);  // expect(실제 언어 동작): inner
+
+    EXPECT_EQ(programOutput.str(), "");
+    EXPECT_THAT(out.str(), AllOf(StartsWith(">>> "), EndsWith(">>> ")));
+}
+
+TEST_F(RunPromptShellIntegrationTest, IfElse_NotYetSupportedByExecutor_DoesNotCrashShell) {
+    std::ostringstream out;
+    run("if (false) print \"no\"; else print \"kfc\";\n", out);  // expect(실제 언어 동작): kfc
+
+    EXPECT_EQ(programOutput.str(), "");
+    EXPECT_THAT(out.str(), AllOf(StartsWith(">>> "), EndsWith(">>> ")));
+}
+
+TEST_F(RunPromptShellIntegrationTest, ForLoop_NotYetSupportedByExecutor_DoesNotCrashShell) {
+    std::ostringstream out;
+    // 참고: gist 원문은 `for (var j = 0; ...)`이지만, 현재 Assembler의 for문 문법은
+    // 초기화절에 expression만 허용하고 var 선언은 지원하지 않는다 (assembler.cpp
+    // parseForStatement 참고). 그래서 대입식(j = 0)으로 바꿔 최소한 Assembler는 통과하게 둔다.
+    run("for (j = 0; j < 3; j = j + 1) { print j; }\n", out);  // expect(실제 언어 동작): 0, 1, 2
+
+    EXPECT_EQ(programOutput.str(), "");
+    EXPECT_THAT(out.str(), AllOf(StartsWith(">>> "), EndsWith(">>> ")));
 }

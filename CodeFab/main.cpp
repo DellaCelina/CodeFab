@@ -13,12 +13,14 @@
 
 #endif
 
+
 int main() {
 #ifdef _DEBUG
     testing::InitGoogleMock();
     return RUN_ALL_TESTS();
 #else
     Tokenizer tokenizer;
+
     Assembler assembler;
     Checker checker;
     Executor executor;
