@@ -36,7 +36,8 @@ const UnaryOperators kDefaultUnaryOperator = { TokenType::MINUS, TokenType::BANG
 //   declareStmt  -> VAR IDENTIFIER EQUAL expression(0) SEMICOLON
 //   blockStmt    -> LEFT_BRACE statement* RIGHT_BRACE
 //   ifStmt       -> IF LEFT_PAREN expression(0) RIGHT_PAREN statement (ELSE statement)?
-//   forStmt      -> FOR LEFT_PAREN expression(0) SEMICOLON expression(0) SEMICOLON expression(0) RIGHT_PAREN statement
+//   forStmt      -> FOR LEFT_PAREN forInit SEMICOLON expression(0) SEMICOLON expression(0) RIGHT_PAREN statement
+//   forInit      -> declareStmt | expression(0) SEMICOLON
 //   exprStmt     -> expression(0) SEMICOLON
 //   expression(level) -> expression(level + 1) (operatorPriority[level] expression(level or level + 1))*
 //   expression(operatorPriority.size()) -> unary
@@ -113,8 +114,7 @@ private:
     ForStatement* parseForStatement() {
         Token forToken = popToken();
         Token leftParen = popExpectedToken(TokenType::LEFT_PAREN, "Expect '(' after 'for'.");
-        Expression* init = parseExpression(0);
-        Token firstSemicolon = popExpectedToken(TokenType::SEMICOLON, "Expect ';' after for-loop initializer.");
+        Statement* init = parseForInitializer();
         Expression* compare = parseExpression(0);
         Token secondSemicolon = popExpectedToken(TokenType::SEMICOLON, "Expect ';' after for-loop condition.");
         Expression* next = parseExpression(0);
@@ -122,8 +122,19 @@ private:
         Statement* loop = static_cast<Statement*>(parseStatement());
 
         return addNode<ForStatement>(
-            Tokens{ forToken, leftParen, firstSemicolon, secondSemicolon, rightParen },
+            Tokens{ forToken, leftParen, secondSemicolon, rightParen },
             init, compare, next, loop);
+    }
+
+    // 초기화절은 `var j = 0` 같은 선언(declareStmt, 세미콜론까지 직접 소비)이거나
+    // `j = 0` 같은 일반 expression(세미콜론은 여기서 소비해 ExpressionStatement로 감싼다)이다.
+    Statement* parseForInitializer() {
+        if (auto token = currentToken(); token && token->type == TokenType::VAR) {
+            return parseDeclareStatement();
+        }
+        Expression* initExpr = parseExpression(0);
+        Token semicolonToken = popExpectedToken(TokenType::SEMICOLON, "Expect ';' after for-loop initializer.");
+        return addNode<ExpressionStatement>(Tokens{ semicolonToken }, initExpr);
     }
 
     ExpressionStatement* parseExpressionStatement() {

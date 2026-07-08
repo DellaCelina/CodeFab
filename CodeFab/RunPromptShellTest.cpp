@@ -282,9 +282,6 @@ TEST_F(RunPromptShellTest, ErrorOnOneLine_DoesNotPreventNextLineFromRunning) {
 //   ForStatement, 리터럴/산술/비교/대입 연산자를 모두 처리한다. 다만 타입이 맞지
 //   않는 산술 연산은 다듬어진 영어 메시지가 아니라 한글 메시지("타입 오류: ...")를
 //   던진다.
-// - Assembler의 for문 초기화절은 expression만 허용하고 var 선언은 지원하지 않는다
-//   (assembler.cpp의 parseForStatement 참고). gist가 요구하는
-//   `for (var j = 0; ...)` 문법 자체가 파싱 단계에서 "Expect expression."으로 실패한다.
 // ============================================================================
 class RunPromptShellIntegrationTest : public ::testing::Test {
 protected:
@@ -589,9 +586,6 @@ TEST_F(RunPromptShellIntegrationTest, DanglingElse_BindsToNearestIf) {
 
 TEST_F(RunPromptShellIntegrationTest, ForLoop_WithVarInitializer_PrintsZeroOneTwo) {
     std::ostringstream out;
-    // 참고: 현재 Assembler의 for문 초기화절은 expression만 허용하고 var 선언은
-    // 지원하지 않는다 (assembler.cpp의 parseForStatement 참고). 그래서 이 테스트는
-    // gist 원문 그대로의 문법으로 지금은 "Expect expression."을 내며 실패한다.
     run("for (var j = 0; j < 3; j = j + 1) { print j; }\n", out);
 
     EXPECT_EQ(programOutput.str(), "0\n1\n2\n");
