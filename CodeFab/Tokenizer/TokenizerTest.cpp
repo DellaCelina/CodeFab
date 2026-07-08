@@ -163,8 +163,7 @@ TEST_F(TokenizerFixture, NewKeywords) {
     auto tokens = tokenizer.tokenize("Func return Class This Array import alias instanceof");
     EXPECT_THAT(getTypes(tokens), ElementsAre(
         TokenType::FUNC, TokenType::RETURN, TokenType::CLASS, TokenType::THIS,
-        TokenType::ARRAY, TokenType::IMPORT, TokenType::ALIAS, TokenType::INSTANCEOF,
-        TokenType::END_OF_FILE
+        TokenType::ARRAY, TokenType::IMPORT, TokenType::ALIAS, TokenType::INSTANCEOF
     ));
 }
 
@@ -181,8 +180,7 @@ TEST_F(TokenizerFixture, NewKeywordOrigins) {
 TEST_F(TokenizerFixture, NewDelimiters) {
     auto tokens = tokenizer.tokenize(". [ ] ,");
     EXPECT_THAT(getTypes(tokens), ElementsAre(
-        TokenType::DOT, TokenType::LEFT_BRACKET, TokenType::RIGHT_BRACKET, TokenType::COMMA,
-        TokenType::END_OF_FILE
+        TokenType::DOT, TokenType::LEFT_BRACKET, TokenType::RIGHT_BRACKET, TokenType::COMMA
     ));
 }
 
@@ -190,8 +188,7 @@ TEST_F(TokenizerFixture, NewDelimiters) {
 TEST_F(TokenizerFixture, DotFieldAccess) {
     auto tokens = tokenizer.tokenize("r.speed");
     EXPECT_THAT(getTypes(tokens), ElementsAre(
-        TokenType::IDENTIFIER, TokenType::DOT, TokenType::IDENTIFIER,
-        TokenType::END_OF_FILE
+        TokenType::IDENTIFIER, TokenType::DOT, TokenType::IDENTIFIER
     ));
 }
 
@@ -199,8 +196,7 @@ TEST_F(TokenizerFixture, DotFieldAccess) {
 TEST_F(TokenizerFixture, ArrayIndex) {
     auto tokens = tokenizer.tokenize("arr[0]");
     EXPECT_THAT(getTypes(tokens), ElementsAre(
-        TokenType::IDENTIFIER, TokenType::LEFT_BRACKET, TokenType::NUMBER, TokenType::RIGHT_BRACKET,
-        TokenType::END_OF_FILE
+        TokenType::IDENTIFIER, TokenType::LEFT_BRACKET, TokenType::NUMBER, TokenType::RIGHT_BRACKET
     ));
 }
 
@@ -209,8 +205,7 @@ TEST_F(TokenizerFixture, FunctionCallWithComma) {
     auto tokens = tokenizer.tokenize("add(a, b)");
     EXPECT_THAT(getTypes(tokens), ElementsAre(
         TokenType::IDENTIFIER, TokenType::LEFT_PAREN, TokenType::IDENTIFIER,
-        TokenType::COMMA, TokenType::IDENTIFIER, TokenType::RIGHT_PAREN,
-        TokenType::END_OF_FILE
+        TokenType::COMMA, TokenType::IDENTIFIER, TokenType::RIGHT_PAREN
     ));
 }
 
@@ -218,8 +213,7 @@ TEST_F(TokenizerFixture, FunctionCallWithComma) {
 TEST_F(TokenizerFixture, DotDoesNotConflictWithFloat) {
     auto tokens = tokenizer.tokenize("3.14 r.x");
     EXPECT_THAT(getTypes(tokens), ElementsAre(
-        TokenType::NUMBER, TokenType::IDENTIFIER, TokenType::DOT, TokenType::IDENTIFIER,
-        TokenType::END_OF_FILE
+        TokenType::NUMBER, TokenType::IDENTIFIER, TokenType::DOT, TokenType::IDENTIFIER
     ));
     EXPECT_EQ(tokens[0].origin, "3.14");
 }
@@ -234,7 +228,7 @@ TEST_F(TokenizerFixture, ArrayIsReservedKeyword) {
 TEST_F(TokenizerFixture, AndOrKeywords) {
     auto tokens = tokenizer.tokenize("and or");
     EXPECT_THAT(getTypes(tokens), ElementsAre(
-        TokenType::AND, TokenType::OR, TokenType::END_OF_FILE
+        TokenType::AND, TokenType::OR
     ));
 }
 
@@ -249,7 +243,7 @@ TEST_F(TokenizerFixture, AndOrOrigins) {
 TEST_F(TokenizerFixture, PercentOperator) {
     auto tokens = tokenizer.tokenize("10 % 3");
     EXPECT_THAT(getTypes(tokens), ElementsAre(
-        TokenType::NUMBER, TokenType::PERCENT, TokenType::NUMBER, TokenType::END_OF_FILE
+        TokenType::NUMBER, TokenType::PERCENT, TokenType::NUMBER
     ));
     EXPECT_EQ(tokens[1].origin, "%");
 }
