@@ -9,8 +9,8 @@ using namespace testing;
 
 struct AssemblerTester : public Test {
     Tokenizer tokenizer;
-    FileSourceReader sourceReader;
-    Assembler assembler{ tokenizer, sourceReader };
+    FileSourceReader sourceReader{ tokenizer };
+    Assembler assembler{ sourceReader };
 };
 
 TEST_F(AssemblerTester, PrintWithExpressionTest) {

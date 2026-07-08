@@ -288,8 +288,7 @@ private:
 
 }  // namespace
 
-Assembler::Assembler(TokenizeInterface& tokenizer, SourceReaderInterface& sourceReader)
-    : tokenizer_(tokenizer), sourceReader_(sourceReader) {
+Assembler::Assembler(SourceReaderInterface& sourceReader) : sourceReader_(sourceReader) {
 }
 
 SyntaxTree Assembler::assemble(const Tokens& tokens) {

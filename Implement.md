@@ -17,7 +17,7 @@
 | 모듈 | 이미 준비된 것 (건드릴 필요 없음) | 이번에 구현할 것 |
 |---|---|---|
 | Tokenizer | 새 `TokenType` 값(§1) | 새 키워드/구분자를 실제로 스캔하는 로직 |
-| Assembler | 새 `SyntaxTree` 노드(§2), `Assembler` 생성자(`TokenizeInterface&`, `SourceReaderInterface&`) | 새 문법 파싱, import 재귀 컴파일 |
+| Assembler | 새 `SyntaxTree` 노드(§2, `MethodDeclareStatement` 포함), `Assembler` 생성자(`SourceReaderInterface&` 하나만) | 새 문법 파싱, import 재귀 컴파일 |
 | Checker | `Checker` 생성자(`ExecuteInterface&`) | 새 노드 의미 검사, Resolver(정적 바인딩), ConstantFolder(상수 폴딩) |
 | Executor | `Value`/`Environment`/`ExecuteInterface` 확장(§4), `IdentifierExpression`/`AssignExpression` 처리는 이미 `depth`/`target`을 쓰도록 배선됨 | 새 노드 실행 로직(함수 호출, 클래스, 배열, import, instanceof) |
 | Shell | - | `FileRunMode`, `DebugMode`, `Debugger`, `CommandLineArgs`, `main.cpp` CLI 분기 |
@@ -121,10 +121,18 @@ TEST(TokenizerTest, FuncKeyword_IsRecognized) {
 | `ArrayExpression` | `sizeExpr: Expression*` |
 | `IndexExpression` | `collection: Expression*`, `index: Expression*` |
 | `InstanceOfExpression` | `object: Expression*`, `className: Token` |
-| `FunctionDeclareStatement` | `name: Token`, `params: vector<Token>`, `body: vector<Statement*>` |
+| `FunctionDeclareStatement` | `name: Token`, `params: vector<Token>`, `body: vector<Statement*>` (최상위 `Func` 선언 전용) |
+| `MethodDeclareStatement` | `name: Token`, `params: vector<Token>`, `body: vector<Statement*>` (클래스 바디 전용, `Func` 없이 선언) |
 | `ReturnStatement` | `value: Expression*` (nullable) |
-| `ClassDeclareStatement` | `name: Token`, `methods: vector<FunctionDeclareStatement*>` |
+| `ClassDeclareStatement` | `name: Token`, `methods: vector<MethodDeclareStatement*>` |
 | `ImportStatement` | `alias: Token`, `declarations: vector<Statement*>` |
+
+**`FunctionDeclareStatement`와 `MethodDeclareStatement`는 필드 모양은 똑같지만
+서로 다른 타입이다** - 최상위 함수는 `Func` 키워드로 시작하고, 클래스 메서드는
+`Func` 없이 바로 `이름(...) { ... }`로 시작하는 서로 다른 문법이기 때문이다
+(§4 "class 내부의 method는 Func 없이 구현" 참고, PDF 슬라이드의 실제 예시:
+`Class Robot { move(dist) { ... } }`). 파싱 로직은 아래처럼 공용 헬퍼로 뽑아
+중복 없이 재사용할 수 있다(§구현 순서 4번 참고).
 
 `AssignExpression`은 `identifier` 대신 **`target: Expression*`**로 일반화되어
 있다 - `a = 3`이면 `target`이 `IdentifierExpression*`, 나중에 필드/배열 대입을
@@ -136,14 +144,29 @@ TEST(TokenizerTest, FuncKeyword_IsRecognized) {
 `Assembler` 클래스는 이제 생성자를 받는다.
 
 ```cpp
-Assembler(TokenizeInterface& tokenizer, SourceReaderInterface& sourceReader);
+explicit Assembler(SourceReaderInterface& sourceReader);
 ```
 
 `SourceReaderInterface`(`Assembler/SourceReaderInterface.h`)는 `read(path)`
-하나만 있는 파일 읽기 추상화이고, 운영용 구현체 `FileSourceReader`가 이미
-있다(`Assembler/FileSourceReader.h/.cpp`, 실제 `ifstream`으로 읽음). 테스트에서는
-이 두 협력자를 직접 만들어 넣으면 된다(`AssemblerTest.cpp`가 이미 이렇게
-되어 있다 - 새 테스트도 같은 패턴을 따르면 됨).
+하나만 있는 추상화인데, **파일을 읽는 것뿐 아니라 그 자리에서 토큰화까지
+마쳐서 `std::vector<Token>`을 돌려준다** - 그래서 Assembler는 `Tokenizer`를
+직접 알 필요가 없고 `SourceReaderInterface` 하나만 주입받으면 된다. "파일
+읽기 + 토큰화"라는 두 단계는 운영용 구현체 `FileSourceReader`
+(`Assembler/FileSourceReader.h/.cpp`) 안에 캡슐화되어 있다 - 이 클래스가
+생성자로 `TokenizeInterface&`를 받아 내부에 들고 있다가, `read()`에서 실제
+`ifstream`으로 파일을 읽은 뒤 그 내용을 그 `TokenizeInterface`로 토큰화해서
+반환한다.
+
+```cpp
+Tokenizer tokenizer;
+FileSourceReader sourceReader(tokenizer); // Tokenizer를 내부에 캡슐화
+Assembler assembler(sourceReader);        // Assembler는 Tokenizer를 모른다
+```
+
+테스트에서는 `Tokenizer` + `FileSourceReader`를 그대로 써도 되고
+(`AssemblerTest.cpp`가 이렇게 되어 있다), import 관련 케이스처럼 실제 파일 없이
+테스트하고 싶다면 `SourceReaderInterface`의 인메모리 Fake(맵 기반: path →
+미리 만들어둔 `vector<Token>`)를 직접 만들어 그 테스트에서만 주입한다.
 
 ### 문법 규칙 (추가분)
 
@@ -152,12 +175,13 @@ Assembler(TokenizeInterface& tokenizer, SourceReaderInterface& sourceReader);
 끼워 넣는 것이 핵심이다.
 
 ```
-statement    -> ... | funcDeclStmt | classDeclStmt | returnStmt | importStmt
-funcDeclStmt -> FUNC IDENTIFIER LEFT_PAREN params? RIGHT_PAREN blockStmt
-params       -> IDENTIFIER (COMMA IDENTIFIER)*
-classDeclStmt-> CLASS IDENTIFIER LEFT_BRACE funcDeclStmt* RIGHT_BRACE
-returnStmt   -> RETURN expression(0)? SEMICOLON
-importStmt   -> IMPORT STRING ALIAS IDENTIFIER SEMICOLON
+statement      -> ... | funcDeclStmt | classDeclStmt | returnStmt | importStmt
+funcDeclStmt   -> FUNC IDENTIFIER LEFT_PAREN params? RIGHT_PAREN blockStmt
+params         -> IDENTIFIER (COMMA IDENTIFIER)*
+classDeclStmt  -> CLASS IDENTIFIER LEFT_BRACE methodDeclStmt* RIGHT_BRACE
+methodDeclStmt -> IDENTIFIER LEFT_PAREN params? RIGHT_PAREN blockStmt   // Func 없음!
+returnStmt     -> RETURN expression(0)? SEMICOLON
+importStmt     -> IMPORT STRING ALIAS IDENTIFIER SEMICOLON
 
 unary        -> (MINUS | BANG) unary | call
 call         -> primary ( "(" arguments? ")" | "." IDENTIFIER | "[" expression(0) "]" )*
@@ -252,16 +276,28 @@ case TokenType::EQUAL: {
 }
 ```
 
-4. **함수/클래스 선언**: `parseStatement()`의 switch에 `FUNC`/`CLASS`/`RETURN`/
-   `IMPORT` 분기를 추가한다. 클래스 바디의 메서드는 `FUNC` 키워드로 시작하는
-   `parseFunction()`을 그대로 반복 호출하면 된다(별도 파싱 로직 불필요 -
-   Architecture.md §4.1 "메서드도 Func로 통일" 참고).
+4. **함수/클래스/메서드 선언**: `parseStatement()`의 switch에 `FUNC`/`CLASS`/
+   `RETURN`/`IMPORT` 분기를 추가한다. **클래스 바디의 메서드는 `Func` 키워드
+   없이 바로 `이름(...) { ... }`로 시작**하므로(3일차 슬라이드 실제 문법,
+   Architecture.md §4.1), 최상위 함수 선언과 파싱 진입점이 다르다 - `FUNC` 토큰을
+   소비하느냐만 다르고 나머지(이름/파라미터/바디 파싱)는 완전히 같으므로 공용
+   헬퍼로 뽑아서 중복을 없앤다.
 
 ```cpp
-FunctionDeclareStatement* parseFunction() {
-    Token funcToken = popToken(); // FUNC
-    Token name = popExpectedToken(TokenType::IDENTIFIER, "Expect function name.");
-    popExpectedToken(TokenType::LEFT_PAREN, "Expect '(' after function name.");
+// 이름/파라미터 목록/바디만 파싱하고, 만들 노드 타입은 호출부가 정한다.
+// funcToken은 FUNC 키워드를 가진 경우에만 전달한다(메서드는 없음 - nullopt).
+struct ParsedFunctionParts {
+    Token name;
+    std::vector<Token> params;
+    std::vector<Statement*> body;
+    Token rightParen;
+    Token leftBrace;
+    Token rightBrace;
+};
+
+ParsedFunctionParts parseFunctionParts() {
+    Token name = popExpectedToken(TokenType::IDENTIFIER, "Expect name.");
+    popExpectedToken(TokenType::LEFT_PAREN, "Expect '(' after name.");
     std::vector<Token> params;
     if (auto t = currentToken(); t && t->type != TokenType::RIGHT_PAREN) {
         params.push_back(popExpectedToken(TokenType::IDENTIFIER, "Expect parameter name."));
@@ -271,30 +307,53 @@ FunctionDeclareStatement* parseFunction() {
         }
     }
     Token rightParen = popExpectedToken(TokenType::RIGHT_PAREN, "Expect ')' after parameters.");
-    Token leftBrace = popExpectedToken(TokenType::LEFT_BRACE, "Expect '{' before function body.");
+    Token leftBrace = popExpectedToken(TokenType::LEFT_BRACE, "Expect '{' before body.");
     std::vector<Statement*> body;
     while (auto t = currentToken(); t && t->type != TokenType::RIGHT_BRACE) {
         body.push_back(static_cast<Statement*>(parseStatement()));
     }
-    Token rightBrace = popExpectedToken(TokenType::RIGHT_BRACE, "Expect '}' after function body.");
+    Token rightBrace = popExpectedToken(TokenType::RIGHT_BRACE, "Expect '}' after body.");
+    return { name, params, body, rightParen, leftBrace, rightBrace };
+}
+
+// 최상위 함수: Func 토큰을 먼저 소비한다.
+FunctionDeclareStatement* parseFunction() {
+    Token funcToken = popToken(); // FUNC
+    auto parts = parseFunctionParts();
     return addNode<FunctionDeclareStatement>(
-        Tokens{ funcToken, rightParen, leftBrace, rightBrace }, name, params, body);
+        Tokens{ funcToken, parts.rightParen, parts.leftBrace, parts.rightBrace },
+        parts.name, parts.params, parts.body);
+}
+
+// 클래스 메서드: Func 토큰이 없다 - 클래스 바디 안에서만 호출된다.
+MethodDeclareStatement* parseMethod() {
+    auto parts = parseFunctionParts();
+    return addNode<MethodDeclareStatement>(
+        Tokens{ parts.rightParen, parts.leftBrace, parts.rightBrace },
+        parts.name, parts.params, parts.body);
 }
 
 ClassDeclareStatement* parseClass() {
     Token classToken = popToken();
     Token name = popExpectedToken(TokenType::IDENTIFIER, "Expect class name.");
     Token leftBrace = popExpectedToken(TokenType::LEFT_BRACE, "Expect '{' before class body.");
-    std::vector<FunctionDeclareStatement*> methods;
+    std::vector<MethodDeclareStatement*> methods;
     while (auto t = currentToken(); t && t->type != TokenType::RIGHT_BRACE) {
-        methods.push_back(parseFunction());
+        methods.push_back(parseMethod()); // Func 없이 바로 이름부터 파싱
     }
     Token rightBrace = popExpectedToken(TokenType::RIGHT_BRACE, "Expect '}' after class body.");
     return addNode<ClassDeclareStatement>(Tokens{ classToken, leftBrace, rightBrace }, name, methods);
 }
 ```
 
-   `return`은 함수 안에서만 허용되는지 여부는 **문법 검사가 아니라 의미
+   **주의**: 클래스 바디 진입 시(`parseClass`의 while 루프) `parseStatement()`가
+   아니라 곧바로 `parseMethod()`만 호출한다는 점이 중요하다 - 클래스 바디는
+   일반 문장이 아니라 메서드 선언만 허용되는 별도 문법 위치이기 때문이다(잘못
+   짜면 `IDENTIFIER`로 시작하는 일반 대입문(`x = 3;`)과 메서드 선언
+   (`move(dist) { ... }`)을 구분하지 못해 파싱이 꼬인다 - 이 둘은 애초에 서로
+   다른 문맥에서만 나타나므로 진입점을 분리하는 것으로 충분하다).
+
+   `return`은 함수/메서드 안에서만 허용되는지 여부는 **문법 검사가 아니라 의미
    검사**이므로 Assembler는 신경 쓰지 않는다(Checker가 처리, §3 참고) - 파서는
    그냥 어디서든 `return;`/`return expr;`을 파싱할 수 있게 해도 된다.
 
@@ -382,15 +441,18 @@ explicit Checker(ExecuteInterface& executor);
 
 기존 패턴(`checkBlock`, `checkDeclare`, ...)을 그대로 따라 아래를 추가한다.
 
-- **함수** (Architecture.md §3.2): "현재 함수 안인지" 카운터를 하나 두고
-  (`int functionDepth = 0;`), `FunctionDeclareStatement`의 `body`를 검사하는
-  동안 증가/감소시킨다. `ReturnStatement`를 만났는데 `functionDepth == 0`이면
-  `reportError(...)`. 파라미터 이름 중복은 `params`를 순회하며
-  `unordered_set`으로 검사.
+- **함수** (Architecture.md §3.2): "현재 함수/메서드 안인지" 카운터를 하나 두고
+  (`int functionDepth = 0;`), `FunctionDeclareStatement`의 `body`**와**
+  `MethodDeclareStatement`의 `body`를 검사하는 동안 똑같이 증가/감소시킨다(두
+  타입 모두 `checkStatement`의 dynamic_cast 분기에 추가하고, 같은 카운터를
+  공유하는 헬퍼를 호출하게 만들면 중복이 없다). `ReturnStatement`를 만났는데
+  `functionDepth == 0`이면 `reportError(...)`. 파라미터 이름 중복은 `params`를
+  순회하며 `unordered_set`으로 검사 - 이것도 두 노드 타입에 공통으로 적용한다.
 - **클래스** (Architecture.md §4.2): "현재 클래스/메서드 안인지" 상태를 하나
-  더 두고, `ClassDeclareStatement`의 각 메서드를 검사하는 동안 켠다.
-  `ThisExpression`을 만났는데 클래스 밖이면 오류. 메서드 이름이 `"init"`이고
-  `ReturnStatement`에 `value != nullptr`이면 오류("init은 return 없음").
+  더 두고, `ClassDeclareStatement`의 각 `MethodDeclareStatement`를 검사하는
+  동안 켠다. `ThisExpression`을 만났는데 클래스 밖이면 오류. 메서드 이름이
+  `"init"`이고 `ReturnStatement`에 `value != nullptr`이면 오류("init은 return
+  없음").
 - **import** (Architecture.md §7.3): 스코프 스택에 "이 스코프에서 import한
   path 집합"을 추가로 들고 다니거나(`scopes`를 확장하거나 병행 스택을 두거나),
   `ImportStatement`를 만날 때마다 (1) 같은 스코프 내 동일 path 재import, (2)
@@ -533,7 +595,11 @@ Expression* Checker::foldConstants(Expression* expr) {
 
 ### 할 일 1: 함수 선언/호출
 
-Architecture.md §3.3을 그대로 구현한다.
+Architecture.md §3.3을 그대로 구현한다. `FunctionDeclareStatement`(최상위 함수)와
+`MethodDeclareStatement`(클래스 메서드, §할 일 2)는 노드 타입은 다르지만
+"새 스코프 push → 파라미터(+ 있으면 this) bind → body 실행 → return 캐치 →
+스코프 pop"이라는 절차가 완전히 같으므로, `name`/`params`/`body`만 받는 공용
+내부 헬퍼 `invoke()`로 뽑아 두 경로가 함께 쓰게 한다.
 
 ```cpp
 statementHandlers_[std::type_index(typeid(FunctionDeclareStatement))] = [this](Statement* stmt) {
@@ -562,7 +628,7 @@ expressionHandlers_[std::type_index(typeid(CallExpression))] = [this](Expression
     }
 
     if (callee.isFunction()) {
-        return callFunction(callee.asFunction(), args, /*boundThis=*/std::nullopt);
+        return callFunction(callee.asFunction(), args);
     }
     if (callee.isClass()) {
         return instantiate(callee.asClass(), args); // 아래 "클래스" 절 참고
@@ -571,24 +637,27 @@ expressionHandlers_[std::type_index(typeid(CallExpression))] = [this](Expression
 };
 ```
 
-`callFunction` 헬퍼(새로 추가):
+공용 `invoke()` 헬퍼와, 그걸 감싸는 `callFunction`/`callMethodDecl`(새로 추가):
 
 ```cpp
-Value Executor::callFunction(const FunctionDeclareStatement* decl, const std::vector<Value>& args,
-                              std::optional<Value> boundThis) {
-    if (args.size() != decl->params.size()) {
-        throw ExecutorError("'{}' 함수는 인자 {}개가 필요합니다 (전달된 인자: {}개)",
-            decl->name.origin, decl->params.size(), args.size());
+// name/params/body만 받는 공용 호출 절차. FunctionDeclareStatement든
+// MethodDeclareStatement든 이 헬퍼 하나로 처리한다.
+Value Executor::invoke(const Token& name, const std::vector<Token>& params,
+                        const std::vector<Statement*>& body, const std::vector<Value>& args,
+                        std::optional<Value> boundThis) {
+    if (args.size() != params.size()) {
+        throw ExecutorError("'{}' 호출에는 인자 {}개가 필요합니다 (전달된 인자: {}개)",
+            name.origin, params.size(), args.size());
     }
     environment_.pushScope();
     try {
         if (boundThis) {
             environment_.define("this", *boundThis);
         }
-        for (size_t i = 0; i < decl->params.size(); ++i) {
-            environment_.define(decl->params[i].origin, args[i]);
+        for (size_t i = 0; i < params.size(); ++i) {
+            environment_.define(params[i].origin, args[i]);
         }
-        for (Statement* stmt : decl->body) {
+        for (Statement* stmt : body) {
             execute(stmt);
         }
     } catch (const ReturnSignal& ret) {
@@ -600,6 +669,17 @@ Value Executor::callFunction(const FunctionDeclareStatement* decl, const std::ve
     }
     environment_.popScope();
     return Value(); // return 없이 끝나면 Nil
+}
+
+// 최상위 함수 호출 (this 없음).
+Value Executor::callFunction(const FunctionDeclareStatement* decl, const std::vector<Value>& args) {
+    return invoke(decl->name, decl->params, decl->body, args, std::nullopt);
+}
+
+// 클래스 메서드 호출 (this 있음) - §할 일 2에서 이어서 사용.
+Value Executor::callMethodDecl(const MethodDeclareStatement* method, const std::vector<Value>& args,
+                                Value boundThis) {
+    return invoke(method->name, method->params, method->body, args, boundThis);
 }
 ```
 
@@ -614,7 +694,8 @@ struct ReturnSignal {
 }  // namespace
 ```
 
-`ReturnStatement` 핸들러:
+`ReturnStatement` 핸들러(최상위 함수/메서드 body 어디서 실행되든 동일하게
+동작한다 - `invoke()`가 항상 이 예외를 캐치한다):
 
 ```cpp
 statementHandlers_[std::type_index(typeid(ReturnStatement))] = [this](Statement* stmt) {
@@ -625,14 +706,16 @@ statementHandlers_[std::type_index(typeid(ReturnStatement))] = [this](Statement*
 
 **주의**: `ScopeGuard`(기존, `BlockStatement`/`ForStatement`에서 씀)는 소멸자에서
 `popScope()`를 부르므로 `ReturnSignal`처럼 예외로 스코프를 빠져나가도 안전하게
-동작한다. 함수 호출용 스코프도 `ScopeGuard`를 재사용할 수 있는지 검토하라 -
+동작한다. `invoke()`의 스코프도 `ScopeGuard`를 재사용할 수 있는지 검토하라 -
 위 예시처럼 수동 try/catch로 짜도 되고, `ScopeGuard guard(environment_);`로
 바꾸면 `catch (...) { environment_.popScope(); throw; }` 블록이 필요 없어져
 더 간결해진다.
 
 ### 할 일 2: 클래스
 
-Architecture.md §4.3을 그대로 구현한다.
+Architecture.md §4.3을 그대로 구현한다. `klass->methods`는 이제
+`MethodDeclareStatement*` 목록이므로(§2 Assembler 절 참고), 메서드 탐색/호출은
+`callMethodDecl`(위에서 만든 헬퍼)을 쓴다.
 
 ```cpp
 statementHandlers_[std::type_index(typeid(ClassDeclareStatement))] = [this](Statement* stmt) {
@@ -646,9 +729,9 @@ Value Executor::instantiate(const ClassDeclareStatement* klass, const std::vecto
     instance->fields = std::make_shared<Scope>();
     Value instanceValue(instance);
 
-    for (FunctionDeclareStatement* method : klass->methods) {
+    for (MethodDeclareStatement* method : klass->methods) {
         if (method->name.origin == "init") {
-            callFunction(method, args, instanceValue); // 반환값은 버림
+            callMethodDecl(method, args, instanceValue); // 반환값은 버림
             break;
         }
     }
@@ -661,8 +744,8 @@ Value Executor::callMethod(FieldAccessExpression* fieldAccess, const std::vector
         throw ExecutorError("인스턴스가 아닌 대상의 메서드를 호출했습니다.");
     }
     auto& instance = object.asInstance();
-    FunctionDeclareStatement* method = nullptr;
-    for (FunctionDeclareStatement* m : instance->klass->methods) {
+    MethodDeclareStatement* method = nullptr;
+    for (MethodDeclareStatement* m : instance->klass->methods) {
         if (m->name.origin == fieldAccess->name.origin) {
             method = m;
             break;
@@ -675,7 +758,7 @@ Value Executor::callMethod(FieldAccessExpression* fieldAccess, const std::vector
     for (Expression* arg : argExprs) {
         args.push_back(evaluate(arg));
     }
-    return callFunction(method, args, object);
+    return callMethodDecl(method, args, object);
 }
 ```
 

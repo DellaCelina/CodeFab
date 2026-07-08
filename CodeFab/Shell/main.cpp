@@ -20,9 +20,9 @@ int main() {
     return RUN_ALL_TESTS();
 #else
     Tokenizer tokenizer;
-    FileSourceReader sourceReader;
+    FileSourceReader sourceReader(tokenizer);
 
-    Assembler assembler(tokenizer, sourceReader);
+    Assembler assembler(sourceReader);
     Executor executor;
     Checker checker(executor);
 

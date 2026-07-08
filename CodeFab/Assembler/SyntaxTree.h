@@ -527,9 +527,8 @@ struct InstanceOfExpression : public Expression {
     }
 };
 
-// Func add(a, b) { ... }. 클래스 메서드(생성자 init 포함)도 같은 노드를 그대로
-// 재사용한다 - Architecture.md §4.1 "구현을 쉽게 하려고 메서드 앞에도 Func를
-// 붙인다" 참고. params는 파라미터 이름 토큰 목록이다.
+// Func add(a, b) { ... }. 최상위 함수 선언 전용 노드다. params는 파라미터 이름
+// 토큰 목록이다.
 struct FunctionDeclareStatement : public Statement {
     const Token name;
     const std::vector<Token> params;
@@ -541,6 +540,37 @@ struct FunctionDeclareStatement : public Statement {
 
     bool operator==(const SyntaxNode& op) const override {
         auto node = dynamic_cast<const FunctionDeclareStatement*>(&op);
+        if (!node)
+            return false;
+        if (params != node->params)
+            return false;
+        if (body.size() != node->body.size())
+            return false;
+        for (size_t i = 0; i < body.size(); i++) {
+            if (!body[i]->operator==(*node->body[i]))
+                return false;
+        }
+        return SyntaxNode::operator==(op) && name == node->name;
+    }
+};
+
+// move(dist) { ... }. 클래스 바디 안에서 FUNC 키워드 없이 선언되는 메서드
+// 전용 노드다(3일차 슬라이드의 실제 문법) - Architecture.md §2.2/§4.1 참고.
+// FunctionDeclareStatement와 필드 모양은 같지만, 문법이 서로 달라(하나는 FUNC로
+// 시작, 하나는 바로 식별자로 시작) Assembler가 파싱 문맥을 노드 타입으로 표현할
+// 수 있도록 별도 타입으로 둔다. 생성자도 별도 노드가 아니라 이름이 관례적으로
+// "init"인 평범한 MethodDeclareStatement다.
+struct MethodDeclareStatement : public Statement {
+    const Token name;
+    const std::vector<Token> params;
+    const std::vector<Statement*> body;
+
+    MethodDeclareStatement(const std::vector<Token>& tokens, const Token& name, const std::vector<Token>& params,
+        const std::vector<Statement*>& body)
+        : Statement(tokens), name(name), params(params), body(body) {}
+
+    bool operator==(const SyntaxNode& op) const override {
+        auto node = dynamic_cast<const MethodDeclareStatement*>(&op);
         if (!node)
             return false;
         if (params != node->params)
@@ -577,9 +607,9 @@ struct ReturnStatement : public Statement {
 // 나중에 추가할 때는 superclass 필드만 덧붙이면 된다 (Architecture.md §4.5 참고).
 struct ClassDeclareStatement : public Statement {
     const Token name;
-    const std::vector<FunctionDeclareStatement*> methods;
+    const std::vector<MethodDeclareStatement*> methods;
 
-    ClassDeclareStatement(const std::vector<Token>& tokens, const Token& name, const std::vector<FunctionDeclareStatement*>& methods)
+    ClassDeclareStatement(const std::vector<Token>& tokens, const Token& name, const std::vector<MethodDeclareStatement*>& methods)
         : Statement(tokens), name(name), methods(methods) {}
 
     bool operator==(const SyntaxNode& op) const override {
