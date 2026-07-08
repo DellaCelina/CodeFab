@@ -1,7 +1,6 @@
 ﻿#pragma once
 #include "Token.h"
 #include "TokenizeInterface.h"
-#include <stdexcept>
 #include <vector>
 #include <string>
 
