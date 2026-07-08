@@ -4,8 +4,7 @@
 #include "Executor.h"
 #include "SyntaxTree.h"
 
-// if/else and for. IfStatement/ForStatement have no handlers registered
-// yet, so these all fail (red) until that work lands.
+// if/else and for.
 
 TEST(ExecutorControlFlowTest, If_TrueCondition_ExecutesThenBranch) {
     // if (true) print "bbq"; // expect: bbq
@@ -87,7 +86,8 @@ TEST(ExecutorControlFlowTest, For_LoopsWhileConditionHolds) {
 
     IdentifierExpression jInitTarget({}, "j");
     NumberExpression zero({}, 0);
-    AssignExpression init({}, &jInitTarget, &zero);
+    AssignExpression initAssign({}, &jInitTarget, &zero);
+    ExpressionStatement init({}, &initAssign);
 
     IdentifierExpression jCompareRef({}, "j");
     NumberExpression three({}, 3);
@@ -112,6 +112,36 @@ TEST(ExecutorControlFlowTest, For_LoopsWhileConditionHolds) {
     EXPECT_EQ(out.str(), "0\n1\n2\n");
 }
 
+TEST(ExecutorControlFlowTest, For_WithVarInitializer_DeclaresScopedLoopVariable) {
+    // for (var j = 0; j < 3; j = j + 1) { print j; } // expect: 0\n1\n2\n
+    std::ostringstream out;
+    Executor executor(out);
+
+    IdentifierExpression jInitName({}, "j");
+    NumberExpression zero({}, 0);
+    DeclareStatement init({}, &jInitName, &zero);
+
+    IdentifierExpression jCompareRef({}, "j");
+    NumberExpression three({}, 3);
+    LessExpression compare({}, &jCompareRef, &three);
+
+    IdentifierExpression jNextRef({}, "j");
+    NumberExpression one({}, 1);
+    AddExpression jPlusOne({}, &jNextRef, &one);
+    IdentifierExpression jNextTarget({}, "j");
+    AssignExpression next({}, &jNextTarget, &jPlusOne);
+
+    IdentifierExpression jPrintRef({}, "j");
+    PrintStatement printJ({}, &jPrintRef);
+    BlockStatement loopBody({}, std::vector<Statement*>{ &printJ });
+
+    ForStatement forLoop({}, &init, &compare, &next, &loopBody);
+
+    executor.execute(&forLoop);
+
+    EXPECT_EQ(out.str(), "0\n1\n2\n");
+}
+
 TEST(ExecutorControlFlowTest, For_ConditionFalseFromStart_NeverExecutesBody) {
     // var j = 5; for (j = 5; j < 3; j = j + 1) { print j; } // expect: (아무 출력도 없음)
     std::ostringstream out;
@@ -123,7 +153,8 @@ TEST(ExecutorControlFlowTest, For_ConditionFalseFromStart_NeverExecutesBody) {
 
     IdentifierExpression jInitTarget({}, "j");
     NumberExpression fiveAgain({}, 5);
-    AssignExpression init({}, &jInitTarget, &fiveAgain);
+    AssignExpression initAssign({}, &jInitTarget, &fiveAgain);
+    ExpressionStatement init({}, &initAssign);
 
     IdentifierExpression jCompareRef({}, "j");
     NumberExpression three({}, 3);

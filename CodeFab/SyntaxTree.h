@@ -148,12 +148,12 @@ struct IfStatement : public Statement {
 };
 
 struct ForStatement : public Statement {
-    Expression* const init;
+    Statement* const init;
     Expression* const compare;
     Expression* const next;
     Statement* const loop;
 
-    ForStatement(const std::vector<Token>& tokens, Expression* init, Expression* compare, Expression* next, Statement* loop)
+    ForStatement(const std::vector<Token>& tokens, Statement* init, Expression* compare, Expression* next, Statement* loop)
         : Statement(tokens), init(init), compare(compare), next(next), loop(loop) {}
 
     bool operator==(const SyntaxNode& op) const override {

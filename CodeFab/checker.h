@@ -12,6 +12,13 @@ using namespace std;
 class Checker : public CheckerInterface {
 
 public:
+    // 세션(REPL) 전체에 걸쳐 유지되는 전역 스코프를 하나 만들어둔다. Executor의
+    // Environment와 마찬가지로 Checker도 프로그램 실행 동안 하나의 인스턴스가
+    // 재사용되므로, 이 전역 스코프는 check()를 몇 번을 호출하든(즉 REPL에서 몇 줄을
+    // 입력하든) 계속 유지된다 - 그래야 한 줄에서 선언한 변수를 다음 줄에서도
+    // "선언된 변수"로 인식할 수 있다.
+    Checker();
+
     // CheckerInterface 구현체. 의미 오류를 찾으면 CheckerError(line, message)를 throw한다.
     // 통과하면 true를 반환한다.
     bool check(SyntaxTree& tree) override;

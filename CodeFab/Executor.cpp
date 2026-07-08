@@ -159,7 +159,10 @@ void Executor::registerDefaultHandlers() {
 
     statementHandlers_[std::type_index(typeid(ForStatement))] = [this](Statement* stmt) {
         auto* forStmt = static_cast<ForStatement*>(stmt);
-        evaluate(forStmt->init);
+        // 초기화절에서 선언한 변수(예: var j = 0)가 for문이 끝난 뒤 바깥으로
+        // 새어나가지 않도록 전용 스코프를 둔다.
+        ScopeGuard guard(environment_);
+        execute(forStmt->init);
         while (evaluate(forStmt->compare).isTruthy()) {
             execute(forStmt->loop);
             evaluate(forStmt->next);

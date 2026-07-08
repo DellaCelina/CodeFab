@@ -330,7 +330,8 @@ TEST_F(AssemblerTester, ForStatementTest) {
 
     IdentifierExpression initTarget({ tokens[2] }, "j");
     NumberExpression zero({ tokens[4] }, 0);
-    AssignExpression init({ tokens[3] }, &initTarget, &zero);
+    AssignExpression initAssign({ tokens[3] }, &initTarget, &zero);
+    ExpressionStatement init({ tokens[5] }, &initAssign);
     IdentifierExpression jCompare({ tokens[6] }, "j");
     NumberExpression three({ tokens[8] }, 3);
     LessExpression compare({ tokens[7] }, &jCompare, &three);
@@ -342,7 +343,57 @@ TEST_F(AssemblerTester, ForStatementTest) {
     IdentifierExpression jPrint({ tokens[18] }, "j");
     PrintStatement printJ({ tokens[17], tokens[19] }, &jPrint);
     BlockStatement loop({ tokens[16], tokens[20] }, { &printJ });
-    ForStatement golden({ tokens[0], tokens[1], tokens[5], tokens[9], tokens[15] },
+    ForStatement golden({ tokens[0], tokens[1], tokens[9], tokens[15] },
+        &init, &compare, &next, &loop);
+
+    EXPECT_EQ(*root, golden);
+}
+
+TEST_F(AssemblerTester, ForStatementWithVarInitializerTest) {
+    // for (var j = 0; j < 3; j = j + 1) { print j; }
+    std::vector<Token> tokens = {
+        { TokenType::FOR, "for", 0},
+        { TokenType::LEFT_PAREN, "(", 0},
+        { TokenType::VAR, "var", 0},
+        { TokenType::IDENTIFIER, "j", 0},
+        { TokenType::EQUAL, "=", 0},
+        { TokenType::NUMBER, "0", 0},
+        { TokenType::SEMICOLON, ";", 0},
+        { TokenType::IDENTIFIER, "j", 0},
+        { TokenType::LESS, "<", 0},
+        { TokenType::NUMBER, "3", 0},
+        { TokenType::SEMICOLON, ";", 0},
+        { TokenType::IDENTIFIER, "j", 0},
+        { TokenType::EQUAL, "=", 0},
+        { TokenType::IDENTIFIER, "j", 0},
+        { TokenType::PLUS, "+", 0},
+        { TokenType::NUMBER, "1", 0},
+        { TokenType::RIGHT_PAREN, ")", 0},
+        { TokenType::LEFT_BRACE, "{", 0},
+        { TokenType::PRINT, "print", 0},
+        { TokenType::IDENTIFIER, "j", 0},
+        { TokenType::SEMICOLON, ";", 0},
+        { TokenType::RIGHT_BRACE, "}", 0},
+    };
+
+    auto tree = assembler.assemble(tokens);
+    auto root = tree.getRoot();
+
+    IdentifierExpression initName({ tokens[3] }, "j");
+    NumberExpression zero({ tokens[5] }, 0);
+    DeclareStatement init({ tokens[2], tokens[4], tokens[6] }, &initName, &zero);
+    IdentifierExpression jCompare({ tokens[7] }, "j");
+    NumberExpression three({ tokens[9] }, 3);
+    LessExpression compare({ tokens[8] }, &jCompare, &three);
+    IdentifierExpression nextTarget({ tokens[11] }, "j");
+    IdentifierExpression jNext({ tokens[13] }, "j");
+    NumberExpression one({ tokens[15] }, 1);
+    AddExpression jPlusOne({ tokens[14] }, &jNext, &one);
+    AssignExpression next({ tokens[12] }, &nextTarget, &jPlusOne);
+    IdentifierExpression jPrint({ tokens[19] }, "j");
+    PrintStatement printJ({ tokens[18], tokens[20] }, &jPrint);
+    BlockStatement loop({ tokens[17], tokens[21] }, { &printJ });
+    ForStatement golden({ tokens[0], tokens[1], tokens[10], tokens[16] },
         &init, &compare, &next, &loop);
 
     EXPECT_EQ(*root, golden);
