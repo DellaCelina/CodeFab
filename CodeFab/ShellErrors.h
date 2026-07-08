@@ -29,16 +29,3 @@ class IncompleteInputError : public CodeFabError {
 public:
     using CodeFabError::CodeFabError;
 };
-
-// CheckerInterface: 의미 오류 (변수 중복 선언, 자기 참조 등)
-class CheckerError : public CodeFabError {
-public:
-    using CodeFabError::CodeFabError;
-};
-
-// ExecuteInterface: 런타임 오류 (타입 불일치, 미정의 변수, 0으로 나누기 등)
-// std::runtime_error 와 이름 충돌을 피하기 위해 RuntimeCodeFabError 로 명명한다.
-class RuntimeCodeFabError : public CodeFabError {
-public:
-    using CodeFabError::CodeFabError;
-};

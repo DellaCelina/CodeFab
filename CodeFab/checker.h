@@ -5,7 +5,6 @@
 
 #include "SyntaxTree.h"
 #include "CheckerInterface.h"
-#include "ShellErrors.h"
 
 using namespace std;
 

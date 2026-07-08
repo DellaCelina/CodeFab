@@ -233,19 +233,25 @@ TEST_F(RunPromptShellTest, RuntimeError_IsReportedAndShellKeepsRunning) {
         .WillOnce(Return(ByMove(SyntaxTree())))
         .WillOnce(Return(ByMove(SyntaxTree())));
     EXPECT_CALL(checker, check(_)).Times(2).WillRepeatedly(Return(true));
+    // 실제 Executor 구현체가 던지는 예외는 ExecutorError다 (ExecuteInterface.h 참고).
+    // ExecutorError는 line() 정보가 없는 순수 std::exception이라, Shell은 이를
+    // "[N번째 줄]" 접두사 없이 메시지만 출력한다.
     EXPECT_CALL(executor, execute(_))
-        .WillOnce(Throw(RuntimeCodeFabError(1, "0으로 나눈 오류")))
+        .WillOnce(Throw(ExecutorError("0으로 나눈 오류")))
         .WillOnce(Return());
 
     std::ostringstream out;
     run("a = 3 / 0;\nprint a;\n", out);
 
-    EXPECT_EQ(out.str(), ">>> [1번째 줄] 0으로 나눈 오류\n>>> >>> ");
+    EXPECT_EQ(out.str(), ">>> 0으로 나눈 오류\n>>> >>> ");
 }
 
 TEST_F(RunPromptShellTest, ErrorOnOneLine_DoesNotPreventNextLineFromRunning) {
+    // 실제 Tokenizer 구현체는 인식 불가능한 문자를 만나면 AssemblyError를 던진다
+    // (TokenizeInterface.h 참고). AssemblyError는 CodeFabError를 상속해 line()
+    // 정보를 가지므로 Shell은 "[N번째 줄]" 접두사를 붙여 출력한다.
     EXPECT_CALL(tokenizer, tokenize(std::string("x = 5;")))
-        .WillOnce(Throw(RuntimeCodeFabError(1, "미정의된 변수 'x'")));
+        .WillOnce(Throw(AssemblyError(1, "미정의된 변수 'x'")));
     EXPECT_CALL(tokenizer, tokenize(std::string("var y = 1;")))
         .WillOnce(Return(std::vector<Token>{}));
     EXPECT_CALL(assembler, assemble(_)).WillOnce(Return(ByMove(SyntaxTree())));
@@ -268,9 +274,10 @@ TEST_F(RunPromptShellTest, ErrorOnOneLine_DoesNotPreventNextLineFromRunning) {
 // 현재 구현의 실제 한계 (아래 테스트 중 일부는 이 한계 때문에 스펙(gist)이
 // 기대하는 값과 다르게 실패한다 - 각 테스트 옆 주석 참고):
 // - Checker는 의미 오류를 찾으면 CheckerError(line, message)를 throw하고, 통과하면
-//   true를 반환한다. Shell은 CodeFabError(CheckerError 포함)를 잡으면
-//   "[N번째 줄] message" 형식으로 출력한다 (gist가 요구하는 영어 메시지가 아니라
-//   Checker가 실제로 던지는 한글 메시지가 그대로 노출된다).
+//   true를 반환한다. CheckerError는 CheckerInterface.h에 정의된 독립적인 예외라서
+//   (CodeFabError를 상속하지 않는다 - ExecutorError와 같은 방식) Shell이 따로 잡지만,
+//   CodeFabError와 동일하게 "[N번째 줄] message" 형식으로 출력한다 (gist가 요구하는
+//   영어 메시지가 아니라 Checker가 실제로 던지는 한글 메시지가 그대로 노출된다).
 // - Checker는 BlockStatement/DeclareStatement/PrintStatement (그리고 그 안의
 //   IdentifierExpression/BinaryExpression)만 검사한다. If/For/Assign 등은 아직
 //   검사하지 않고 통과시킨다.
