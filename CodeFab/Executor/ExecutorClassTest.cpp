@@ -189,6 +189,41 @@ TEST(ExecutorClassTest, InstanceOf_DifferentClass_ReturnsFalse) {
     EXPECT_FALSE(executor.evaluate(&instOf).asBoolean());
 }
 
+TEST(ExecutorClassTest, WritingUndeclaredField_AddsFieldToInstance) {
+    // Class Empty {}
+    // var e = Empty();
+    // e.value = 42;  // init에서 선언된 적 없는 필드 - 외부에서 처음 write.
+    // print e.value; // expect: 42
+    std::ostringstream out;
+    Executor executor(out);
+
+    std::vector<MethodDeclareStatement*> methods;
+    ClassDeclareStatement emptyClass({}, Token{ TokenType::IDENTIFIER, "Empty", 0 }, methods);
+    executor.execute(&emptyClass);
+
+    IdentifierExpression calleeRef({}, "Empty");
+    std::vector<Expression*> noArgs;
+    CallExpression construct({}, &calleeRef, noArgs);
+    IdentifierExpression eIdent({}, "e");
+    DeclareStatement declareE({}, &eIdent, &construct);
+    executor.execute(&declareE);
+
+    IdentifierExpression eRefForWrite({}, "e");
+    FieldAccessExpression valueFieldForWrite({}, &eRefForWrite, Token{ TokenType::IDENTIFIER, "value", 0 });
+    NumberExpression fortyTwo({}, 42);
+    AssignExpression assignValue({}, &valueFieldForWrite, &fortyTwo);
+    ExpressionStatement assignValueStmt({}, &assignValue);
+    executor.execute(&assignValueStmt);
+
+    IdentifierExpression eRefForRead({}, "e");
+    FieldAccessExpression valueFieldForRead({}, &eRefForRead, Token{ TokenType::IDENTIFIER, "value", 0 });
+    PrintStatement printResult({}, &valueFieldForRead);
+
+    executor.execute(&printResult);
+
+    EXPECT_EQ(out.str(), "42\n");
+}
+
 TEST(ExecutorClassTest, InstanceOf_NonInstanceOperand_ReturnsFalse) {
     std::ostringstream out;
     Executor executor(out);

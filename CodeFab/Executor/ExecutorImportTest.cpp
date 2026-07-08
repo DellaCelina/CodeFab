@@ -80,6 +80,109 @@ TEST(ExecutorImportTest, DeclaredNames_DoNotLeakToGlobalScope) {
     EXPECT_THROW(executor.evaluate(&leakedRef), ExecutorError);
 }
 
+TEST(ExecutorImportTest, ImportInsideFunctionBody_AccessibleWithinFunctionScope) {
+    // Func useMath() {
+    //   import "math.cf" alias math; // math.cf: var PI = 3;
+    //   print math.PI;
+    // }
+    // useMath(); // expect: 3
+    std::ostringstream out;
+    Executor executor(out);
+
+    IdentifierExpression piIdent({}, "PI");
+    NumberExpression three({}, 3);
+    DeclareStatement declarePi({}, &piIdent, &three);
+    std::vector<Statement*> declarations{ &declarePi };
+    ImportStatement importStmt({}, Token{ TokenType::IDENTIFIER, "math", 0 }, declarations);
+
+    IdentifierExpression mathRef({}, "math");
+    FieldAccessExpression piAccess({}, &mathRef, Token{ TokenType::IDENTIFIER, "PI", 0 });
+    PrintStatement printResult({}, &piAccess);
+
+    std::vector<Statement*> funcBody{ &importStmt, &printResult };
+    FunctionDeclareStatement useMathDecl({}, Token{ TokenType::IDENTIFIER, "useMath", 0 }, {}, funcBody);
+    executor.execute(&useMathDecl);
+
+    IdentifierExpression calleeRef({}, "useMath");
+    std::vector<Expression*> noArgs;
+    CallExpression callUseMath({}, &calleeRef, noArgs);
+    ExpressionStatement callStmt({}, &callUseMath);
+
+    executor.execute(&callStmt);
+
+    EXPECT_EQ(out.str(), "3\n");
+}
+
+TEST(ExecutorImportTest, ImportInsideFunctionBody_AliasDoesNotLeakOutside) {
+    // Func useMath() { import "math.cf" alias math; }
+    // useMath();
+    // print math.PI; // expect: ExecutorError (함수 스코프 밖에서는 math를 모른다)
+    std::ostringstream out;
+    Executor executor(out);
+
+    IdentifierExpression piIdent({}, "PI");
+    NumberExpression three({}, 3);
+    DeclareStatement declarePi({}, &piIdent, &three);
+    std::vector<Statement*> declarations{ &declarePi };
+    ImportStatement importStmt({}, Token{ TokenType::IDENTIFIER, "math", 0 }, declarations);
+
+    std::vector<Statement*> funcBody{ &importStmt };
+    FunctionDeclareStatement useMathDecl({}, Token{ TokenType::IDENTIFIER, "useMath", 0 }, {}, funcBody);
+    executor.execute(&useMathDecl);
+
+    IdentifierExpression calleeRef({}, "useMath");
+    std::vector<Expression*> noArgs;
+    CallExpression callUseMath({}, &calleeRef, noArgs);
+    ExpressionStatement callStmt({}, &callUseMath);
+    executor.execute(&callStmt);
+
+    IdentifierExpression leakedRef({}, "math");
+    EXPECT_THROW(executor.evaluate(&leakedRef), ExecutorError);
+}
+
+TEST(ExecutorImportTest, ImportInsideBlock_AccessibleWithinBlockScope) {
+    // { import "math.cf" alias math; print math.PI; } // expect: 3
+    std::ostringstream out;
+    Executor executor(out);
+
+    IdentifierExpression piIdent({}, "PI");
+    NumberExpression three({}, 3);
+    DeclareStatement declarePi({}, &piIdent, &three);
+    std::vector<Statement*> declarations{ &declarePi };
+    ImportStatement importStmt({}, Token{ TokenType::IDENTIFIER, "math", 0 }, declarations);
+
+    IdentifierExpression mathRef({}, "math");
+    FieldAccessExpression piAccess({}, &mathRef, Token{ TokenType::IDENTIFIER, "PI", 0 });
+    PrintStatement printResult({}, &piAccess);
+
+    std::vector<Statement*> blockStatements{ &importStmt, &printResult };
+    BlockStatement block({}, blockStatements);
+
+    executor.execute(&block);
+
+    EXPECT_EQ(out.str(), "3\n");
+}
+
+TEST(ExecutorImportTest, ImportInsideBlock_AliasDoesNotLeakOutside) {
+    // { import "math.cf" alias math; }
+    // print math.PI; // expect: ExecutorError (블록 스코프 밖에서는 math를 모른다)
+    std::ostringstream out;
+    Executor executor(out);
+
+    IdentifierExpression piIdent({}, "PI");
+    NumberExpression three({}, 3);
+    DeclareStatement declarePi({}, &piIdent, &three);
+    std::vector<Statement*> declarations{ &declarePi };
+    ImportStatement importStmt({}, Token{ TokenType::IDENTIFIER, "math", 0 }, declarations);
+
+    std::vector<Statement*> blockStatements{ &importStmt };
+    BlockStatement block({}, blockStatements);
+    executor.execute(&block);
+
+    IdentifierExpression leakedRef({}, "math");
+    EXPECT_THROW(executor.evaluate(&leakedRef), ExecutorError);
+}
+
 TEST(ExecutorImportTest, AccessingMissingMember_ThrowsExecutorError) {
     std::ostringstream out;
     Executor executor(out);
