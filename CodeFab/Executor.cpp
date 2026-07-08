@@ -6,14 +6,6 @@
 #include "ShellErrors.h"
 
 namespace {
-// TODO: replace with the offending node's own line once
-// SyntaxNode::getLine() (added in PR #5) lands on this branch.
-constexpr int kUnknownLine = 0;
-
-RuntimeCodeFabError undefinedVariableError(const std::string& name) {
-    return RuntimeCodeFabError(kUnknownLine, "'" + name + "' 변수가 정의되지 않았습니다.");
-}
-
 // Pushes a new scope on construction and guarantees it's popped when the
 // block ends, whether that's normal control flow or an exception unwinding
 // through it (e.g. a statement inside the block throwing).
@@ -126,20 +118,11 @@ void Executor::registerDefaultHandlers() {
         return Value(left.asNumber() > right.asNumber());
     };
 
-    expressionHandlers_[std::type_index(typeid(IdentifierExpression))] = [this](Expression* expr) {
-        auto* identifier = static_cast<IdentifierExpression*>(expr);
-        auto value = environment_.lookup(identifier->name);
-        if (!value) {
-            throw undefinedVariableError(identifier->name);
-        }
-        return *value;
-    };
-
     expressionHandlers_[std::type_index(typeid(AssignExpression))] = [this](Expression* expr) {
         auto* assign = static_cast<AssignExpression*>(expr);
         Value value = evaluate(assign->value);
         if (!environment_.assign(assign->identifier->name, value)) {
-            throw undefinedVariableError(assign->identifier->name);
+            throw RuntimeCodeFabError(expr->getLine(), "Undefined variable '" + assign->identifier->name + "'");
         }
         return value;
     };
