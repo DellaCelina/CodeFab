@@ -62,6 +62,16 @@ private:
     // 최상위 함수 호출 (this 없음).
     Value callFunction(const FunctionDeclareStatement* decl, const std::vector<Value>& args);
 
+    // 클래스 메서드 호출 (this 있음) - invoke()를 그대로 재사용한다.
+    Value callMethodDecl(const MethodDeclareStatement* method, const std::vector<Value>& args, Value boundThis);
+
+    // klass를 인스턴스화한다: 필드 저장소를 만들고, init 메서드가 있으면
+    // 호출한다(반환값은 버리고 항상 새 인스턴스를 반환).
+    Value instantiate(const ClassDeclareStatement* klass, const std::vector<Value>& args);
+
+    // callee가 FieldAccessExpression인 CallExpression(메서드 호출) 처리.
+    Value callMethod(FieldAccessExpression* fieldAccess, const std::vector<Expression*>& argExprs);
+
     std::ostream& out_;
     Environment environment_;
     StatementHook statementHook_;
