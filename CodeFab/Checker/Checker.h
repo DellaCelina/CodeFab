@@ -54,6 +54,8 @@ private:
     void checkBlock(BlockStatement* block);
     void checkDeclare(DeclareStatement* decl);
     void checkPrint(PrintStatement* stmt);
+    void checkIf(IfStatement* ifStmt);
+    void checkFor(ForStatement* forStmt);
     void checkIdentifier(IdentifierExpression* id);
     void checkBinary(BinaryExpression* bin);
 };

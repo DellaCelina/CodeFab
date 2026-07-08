@@ -192,3 +192,249 @@ TEST(CheckerTest, UndefinedVariableAcrossCallsStillReportsError) {
         EXPECT_THAT(std::string(e.what()), testing::HasSubstr("'notDefined'에러: 선언되지 않은 변수입니다"));
     }
 }
+
+// ---------------------------------------------------------------------------
+// if (true) { var a = 1; var a = 2; }
+// checkStatement가 IfStatement의 thenBranch까지 재귀해서 내부 블록도 검사하는지 확인한다.
+// ---------------------------------------------------------------------------
+TEST(CheckerTest, DuplicateDeclarationInsideIfBlockReportsError) {
+    SyntaxTree tree;
+
+    auto cond = std::make_unique<BooleanExpression>(testTokens(TokenType::TRUE, "true", 1), true);
+
+    auto declIdent1 = std::make_unique<IdentifierExpression>(testTokens(TokenType::IDENTIFIER, "a", 2), "a");
+    auto lit1 = std::make_unique<NumberExpression>(testTokens(TokenType::NUMBER, "1", 2), 1.0);
+    auto declA1 = std::make_unique<DeclareStatement>(testTokens(TokenType::VAR, "var", 2), declIdent1.get(), lit1.get());
+
+    auto declIdent2 = std::make_unique<IdentifierExpression>(testTokens(TokenType::IDENTIFIER, "a", 3), "a");
+    auto lit2 = std::make_unique<NumberExpression>(testTokens(TokenType::NUMBER, "2", 3), 2.0);
+    auto declA2 = std::make_unique<DeclareStatement>(testTokens(TokenType::VAR, "var", 3), declIdent2.get(), lit2.get());
+
+    auto thenBlock = std::make_unique<BlockStatement>(testTokens(1), std::vector<Statement*>{ declA1.get(), declA2.get() });
+    auto ifStmt = std::make_unique<IfStatement>(testTokens(TokenType::IF, "if", 1), cond.get(), thenBlock.get());
+
+    SyntaxNode* rootRaw = ifStmt.get();
+
+    tree.add(std::move(cond));
+    tree.add(std::move(declIdent1));
+    tree.add(std::move(lit1));
+    tree.add(std::move(declA1));
+    tree.add(std::move(declIdent2));
+    tree.add(std::move(lit2));
+    tree.add(std::move(declA2));
+    tree.add(std::move(thenBlock));
+    tree.add(std::move(ifStmt));
+    tree.setRoot(rootRaw);
+
+    std::ostringstream executorOutput;
+    Executor executor(executorOutput);
+    Checker checker(executor);
+    try {
+        checker.check(tree);
+        FAIL() << "CheckerError가 발생해야 합니다.";
+    } catch (const CheckerError& e) {
+        EXPECT_THAT(std::string(e.what()), testing::HasSubstr("3번째 줄"));
+        EXPECT_THAT(std::string(e.what()), testing::HasSubstr("이미 해당 변수는 현재 스코프에서 사용중입니다"));
+    }
+}
+
+// ---------------------------------------------------------------------------
+// if (true) { var a = a + 1; }
+// checkStatement가 IfStatement의 thenBranch 안 자기 참조도 잡아내는지 확인한다.
+// ---------------------------------------------------------------------------
+TEST(CheckerTest, SelfReferenceInsideIfBlockReportsError) {
+    SyntaxTree tree;
+
+    auto cond = std::make_unique<BooleanExpression>(testTokens(TokenType::TRUE, "true", 1), true);
+
+    auto declIdent = std::make_unique<IdentifierExpression>(testTokens(TokenType::IDENTIFIER, "a", 2), "a");
+    auto idA = std::make_unique<IdentifierExpression>(testTokens(TokenType::IDENTIFIER, "a", 2), "a");
+    auto lit1 = std::make_unique<NumberExpression>(testTokens(TokenType::NUMBER, "1", 2), 1.0);
+    auto add = std::make_unique<AddExpression>(testTokens(TokenType::PLUS, "+", 2), idA.get(), lit1.get());
+    auto declA = std::make_unique<DeclareStatement>(testTokens(TokenType::VAR, "var", 2), declIdent.get(), add.get());
+
+    auto thenBlock = std::make_unique<BlockStatement>(testTokens(1), std::vector<Statement*>{ declA.get() });
+    auto ifStmt = std::make_unique<IfStatement>(testTokens(TokenType::IF, "if", 1), cond.get(), thenBlock.get());
+
+    SyntaxNode* rootRaw = ifStmt.get();
+
+    tree.add(std::move(cond));
+    tree.add(std::move(declIdent));
+    tree.add(std::move(idA));
+    tree.add(std::move(lit1));
+    tree.add(std::move(add));
+    tree.add(std::move(declA));
+    tree.add(std::move(thenBlock));
+    tree.add(std::move(ifStmt));
+    tree.setRoot(rootRaw);
+
+    std::ostringstream executorOutput;
+    Executor executor(executorOutput);
+    Checker checker(executor);
+    try {
+        checker.check(tree);
+        FAIL() << "CheckerError가 발생해야 합니다.";
+    } catch (const CheckerError& e) {
+        EXPECT_THAT(std::string(e.what()), testing::HasSubstr("2번째 줄"));
+        EXPECT_THAT(std::string(e.what()), testing::HasSubstr("자신의 초기화식에서 지역변수를 읽을 수 없습니다"));
+    }
+}
+
+// ---------------------------------------------------------------------------
+// for (var j = 0; true; 0) { var a = 1; var a = 2; }
+// checkStatement가 ForStatement의 loop 본문까지 재귀해서 내부 블록도 검사하는지,
+// 그리고 init에서 선언한 j가 for 전용 스코프에 들어가는지 함께 확인한다.
+// ---------------------------------------------------------------------------
+TEST(CheckerTest, DuplicateDeclarationInsideForBlockReportsError) {
+    SyntaxTree tree;
+
+    auto jIdent = std::make_unique<IdentifierExpression>(testTokens(TokenType::IDENTIFIER, "j", 1), "j");
+    auto jInit = std::make_unique<NumberExpression>(testTokens(TokenType::NUMBER, "0", 1), 0.0);
+    auto initDecl = std::make_unique<DeclareStatement>(testTokens(TokenType::VAR, "var", 1), jIdent.get(), jInit.get());
+    auto compare = std::make_unique<BooleanExpression>(testTokens(TokenType::TRUE, "true", 1), true);
+    auto next = std::make_unique<NumberExpression>(testTokens(TokenType::NUMBER, "0", 1), 0.0);
+
+    auto declIdent1 = std::make_unique<IdentifierExpression>(testTokens(TokenType::IDENTIFIER, "a", 2), "a");
+    auto lit1 = std::make_unique<NumberExpression>(testTokens(TokenType::NUMBER, "1", 2), 1.0);
+    auto declA1 = std::make_unique<DeclareStatement>(testTokens(TokenType::VAR, "var", 2), declIdent1.get(), lit1.get());
+
+    auto declIdent2 = std::make_unique<IdentifierExpression>(testTokens(TokenType::IDENTIFIER, "a", 3), "a");
+    auto lit2 = std::make_unique<NumberExpression>(testTokens(TokenType::NUMBER, "2", 3), 2.0);
+    auto declA2 = std::make_unique<DeclareStatement>(testTokens(TokenType::VAR, "var", 3), declIdent2.get(), lit2.get());
+
+    auto loopBlock = std::make_unique<BlockStatement>(testTokens(1), std::vector<Statement*>{ declA1.get(), declA2.get() });
+    auto forStmt = std::make_unique<ForStatement>(testTokens(TokenType::FOR, "for", 1),
+        initDecl.get(), compare.get(), next.get(), loopBlock.get());
+
+    SyntaxNode* rootRaw = forStmt.get();
+
+    tree.add(std::move(jIdent));
+    tree.add(std::move(jInit));
+    tree.add(std::move(initDecl));
+    tree.add(std::move(compare));
+    tree.add(std::move(next));
+    tree.add(std::move(declIdent1));
+    tree.add(std::move(lit1));
+    tree.add(std::move(declA1));
+    tree.add(std::move(declIdent2));
+    tree.add(std::move(lit2));
+    tree.add(std::move(declA2));
+    tree.add(std::move(loopBlock));
+    tree.add(std::move(forStmt));
+    tree.setRoot(rootRaw);
+
+    std::ostringstream executorOutput;
+    Executor executor(executorOutput);
+    Checker checker(executor);
+    try {
+        checker.check(tree);
+        FAIL() << "CheckerError가 발생해야 합니다.";
+    } catch (const CheckerError& e) {
+        EXPECT_THAT(std::string(e.what()), testing::HasSubstr("3번째 줄"));
+        EXPECT_THAT(std::string(e.what()), testing::HasSubstr("이미 해당 변수는 현재 스코프에서 사용중입니다"));
+    }
+}
+
+// ---------------------------------------------------------------------------
+// for (var j = 0; true; 0) { var a = a + 1; }
+// checkStatement가 ForStatement의 loop 본문 안 자기 참조도 잡아내는지 확인한다.
+// ---------------------------------------------------------------------------
+TEST(CheckerTest, SelfReferenceInsideForBlockReportsError) {
+    SyntaxTree tree;
+
+    auto jIdent = std::make_unique<IdentifierExpression>(testTokens(TokenType::IDENTIFIER, "j", 1), "j");
+    auto jInit = std::make_unique<NumberExpression>(testTokens(TokenType::NUMBER, "0", 1), 0.0);
+    auto initDecl = std::make_unique<DeclareStatement>(testTokens(TokenType::VAR, "var", 1), jIdent.get(), jInit.get());
+    auto compare = std::make_unique<BooleanExpression>(testTokens(TokenType::TRUE, "true", 1), true);
+    auto next = std::make_unique<NumberExpression>(testTokens(TokenType::NUMBER, "0", 1), 0.0);
+
+    auto declIdent = std::make_unique<IdentifierExpression>(testTokens(TokenType::IDENTIFIER, "a", 2), "a");
+    auto idA = std::make_unique<IdentifierExpression>(testTokens(TokenType::IDENTIFIER, "a", 2), "a");
+    auto lit1 = std::make_unique<NumberExpression>(testTokens(TokenType::NUMBER, "1", 2), 1.0);
+    auto add = std::make_unique<AddExpression>(testTokens(TokenType::PLUS, "+", 2), idA.get(), lit1.get());
+    auto declA = std::make_unique<DeclareStatement>(testTokens(TokenType::VAR, "var", 2), declIdent.get(), add.get());
+
+    auto loopBlock = std::make_unique<BlockStatement>(testTokens(1), std::vector<Statement*>{ declA.get() });
+    auto forStmt = std::make_unique<ForStatement>(testTokens(TokenType::FOR, "for", 1),
+        initDecl.get(), compare.get(), next.get(), loopBlock.get());
+
+    SyntaxNode* rootRaw = forStmt.get();
+
+    tree.add(std::move(jIdent));
+    tree.add(std::move(jInit));
+    tree.add(std::move(initDecl));
+    tree.add(std::move(compare));
+    tree.add(std::move(next));
+    tree.add(std::move(declIdent));
+    tree.add(std::move(idA));
+    tree.add(std::move(lit1));
+    tree.add(std::move(add));
+    tree.add(std::move(declA));
+    tree.add(std::move(loopBlock));
+    tree.add(std::move(forStmt));
+    tree.setRoot(rootRaw);
+
+    std::ostringstream executorOutput;
+    Executor executor(executorOutput);
+    Checker checker(executor);
+    try {
+        checker.check(tree);
+        FAIL() << "CheckerError가 발생해야 합니다.";
+    } catch (const CheckerError& e) {
+        EXPECT_THAT(std::string(e.what()), testing::HasSubstr("2번째 줄"));
+        EXPECT_THAT(std::string(e.what()), testing::HasSubstr("자신의 초기화식에서 지역변수를 읽을 수 없습니다"));
+    }
+}
+
+// ---------------------------------------------------------------------------
+// for (var j = 0; ...) { ... }  다음 for (var j = 0; ...) { ... }
+// for의 init에서 선언한 루프 변수는 전용 스코프에 갇혀야 하므로, 같은 이름의 루프
+// 변수를 쓰는 두 개의 for문이 연달아 있어도 "중복 선언" 오류가 나면 안 된다.
+// ---------------------------------------------------------------------------
+TEST(CheckerTest, ForLoopVariableDoesNotLeakIntoEnclosingScope) {
+    SyntaxTree tree;
+
+    auto jIdent1 = std::make_unique<IdentifierExpression>(testTokens(TokenType::IDENTIFIER, "j", 1), "j");
+    auto jInit1 = std::make_unique<NumberExpression>(testTokens(TokenType::NUMBER, "0", 1), 0.0);
+    auto initDecl1 = std::make_unique<DeclareStatement>(testTokens(TokenType::VAR, "var", 1), jIdent1.get(), jInit1.get());
+    auto compare1 = std::make_unique<BooleanExpression>(testTokens(TokenType::TRUE, "true", 1), true);
+    auto next1 = std::make_unique<NumberExpression>(testTokens(TokenType::NUMBER, "0", 1), 0.0);
+    auto loopBlock1 = std::make_unique<BlockStatement>(testTokens(1), std::vector<Statement*>{});
+    auto forStmt1 = std::make_unique<ForStatement>(testTokens(TokenType::FOR, "for", 1),
+        initDecl1.get(), compare1.get(), next1.get(), loopBlock1.get());
+
+    auto jIdent2 = std::make_unique<IdentifierExpression>(testTokens(TokenType::IDENTIFIER, "j", 2), "j");
+    auto jInit2 = std::make_unique<NumberExpression>(testTokens(TokenType::NUMBER, "0", 2), 0.0);
+    auto initDecl2 = std::make_unique<DeclareStatement>(testTokens(TokenType::VAR, "var", 2), jIdent2.get(), jInit2.get());
+    auto compare2 = std::make_unique<BooleanExpression>(testTokens(TokenType::TRUE, "true", 2), true);
+    auto next2 = std::make_unique<NumberExpression>(testTokens(TokenType::NUMBER, "0", 2), 0.0);
+    auto loopBlock2 = std::make_unique<BlockStatement>(testTokens(2), std::vector<Statement*>{});
+    auto forStmt2 = std::make_unique<ForStatement>(testTokens(TokenType::FOR, "for", 2),
+        initDecl2.get(), compare2.get(), next2.get(), loopBlock2.get());
+
+    auto outerBlock = std::make_unique<BlockStatement>(testTokens(1), std::vector<Statement*>{ forStmt1.get(), forStmt2.get() });
+
+    SyntaxNode* rootRaw = outerBlock.get();
+
+    tree.add(std::move(jIdent1));
+    tree.add(std::move(jInit1));
+    tree.add(std::move(initDecl1));
+    tree.add(std::move(compare1));
+    tree.add(std::move(next1));
+    tree.add(std::move(loopBlock1));
+    tree.add(std::move(forStmt1));
+    tree.add(std::move(jIdent2));
+    tree.add(std::move(jInit2));
+    tree.add(std::move(initDecl2));
+    tree.add(std::move(compare2));
+    tree.add(std::move(next2));
+    tree.add(std::move(loopBlock2));
+    tree.add(std::move(forStmt2));
+    tree.add(std::move(outerBlock));
+    tree.setRoot(rootRaw);
+
+    std::ostringstream executorOutput;
+    Executor executor(executorOutput);
+    Checker checker(executor);
+    EXPECT_TRUE(checker.check(tree));
+}
