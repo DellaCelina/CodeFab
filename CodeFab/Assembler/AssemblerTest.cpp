@@ -511,3 +511,44 @@ TEST_F(AssemblerTester, AssignmentWithPrecedenceTest) {
 
     EXPECT_EQ(*root, golden);
 }
+
+
+TEST_F(AssemblerTester, MissingClosingParenInSubExpressionThrowsTest) {
+    // print 1 * (2 + 3;   (닫는 괄호 누락, expect throw with msg "Expect ')' after expression.")
+    std::vector<Token> tokens = {
+        { TokenType::PRINT, "print", 0},
+        { TokenType::NUMBER, "1", 0},
+        { TokenType::STAR, "*", 0},
+        { TokenType::LEFT_PAREN, "(", 0},
+        { TokenType::NUMBER, "2", 0},
+        { TokenType::PLUS, "+", 0},
+        { TokenType::NUMBER, "3", 0},
+        { TokenType::SEMICOLON, ";", 0},
+    };
+
+    try {
+        assembler.assemble(tokens);
+        FAIL() << "Expected AssemblerError to be thrown.";
+    } catch (const AssemblerError& error) {
+        EXPECT_THAT(error.what(), HasSubstr("Expect ')' after expression."));
+    }
+}
+
+TEST_F(AssemblerTester, MissingClosingBraceThrowsTest) {
+    // { var x = 1;   (닫는 중괄호 누락, expect throw with msg "Expect '}' after block.")
+    std::vector<Token> tokens = {
+        { TokenType::LEFT_BRACE, "{", 0},
+        { TokenType::VAR, "var", 0},
+        { TokenType::IDENTIFIER, "x", 0},
+        { TokenType::EQUAL, "=", 0},
+        { TokenType::NUMBER, "1", 0},
+        { TokenType::SEMICOLON, ";", 0},
+    };
+
+    try {
+        assembler.assemble(tokens);
+        FAIL() << "Expected AssemblerError to be thrown.";
+    } catch (const AssemblerError& error) {
+        EXPECT_THAT(error.what(), HasSubstr("Expect '}' after block."));
+    }
+}
