@@ -22,10 +22,12 @@ using OperatorsPriority = std::vector<std::vector<TokenType>>;
 
 const OperatorsPriority kDefaultOperatorPriority = {
     { TokenType::EQUAL },
+    { TokenType::OR },
+    { TokenType::AND },
     { TokenType::EQUAL_EQUAL, TokenType::BANG_EQUAL },
     { TokenType::LESS, TokenType::LESS_EQUAL, TokenType::GREATER, TokenType::GREATER_EQUAL, TokenType::INSTANCEOF },
     { TokenType::PLUS, TokenType::MINUS },
-    { TokenType::STAR, TokenType::SLASH },
+    { TokenType::STAR, TokenType::SLASH, TokenType::PERCENT },
 };
 
 // Prefix operators parseUnary() recognizes, e.g. -x, !x.
@@ -449,7 +451,10 @@ private:
             case TokenType::PLUS: return addNode<AddExpression>(Tokens{ opToken }, left, right);
             case TokenType::MINUS: return addNode<SubExpression>(Tokens{ opToken }, left, right);
             case TokenType::STAR: return addNode<MultExpression>(Tokens{ opToken }, left, right);
-            default: return addNode<DivideExpression>(Tokens{ opToken }, left, right);
+            case TokenType::SLASH: return addNode<DivideExpression>(Tokens{ opToken }, left, right);
+            case TokenType::PERCENT: return addNode<ModExpression>(Tokens{ opToken }, left, right);
+            case TokenType::AND: return addNode<AndExpression>(Tokens{ opToken }, left, right);
+            default: return addNode<OrExpression>(Tokens{ opToken }, left, right);
         }
     }
 

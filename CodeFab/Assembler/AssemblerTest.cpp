@@ -997,6 +997,135 @@ TEST_F(AssemblerTester, InstanceOfExpressionTest) {
 }
 
 // ============================================================================
+// and, or, % 연산자
+// ============================================================================
+
+TEST_F(AssemblerTester, ModuloExpressionTest) {
+    // print 7 % 3;    // expect: 1
+    std::vector<Token> tokens = {
+        { TokenType::PRINT, "print", 0},
+        { TokenType::NUMBER, "7", 0},
+        { TokenType::PERCENT, "%", 0},
+        { TokenType::NUMBER, "3", 0},
+        { TokenType::SEMICOLON, ";", 0},
+    };
+
+    auto tree = assembler.assemble(tokens);
+    auto root = tree.getRoot();
+
+    NumberExpression seven({ tokens[1] }, 7);
+    NumberExpression three({ tokens[3] }, 3);
+    ModExpression mod({ tokens[2] }, &seven, &three);
+    PrintStatement golden({ tokens[0], tokens[4] }, &mod);
+
+    EXPECT_EQ(*root, golden);
+}
+
+TEST_F(AssemblerTester, ModuloSamePrecedenceAsMultiplyTest) {
+    // print 10 - 7 % 3 * 2;    // expect: (7 % 3) * 2 as one term, left-associative: 10 - ((7 % 3) * 2)
+    std::vector<Token> tokens = {
+        { TokenType::PRINT, "print", 0},
+        { TokenType::NUMBER, "10", 0},
+        { TokenType::MINUS, "-", 0},
+        { TokenType::NUMBER, "7", 0},
+        { TokenType::PERCENT, "%", 0},
+        { TokenType::NUMBER, "3", 0},
+        { TokenType::STAR, "*", 0},
+        { TokenType::NUMBER, "2", 0},
+        { TokenType::SEMICOLON, ";", 0},
+    };
+
+    auto tree = assembler.assemble(tokens);
+    auto root = tree.getRoot();
+
+    NumberExpression ten({ tokens[1] }, 10);
+    NumberExpression seven({ tokens[3] }, 7);
+    NumberExpression three({ tokens[5] }, 3);
+    ModExpression mod({ tokens[4] }, &seven, &three);
+    NumberExpression two({ tokens[7] }, 2);
+    MultExpression mult({ tokens[6] }, &mod, &two);
+    SubExpression sub({ tokens[2] }, &ten, &mult);
+    PrintStatement golden({ tokens[0], tokens[8] }, &sub);
+
+    EXPECT_EQ(*root, golden);
+}
+
+TEST_F(AssemblerTester, LogicalAndExpressionTest) {
+    // print true and false;    // expect: false
+    std::vector<Token> tokens = {
+        { TokenType::PRINT, "print", 0},
+        { TokenType::TRUE, "true", 0},
+        { TokenType::AND, "and", 0},
+        { TokenType::FALSE, "false", 0},
+        { TokenType::SEMICOLON, ";", 0},
+    };
+
+    auto tree = assembler.assemble(tokens);
+    auto root = tree.getRoot();
+
+    BooleanExpression trueExpr({ tokens[1] }, true);
+    BooleanExpression falseExpr({ tokens[3] }, false);
+    AndExpression andExpr({ tokens[2] }, &trueExpr, &falseExpr);
+    PrintStatement golden({ tokens[0], tokens[4] }, &andExpr);
+
+    EXPECT_EQ(*root, golden);
+}
+
+TEST_F(AssemblerTester, LogicalOrExpressionTest) {
+    // print true or false;    // expect: true
+    std::vector<Token> tokens = {
+        { TokenType::PRINT, "print", 0},
+        { TokenType::TRUE, "true", 0},
+        { TokenType::OR, "or", 0},
+        { TokenType::FALSE, "false", 0},
+        { TokenType::SEMICOLON, ";", 0},
+    };
+
+    auto tree = assembler.assemble(tokens);
+    auto root = tree.getRoot();
+
+    BooleanExpression trueExpr({ tokens[1] }, true);
+    BooleanExpression falseExpr({ tokens[3] }, false);
+    OrExpression orExpr({ tokens[2] }, &trueExpr, &falseExpr);
+    PrintStatement golden({ tokens[0], tokens[4] }, &orExpr);
+
+    EXPECT_EQ(*root, golden);
+}
+
+TEST_F(AssemblerTester, AndBindsTighterThanOrTest) {
+    // print 1 < 2 or 3 > 4 and false;    // expect: (1 < 2) or ((3 > 4) and false)
+    std::vector<Token> tokens = {
+        { TokenType::PRINT, "print", 0},
+        { TokenType::NUMBER, "1", 0},
+        { TokenType::LESS, "<", 0},
+        { TokenType::NUMBER, "2", 0},
+        { TokenType::OR, "or", 0},
+        { TokenType::NUMBER, "3", 0},
+        { TokenType::GREATER, ">", 0},
+        { TokenType::NUMBER, "4", 0},
+        { TokenType::AND, "and", 0},
+        { TokenType::FALSE, "false", 0},
+        { TokenType::SEMICOLON, ";", 0},
+    };
+
+    auto tree = assembler.assemble(tokens);
+    auto root = tree.getRoot();
+
+    NumberExpression one({ tokens[1] }, 1);
+    NumberExpression two({ tokens[3] }, 2);
+    LessExpression less({ tokens[2] }, &one, &two);
+    NumberExpression three({ tokens[5] }, 3);
+    NumberExpression four({ tokens[7] }, 4);
+    GreaterExpression greater({ tokens[6] }, &three, &four);
+    BooleanExpression falseExpr({ tokens[9] }, false);
+    AndExpression andExpr({ tokens[8] }, &greater, &falseExpr);
+    OrExpression orExpr({ tokens[4] }, &less, &andExpr);
+    PrintStatement golden({ tokens[0], tokens[10] }, &orExpr);
+
+    EXPECT_EQ(*root, golden);
+}
+
+// ============================================================================
 // 3일차 확장: import (Fake SourceReader 사용)
 // ============================================================================
 
