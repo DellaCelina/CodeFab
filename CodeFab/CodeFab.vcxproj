@@ -168,6 +168,7 @@
     <ClCompile Include="Shell\CommandLineArgsTest.cpp" />
     <ClCompile Include="Shell\FileRunMode.cpp" />
     <ClCompile Include="Shell\FileRunModeTest.cpp" />
+    <ClCompile Include="IntegrationTest\DebugIntegrationTest.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Tokenizer\Token.h" />
