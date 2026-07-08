@@ -200,6 +200,56 @@ test §2의 "동적 필드 추가" 시나리오로 회귀를 막아두는 것**�
 - [ ] 위 4번 항목의 `LogicalAnd_...`/`LogicalOr_...` 실패 테스트가 이 갭 때문인지
       확인하고, 맞다면 이 항목으로 통합.
 
+## 8. Assembler: `makeBinaryExpression`의 `default` 분기가 `OrExpression`으로 암묵적 하드코딩됨
+
+**증상**: `Assembler.cpp:433-459`의 `makeBinaryExpression`은 각 연산자 토큰을 대응하는
+`Expression` 노드로 매핑하는데, `AND`만 `case TokenType::AND:`로 명시적으로 처리하고
+그 외 나머지 전부를 처리하는 `default:` 분기가 곧바로 `addNode<OrExpression>(...)`를
+반환한다.
+
+```cpp
+case TokenType::PERCENT: return addNode<ModExpression>(Tokens{ opToken }, left, right);
+case TokenType::AND: return addNode<AndExpression>(Tokens{ opToken }, left, right);
+default: return addNode<OrExpression>(Tokens{ opToken }, left, right);
+```
+
+지금은 `kDefaultOperatorPriority`가 이 분기까지 내려보내는 토큰이 실질적으로 `OR`
+하나뿐이라 우연히 정답이 나온다. 하지만 이후 새 이항 연산자를 우선순위 테이블에
+추가하면서 여기 `switch`에 `case`를 추가하는 걸 깜빡하면, 그 새 연산자는 조용히
+`OrExpression`으로 파싱되어 디버깅하기 매우 어려운 버그가 된다(파싱은 성공하고,
+겉보기엔 그럴듯한 AST가 만들어지기 때문).
+
+**해야 할 일**:
+- [ ] `case TokenType::OR:`를 명시적으로 추가해 `OrExpression`을 반환하도록 변경
+- [ ] `default:`는 `assert(false)` 또는 `AssemblerError`를 던지도록 변경해, 우선순위
+      테이블과 `switch`가 어긋나는 순간 바로 드러나게 함
+
+## 9. Import 가능한 선언 종류가 Assembler와 Executor에서 서로 다름
+
+**증상**: `Assembler.cpp:284`(`parseImport`)는 import 대상 파일에서
+`DeclareStatement`/`FunctionDeclareStatement`만 허용하고, 그 외(예: `ClassDeclareStatement`)가
+섞여 있으면 `AssemblerError`를 던진다.
+
+```cpp
+if (!dynamic_cast<DeclareStatement*>(decl) && !dynamic_cast<FunctionDeclareStatement*>(decl)) {
+    throw AssemblerError("import 대상 파일에는 선언 외의 내용을 허용하지 않습니다: '{}'", pathToken.origin);
+}
+```
+
+반면 `Executor.cpp:25-36`(`declaredNameOf`)은 `ClassDeclareStatement`까지 이름을
+뽑아낼 수 있도록 분기가 이미 만들어져 있다. 즉 Executor는 "모듈에서 클래스를
+import해서 이름을 등록하는" 경로를 준비해 뒀는데, 그 앞단인 Assembler가 애초에
+그런 트리를 만들지 못하게 막고 있어 `declaredNameOf`의 클래스 분기가 죽은 코드다.
+클래스 import를 정식으로 지원할지, 아니면 var/Func만 허용하는 현재 설계가 맞는지
+팀 결정이 되어 있지 않은 상태로 두 모듈의 구현이 어긋나 있다.
+
+**해야 할 일**:
+- [ ] 클래스 import 지원 여부를 팀 결정(Architecture.md §7.x에 명시)
+- [ ] 지원한다면 `Assembler.cpp:284`의 허용 목록에 `ClassDeclareStatement` 추가
+- [ ] 지원하지 않는다면 `Executor.cpp`의 `declaredNameOf`에서 `ClassDeclareStatement`
+      분기 제거(도달 불가능한 죽은 코드 정리)
+- [ ] 결정된 내용을 `ExecutorImportTest.cpp`/`AssemblerImportTest`에 회귀 테스트로 추가
+
 # Integration test
 
 Architecture.md/3일차 PDF에 기술된 기능들이 실제로 구현되고 나면
@@ -422,3 +472,41 @@ Shell의 File/Debug 모드가 구현되면, 기존 REPL 통합 테스트와 별�
 **해야 할 일**:
 - [ ] 전체 코드베이스에서 코드와 내용이 맞지 않는 주석 파악 및 수정
 - [ ] 코드만으로 충분히 이해되는 불필요한 주석 제거
+
+## 3. `Environment::lookupAt`/`assignAt`에 범위 검사 없음
+
+`Environment.cpp:42-50`에서 `distance`가 현재 스코프 깊이보다 크면
+`size_t index = scopes_.size() - 1 - distance;`가 언더플로우로 거대한 값이 되고,
+뒤이은 `scopes_[index]`는 `std::vector::operator[]`라 범위를 벗어나도 예외 없이
+크래시/메모리 오염으로 이어진다. 현재는 `IdentifierExpression`에 depth를 채워 넣는
+Resolver가 아직 없어 이 경로에 잘못된 `distance`가 들어올 일이 없지만, 정적 바인딩
+관련 Resolver가 추가되는 순간 재현하기 어려운 버그로 튈 수 있는 지점이라 미리
+방어해두는 게 안전하다.
+
+**해야 할 일**:
+- [ ] `distance`가 `scopes_.size()`보다 크거나 같으면 예외를 던지도록 방어 코드 추가
+- [ ] `scopes_[index]` 대신 `scopes_.at(index)`로 바꿔 최소한 UB 대신 명확한 예외가
+      나도록 변경(성능이 문제라면 디버그 빌드에서만 `at` 사용 검토)
+
+## 4. 클래스 메서드 탐색 로직 중복 (`instantiate`/`callMethod`)
+
+`Executor.cpp:455-460`(`instantiate`에서 `init` 탐색)과 `Executor.cpp:486-491`
+(`callMethod`에서 임의 메서드 탐색)이 `klass->methods`를 선형 탐색하는 거의 동일한
+루프를 각자 가지고 있다.
+
+**해야 할 일**:
+- [ ] `MethodDeclareStatement* findMethod(const ClassDeclareStatement* klass, const
+      std::string& name)` 같은 공용 헬퍼로 통합
+- [ ] 두 호출부를 헬퍼 사용으로 교체(상속 도입 시 `superclass` 체인 탐색을 한 곳만
+      고치면 되도록 미리 정리 — 위 "# TODO" 5번 상속 항목과 연결)
+
+## 5. 인자 평가(`evaluate(arg)`) 패턴 3곳 중복
+
+`Executor.cpp:287-289`(`CallExpression`), `475-477`(`callMethod` 모듈 분기),
+`497-499`(`callMethod` 인스턴스 분기)에서 `for (Expression* arg : argExprs) {
+args.push_back(evaluate(arg)); }` 패턴이 그대로 반복된다.
+
+**해야 할 일**:
+- [ ] `std::vector<Value> evaluateArgs(const std::vector<Expression*>& argExprs)`
+      헬퍼로 통합하고 세 호출부를 교체
+</content>
