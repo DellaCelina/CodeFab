@@ -3,13 +3,21 @@
 #include <unordered_map>
 
 static const std::unordered_map<std::string, TokenType> KEYWORDS = {
-    { "var",   TokenType::VAR   },
-    { "print", TokenType::PRINT },
-    { "if",    TokenType::IF    },
-    { "else",  TokenType::ELSE  },
-    { "for",   TokenType::FOR   },
-    { "true",  TokenType::TRUE  },
-    { "false", TokenType::FALSE },
+    { "var",        TokenType::VAR        },
+    { "print",      TokenType::PRINT      },
+    { "if",         TokenType::IF         },
+    { "else",       TokenType::ELSE       },
+    { "for",        TokenType::FOR        },
+    { "true",       TokenType::TRUE       },
+    { "false",      TokenType::FALSE      },
+    { "Func",       TokenType::FUNC       },
+    { "return",     TokenType::RETURN     },
+    { "Class",      TokenType::CLASS      },
+    { "This",       TokenType::THIS       },
+    { "Array",      TokenType::ARRAY      },
+    { "import",     TokenType::IMPORT     },
+    { "alias",      TokenType::ALIAS      },
+    { "instanceof", TokenType::INSTANCEOF },
 };
 
 
@@ -82,7 +90,11 @@ void Tokenizer::scanToken() {
         case ')': addToken(TokenType::RIGHT_PAREN); break;
         case '{': addToken(TokenType::LEFT_BRACE);  break;
         case '}': addToken(TokenType::RIGHT_BRACE); break;
-        case ';': addToken(TokenType::SEMICOLON);   break;
+        case ';': addToken(TokenType::SEMICOLON);     break;
+        case '.': addToken(TokenType::DOT);           break;
+        case '[': addToken(TokenType::LEFT_BRACKET);  break;
+        case ']': addToken(TokenType::RIGHT_BRACKET); break;
+        case ',': addToken(TokenType::COMMA);         break;
         case '+': addToken(TokenType::PLUS);        break;
         case '-': addToken(TokenType::MINUS);       break;
         case '*': addToken(TokenType::STAR);        break;

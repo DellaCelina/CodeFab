@@ -157,3 +157,75 @@ TEST_F(TokenizerFixture, MinusAndSlash) {
         TokenType::NUMBER
     ));
 }
+
+// 3일차 신규 키워드
+TEST_F(TokenizerFixture, NewKeywords) {
+    auto tokens = tokenizer.tokenize("Func return Class This Array import alias instanceof");
+    EXPECT_THAT(getTypes(tokens), ElementsAre(
+        TokenType::FUNC, TokenType::RETURN, TokenType::CLASS, TokenType::THIS,
+        TokenType::ARRAY, TokenType::IMPORT, TokenType::ALIAS, TokenType::INSTANCEOF,
+        TokenType::END_OF_FILE
+    ));
+}
+
+// 새 키워드 origin 확인
+TEST_F(TokenizerFixture, NewKeywordOrigins) {
+    auto tokens = tokenizer.tokenize("Func Class This Array");
+    EXPECT_EQ(tokens[0].origin, "Func");
+    EXPECT_EQ(tokens[1].origin, "Class");
+    EXPECT_EQ(tokens[2].origin, "This");
+    EXPECT_EQ(tokens[3].origin, "Array");
+}
+
+// 새 구분자
+TEST_F(TokenizerFixture, NewDelimiters) {
+    auto tokens = tokenizer.tokenize(". [ ] ,");
+    EXPECT_THAT(getTypes(tokens), ElementsAre(
+        TokenType::DOT, TokenType::LEFT_BRACKET, TokenType::RIGHT_BRACKET, TokenType::COMMA,
+        TokenType::END_OF_FILE
+    ));
+}
+
+// 필드 접근 패턴: r.speed
+TEST_F(TokenizerFixture, DotFieldAccess) {
+    auto tokens = tokenizer.tokenize("r.speed");
+    EXPECT_THAT(getTypes(tokens), ElementsAre(
+        TokenType::IDENTIFIER, TokenType::DOT, TokenType::IDENTIFIER,
+        TokenType::END_OF_FILE
+    ));
+}
+
+// 배열 인덱스 패턴: arr[0]
+TEST_F(TokenizerFixture, ArrayIndex) {
+    auto tokens = tokenizer.tokenize("arr[0]");
+    EXPECT_THAT(getTypes(tokens), ElementsAre(
+        TokenType::IDENTIFIER, TokenType::LEFT_BRACKET, TokenType::NUMBER, TokenType::RIGHT_BRACKET,
+        TokenType::END_OF_FILE
+    ));
+}
+
+// 함수 호출 파라미터: add(a, b)
+TEST_F(TokenizerFixture, FunctionCallWithComma) {
+    auto tokens = tokenizer.tokenize("add(a, b)");
+    EXPECT_THAT(getTypes(tokens), ElementsAre(
+        TokenType::IDENTIFIER, TokenType::LEFT_PAREN, TokenType::IDENTIFIER,
+        TokenType::COMMA, TokenType::IDENTIFIER, TokenType::RIGHT_PAREN,
+        TokenType::END_OF_FILE
+    ));
+}
+
+// 소수점과 DOT 충돌 없음: 3.14는 NUMBER, r.x는 IDENTIFIER DOT IDENTIFIER
+TEST_F(TokenizerFixture, DotDoesNotConflictWithFloat) {
+    auto tokens = tokenizer.tokenize("3.14 r.x");
+    EXPECT_THAT(getTypes(tokens), ElementsAre(
+        TokenType::NUMBER, TokenType::IDENTIFIER, TokenType::DOT, TokenType::IDENTIFIER,
+        TokenType::END_OF_FILE
+    ));
+    EXPECT_EQ(tokens[0].origin, "3.14");
+}
+
+// Array는 예약어 — 변수명으로 쓰면 ARRAY 토큰
+TEST_F(TokenizerFixture, ArrayIsReservedKeyword) {
+    auto tokens = tokenizer.tokenize("Array");
+    EXPECT_EQ(tokens[0].type, TokenType::ARRAY);
+}
