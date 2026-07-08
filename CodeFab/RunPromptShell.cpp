@@ -1,6 +1,7 @@
 ﻿#include "RunPromptShell.h"
 
 #include <cctype>
+#include <stdexcept>
 #include <string>
 
 #include "ShellErrors.h"
@@ -64,6 +65,14 @@ void RunPromptShell::run(std::istream& in, std::ostream& out) {
             continue;
         } catch (const CodeFabError& e) {
             out << "[" << e.line() << "번째 줄] " << e.what() << "\n";
+        } catch (const std::invalid_argument& e) {
+            // Assembler가 문법 오류를 std::invalid_argument로 던진다 (line() 정보 없음).
+            out << e.what() << "\n";
+        } catch (const std::exception& e) {
+            // Executor가 아직 지원하지 않는 노드/타입(예: 변수 참조, 타입 불일치)을 만나면
+            // std::logic_error, std::bad_variant_access 등을 던진다. Shell이 죽지 않도록
+            // 마지막 안전망으로 잡아 보고한다.
+            out << e.what() << "\n";
         }
 
         buffer.clear();

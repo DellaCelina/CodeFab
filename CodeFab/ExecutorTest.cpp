@@ -1,8 +1,9 @@
-#include <sstream>
+﻿#include <sstream>
 #include <stdexcept>
 
 #include "gmock/gmock.h"
 #include "Executor.h"
+#include "ShellErrors.h"
 #include "SyntaxTree.h"
 
 struct ExecutorTester : public testing::Test {
@@ -59,6 +60,14 @@ TEST_F(ExecutorTester, Evaluate_DivideExpression_LeftAssociative) {
     EXPECT_EQ(executor.evaluate(&result).asNumber(), 2.0);
 }
 
+TEST_F(ExecutorTester, Evaluate_DivideByZero_ThrowsRuntimeError) {
+    NumberExpression three({}, 3);
+    NumberExpression zero({}, 0);
+    DivideExpression div({}, &three, &zero);
+
+    EXPECT_THROW(executor.evaluate(&div), RuntimeCodeFabError);
+}
+
 TEST_F(ExecutorTester, Evaluate_ParenthesizedExpression_OverridesPrecedence) {
     // (1 + 2) * 3 == 9
     NumberExpression one({}, 1);
@@ -96,12 +105,107 @@ TEST_F(ExecutorTester, Evaluate_GreaterExpression_ReturnsBoolean) {
     EXPECT_EQ(executor.evaluate(&greater).asBoolean(), false);
 }
 
+TEST_F(ExecutorTester, Evaluate_EqualExpression_ReturnsBoolean) {
+    NumberExpression three({}, 3);
+    NumberExpression threeAgain({}, 3);
+    EqualExpression equal({}, &three, &threeAgain);
+
+    EXPECT_EQ(executor.evaluate(&equal).asBoolean(), true);
+}
+
+TEST_F(ExecutorTester, Evaluate_NotEqualExpression_ReturnsBoolean) {
+    NumberExpression three({}, 3);
+    NumberExpression five({}, 5);
+    NotEqualExpression notEqual({}, &three, &five);
+
+    EXPECT_EQ(executor.evaluate(&notEqual).asBoolean(), true);
+}
+
+TEST_F(ExecutorTester, Evaluate_LessEqualExpression_ReturnsBoolean) {
+    NumberExpression three({}, 3);
+    NumberExpression threeAgain({}, 3);
+    LessEqualExpression lessEqual({}, &three, &threeAgain);
+
+    EXPECT_EQ(executor.evaluate(&lessEqual).asBoolean(), true);
+}
+
+TEST_F(ExecutorTester, Evaluate_GreaterEqualExpression_ReturnsBoolean) {
+    NumberExpression five({}, 5);
+    NumberExpression three({}, 3);
+    GreaterEqualExpression greaterEqual({}, &five, &three);
+
+    EXPECT_EQ(executor.evaluate(&greaterEqual).asBoolean(), true);
+}
+
+TEST_F(ExecutorTester, Evaluate_NotExpression_NegatesTrue) {
+    BooleanExpression trueLiteral({}, true);
+    NotExpression notTrue({}, &trueLiteral);
+
+    EXPECT_EQ(executor.evaluate(&notTrue).asBoolean(), false);
+}
+
+TEST_F(ExecutorTester, Evaluate_NotExpression_NegatesFalse) {
+    BooleanExpression falseLiteral({}, false);
+    NotExpression notFalse({}, &falseLiteral);
+
+    EXPECT_EQ(executor.evaluate(&notFalse).asBoolean(), true);
+}
+
 TEST_F(ExecutorTester, Evaluate_AddExpression_ConcatenatesStrings) {
     StringExpression hello({}, "Hello, ");
     StringExpression codefab({}, "CodeFab!");
     AddExpression add({}, &hello, &codefab);
 
     EXPECT_EQ(executor.evaluate(&add).asString(), "Hello, CodeFab!");
+}
+
+TEST_F(ExecutorTester, Evaluate_AddNumberAndString_ThrowsRuntimeError) {
+    NumberExpression three({}, 3);
+    StringExpression hello({}, "hello");
+    AddExpression add({}, &three, &hello);
+
+    EXPECT_THROW(executor.evaluate(&add), RuntimeCodeFabError);
+}
+
+TEST_F(ExecutorTester, Evaluate_SubStringAndNumber_ThrowsRuntimeError) {
+    StringExpression hello({}, "hello");
+    NumberExpression three({}, 3);
+    SubExpression sub({}, &hello, &three);
+
+    EXPECT_THROW(executor.evaluate(&sub), RuntimeCodeFabError);
+}
+
+TEST_F(ExecutorTester, Evaluate_AddBooleanAndNumber_ThrowsRuntimeError) {
+    BooleanExpression trueLiteral({}, true);
+    NumberExpression three({}, 3);
+    AddExpression add({}, &trueLiteral, &three);
+
+    EXPECT_THROW(executor.evaluate(&add), RuntimeCodeFabError);
+}
+
+TEST_F(ExecutorTester, Evaluate_MultStringAndBoolean_ThrowsRuntimeError) {
+    StringExpression hello({}, "hello");
+    BooleanExpression trueLiteral({}, true);
+    MultExpression mult({}, &hello, &trueLiteral);
+
+    EXPECT_THROW(executor.evaluate(&mult), RuntimeCodeFabError);
+}
+
+TEST_F(ExecutorTester, Evaluate_UndefinedVariable_ThrowsRuntimeError) {
+    IdentifierExpression ident({}, "notDefined");
+
+    EXPECT_THROW(executor.evaluate(&ident), RuntimeCodeFabError);
+}
+
+TEST_F(ExecutorTester, Evaluate_UndefinedVariable_ErrorMessageContainsName) {
+    IdentifierExpression ident({}, "notDefined");
+
+    try {
+        executor.evaluate(&ident);
+        FAIL() << "RuntimeCodeFabError가 발생해야 합니다";
+    } catch (const RuntimeCodeFabError& e) {
+        EXPECT_EQ(std::string(e.what()), "Undefined variable 'notDefined'");
+    }
 }
 
 TEST_F(ExecutorTester, Evaluate_BooleanLiteral_ReturnsItsValue) {
