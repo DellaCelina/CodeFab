@@ -1,5 +1,6 @@
 ﻿#include "Executor.h"
 
+#include <cmath>
 #include <stdexcept>
 #include <utility>
 
@@ -256,6 +257,30 @@ void Executor::registerDefaultHandlers() {
     expressionHandlers_[std::type_index(typeid(NotExpression))] = [this](Expression* expr) {
         auto* notExpr = static_cast<NotExpression*>(expr);
         return Value(!evaluate(notExpr->operand).isTruthy());
+    };
+
+    expressionHandlers_[std::type_index(typeid(ModExpression))] = [this](Expression* expr) {
+        auto* mod = static_cast<ModExpression*>(expr);
+        Value left = evaluate(mod->left);
+        Value right = evaluate(mod->right);
+        requireNumberOperands(left, right, "%");
+        if (right.asNumber() == 0.0)
+            throw ExecutorError("0으로 나눌 수 없습니다");
+        return Value(std::fmod(left.asNumber(), right.asNumber()));
+    };
+
+    expressionHandlers_[std::type_index(typeid(AndExpression))] = [this](Expression* expr) {
+        auto* andExpr = static_cast<AndExpression*>(expr);
+        Value left = evaluate(andExpr->left);
+        if (!left.isTruthy()) return Value(false);
+        return Value(evaluate(andExpr->right).isTruthy());
+    };
+
+    expressionHandlers_[std::type_index(typeid(OrExpression))] = [this](Expression* expr) {
+        auto* orExpr = static_cast<OrExpression*>(expr);
+        Value left = evaluate(orExpr->left);
+        if (left.isTruthy()) return Value(true);
+        return Value(evaluate(orExpr->right).isTruthy());
     };
 
     statementHandlers_[std::type_index(typeid(FunctionDeclareStatement))] = [this](Statement* stmt) {
