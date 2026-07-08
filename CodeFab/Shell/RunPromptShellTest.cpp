@@ -719,3 +719,27 @@ TEST_F(RunPromptShellIntegrationTest, SelfReferenceInsideIfBlock_FailsCheckWitho
     EXPECT_EQ(programOutput.str(), "");  // Executor가 호출되지 않았다.
     EXPECT_EQ(out.str(), ">>> [1번째 줄] 자신의 초기화식에서 지역변수를 읽을 수 없습니다.\n>>> ");
 }
+
+// --- 7. 함수/클래스 선언 후 다음 REPL 줄에서 호출 (dangling pointer 회귀 방지) ---
+// SyntaxTree는 REPL 반복마다 생성/소멸되지만, Executor의 Environment에는
+// FunctionDeclareStatement*/ClassDeclareStatement* 날 포인터가 저장된다.
+// sessionTrees가 트리를 세션 전체 동안 보관하지 않으면 릴리스 빌드에서
+// 해제된 메모리를 역참조해 오동작한다.
+
+TEST_F(RunPromptShellIntegrationTest, FuncDeclaredThenCalledOnNextLine_ReturnsCorrectValue) {
+    std::ostringstream out;
+    run("Func add(a, b) { return a + b; }\nprint add(3, 7);\n", out);
+
+    EXPECT_EQ(programOutput.str(), "10\n");
+    EXPECT_EQ(out.str(), ">>> >>> >>> ");
+}
+
+TEST_F(RunPromptShellIntegrationTest, ClassMethodCalledAfterInstantiationOnSeparateLines_ReturnsCorrectValue) {
+    std::ostringstream out;
+    run("Class Counter { init(n) { This.n = n; } get() { return This.n; } }\n"
+        "var c = Counter(42);\n"
+        "print c.get();\n", out);
+
+    EXPECT_EQ(programOutput.str(), "42\n");
+    EXPECT_EQ(out.str(), ">>> >>> >>> >>> ");
+}
