@@ -522,6 +522,24 @@ TEST_F(RunPromptShellIntegrationTest, UnexpectedTokenInExpression_ReportsSyntaxE
                                   EndsWith(">>> ")));
 }
 
+TEST_F(RunPromptShellIntegrationTest, MissingClosingParenInSubExpression_ReportsSyntaxError) {
+    std::ostringstream out;
+    run("print 1 * (2 + 3;\n", out);
+
+    EXPECT_EQ(programOutput.str(), "");
+    EXPECT_THAT(out.str(), AllOf(StartsWith(">>> "), HasSubstr("Expect ')' after expression."),
+                                  EndsWith(">>> ")));
+}
+
+TEST_F(RunPromptShellIntegrationTest, MissingClosingBrace_ReportsSyntaxError) {
+    std::ostringstream out;
+    run("{ var x = 1;\n", out);
+
+    EXPECT_EQ(programOutput.str(), "");
+    EXPECT_THAT(out.str(), AllOf(StartsWith(">>> "), HasSubstr("Expect '}' after block."),
+                                  EndsWith(">>> ")));
+}
+
 // --- 2-2. Checker 정적 에러 시나리오 ---
 // 실제 Checker는 의미 오류를 찾으면 줄 번호를 메시지에 직접 담아 CheckerError를
 // throw하고, Shell은 이를 catch(const std::exception&)로 잡아 메시지를 그대로

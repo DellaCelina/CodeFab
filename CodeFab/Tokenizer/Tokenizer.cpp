@@ -29,7 +29,6 @@ std::vector<Token> Tokenizer::scanTokens(const std::string& src) {
         scanToken();
     }
 
-    tokens.push_back({ TokenType::END_OF_FILE, "", line });
     return tokens;
 }
 

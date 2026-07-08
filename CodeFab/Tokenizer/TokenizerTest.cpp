@@ -25,8 +25,7 @@ TEST_F(TokenizerFixture, TokenTypes) {
         TokenType::NUMBER,
         TokenType::STAR,
         TokenType::NUMBER,
-        TokenType::SEMICOLON,
-        TokenType::END_OF_FILE
+        TokenType::SEMICOLON
     ));
 }
 
@@ -43,22 +42,20 @@ TEST_F(TokenizerFixture, TokenOrigins) {
 
 TEST_F(TokenizerFixture, TokenCount) {
     auto tokens = tokenizer.tokenize("print 1 + 2 * 3;");
-    EXPECT_EQ(tokens.size(), 8u); // 7개 + END_OF_FILE
+    EXPECT_EQ(tokens.size(), 7u);
 }
 
 // 빈 입력
 TEST_F(TokenizerFixture, EmptyInput) {
     auto tokens = tokenizer.tokenize("");
-    ASSERT_EQ(tokens.size(), 1u);
-    EXPECT_EQ(tokens[0].type, TokenType::END_OF_FILE);
+    EXPECT_EQ(tokens.size(), 0u);
 }
 
 // 키워드
 TEST_F(TokenizerFixture, Keywords) {
     auto tokens = tokenizer.tokenize("var if else for");
     EXPECT_THAT(getTypes(tokens), ElementsAre(
-        TokenType::VAR, TokenType::IF, TokenType::ELSE, TokenType::FOR,
-        TokenType::END_OF_FILE
+        TokenType::VAR, TokenType::IF, TokenType::ELSE, TokenType::FOR
     ));
 }
 
@@ -73,7 +70,7 @@ TEST_F(TokenizerFixture, Identifier) {
 TEST_F(TokenizerFixture, BooleanLiterals) {
     auto tokens = tokenizer.tokenize("true false");
     EXPECT_THAT(getTypes(tokens), ElementsAre(
-        TokenType::TRUE, TokenType::FALSE, TokenType::END_OF_FILE
+        TokenType::TRUE, TokenType::FALSE
     ));
 }
 
@@ -96,8 +93,7 @@ TEST_F(TokenizerFixture, TwoCharOperators) {
     auto tokens = tokenizer.tokenize("== != <= >=");
     EXPECT_THAT(getTypes(tokens), ElementsAre(
         TokenType::EQUAL_EQUAL, TokenType::BANG_EQUAL,
-        TokenType::LESS_EQUAL,  TokenType::GREATER_EQUAL,
-        TokenType::END_OF_FILE
+        TokenType::LESS_EQUAL,  TokenType::GREATER_EQUAL
     ));
 }
 
@@ -139,7 +135,7 @@ TEST_F(TokenizerFixture, VarDeclaration) {
     EXPECT_THAT(getTypes(tokens), ElementsAre(
         TokenType::VAR, TokenType::IDENTIFIER,
         TokenType::EQUAL, TokenType::NUMBER,
-        TokenType::SEMICOLON, TokenType::END_OF_FILE
+        TokenType::SEMICOLON
     ));
 }
 
@@ -148,8 +144,7 @@ TEST_F(TokenizerFixture, ParenAndBrace) {
     auto tokens = tokenizer.tokenize("( ) { }");
     EXPECT_THAT(getTypes(tokens), ElementsAre(
         TokenType::LEFT_PAREN,  TokenType::RIGHT_PAREN,
-        TokenType::LEFT_BRACE,  TokenType::RIGHT_BRACE,
-        TokenType::END_OF_FILE
+        TokenType::LEFT_BRACE,  TokenType::RIGHT_BRACE
     ));
 }
 
@@ -159,6 +154,6 @@ TEST_F(TokenizerFixture, MinusAndSlash) {
     EXPECT_THAT(getTypes(tokens), ElementsAre(
         TokenType::NUMBER, TokenType::MINUS,
         TokenType::NUMBER, TokenType::SLASH,
-        TokenType::NUMBER, TokenType::END_OF_FILE
+        TokenType::NUMBER
     ));
 }
