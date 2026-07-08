@@ -59,7 +59,13 @@ void Checker::checkStatement(Statement* stmt) {
     else if (auto* print = dynamic_cast<PrintStatement*>(stmt)) {
         checkPrint(print);
     }
-    // ASSUMPTION: ExpressionStatement/IfStatement/ForStatement 등 나머지 Statement 타입은
+    else if (auto* ifStmt = dynamic_cast<IfStatement*>(stmt)) {
+        checkIf(ifStmt);
+    }
+    else if (auto* forStmt = dynamic_cast<ForStatement*>(stmt)) {
+        checkFor(forStmt);
+    }
+    // ASSUMPTION: ExpressionStatement 등 나머지 Statement 타입은
     // 아직 checker가 다루지 않는다. 필요해지면 분기를 추가한다.
 }
 
@@ -128,6 +134,34 @@ void Checker::checkDeclare(DeclareStatement* decl) {
 
 void Checker::checkPrint(PrintStatement* stmt) {
     checkExpression(stmt->expr);
+}
+
+void Checker::checkIf(IfStatement* ifStmt) {
+    checkExpression(ifStmt->expr);
+    // thenBranch/elseBranch가 BlockStatement면 checkBlock이 자체 스코프를 새로 열고,
+    // 단일 문장이면 지금 스코프에 그대로 선언된다. elseBranch는 nullptr일 수 있는데
+    // checkStatement 진입부에서 이미 null 체크를 하므로 그대로 넘겨도 안전하다.
+    // if 자체는 반복되는 초기화절이 없어(for와 달리) 별도 스코프가 필요 없다.
+    checkStatement(ifStmt->thenBranch);
+    checkStatement(ifStmt->elseBranch);
+}
+
+void Checker::checkFor(ForStatement* forStmt) {
+    // for는 init에서 선언한 변수(예: for (var j = 0; ...))가 루프 본문에서만 보여야
+    // 하므로, init/compare/next/loop 전체를 감싸는 전용 스코프를 새로 연다.
+    // scopes가 세션 전체에 걸쳐 유지되므로(Checker::Checker() 참고), 예외가 나도
+    // exitScope()가 반드시 실행돼야 한다 (checkBlock과 동일한 이유).
+    enterScope();
+    try {
+        checkStatement(forStmt->init);
+        checkExpression(forStmt->compare);
+        checkExpression(forStmt->next);
+        checkStatement(forStmt->loop);
+    } catch (...) {
+        exitScope();
+        throw;
+    }
+    exitScope();
 }
 
 void Checker::checkIdentifier(IdentifierExpression* id) {

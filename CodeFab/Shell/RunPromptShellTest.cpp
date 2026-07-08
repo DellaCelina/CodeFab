@@ -680,34 +680,24 @@ TEST_F(RunPromptShellIntegrationTest, LogicalOr_PrintsTrueWhenLeftOperandIsFalse
     EXPECT_EQ(out.str(), ">>> >>> ");
 }
 
-// --- 6. Checker 검사범위 제한 ---
-// Checker::checkStatement(Checker.cpp)는 BlockStatement/DeclareStatement/PrintStatement만
-// dynamic_cast로 분기하고, IfStatement/ForStatement는 아예 분기가 없어 재귀 진입조차
-// 하지 않는다. 그 결과 if/for 문 안에 중첩된 블록의 의미 오류(중복 선언, 자기 참조)는
-// Checker가 전혀 검사하지 못한 채 통과된다. 아래 두 테스트는 이 한계를 드러내기 위해
-// 현재 시점에는 의도적으로 FAIL 하도록 추가한 것으로(TDD red), Checker가 If/For 내부까지
-// 재귀하도록 고치면 통과해야 한다.
-TEST_F(RunPromptShellIntegrationTest, DuplicateDeclarationInsideIfBlock_ShouldFailCheckButCurrentlyDoesNot) {
-    // 최상위 블록의 동일한 케이스(DuplicateLocalDeclaration_FailsCheckWithoutExecuting)는
-    // Checker가 정상적으로 잡아내지만, if문으로 한 겹 감싸는 순간 Checker가 IfStatement를
-    // 건너뛰어 버려서 중복 선언이 조용히 통과되고 Executor도 재정의를 막지 않아
-    // (Environment::define이 항상 덮어쓰기만 함) 아무 에러도 보고되지 않는다.
+// --- 6. Checker의 if/for 내부 검사 ---
+// Checker::checkStatement(Checker.cpp)는 이제 IfStatement/ForStatement에 대한 분기도
+// 갖고 있어서(checkIf/checkFor), if/for 문 안에 중첩된 블록의 의미 오류(중복 선언,
+// 자기 참조)도 최상위 블록과 동일하게 실행 전에 잡아낸다.
+// (과거에는 이 분기가 없어 if/for 안의 오류가 조용히 통과됐다 - CheckerTest.cpp의
+// DuplicateDeclarationInsideIfBlockReportsError 등 단위 테스트가 그 회귀를 방지한다.)
+TEST_F(RunPromptShellIntegrationTest, DuplicateDeclarationInsideIfBlock_FailsCheckWithoutExecuting) {
     std::ostringstream out;
     run("if (true) { var a = \"hi\"; var a = 3; }\n", out);
 
-    EXPECT_EQ(programOutput.str(), "");
+    EXPECT_EQ(programOutput.str(), "");  // Executor가 호출되지 않았다.
     EXPECT_EQ(out.str(), ">>> [1번째 줄] 'a'에러: 이미 해당 변수는 현재 스코프에서 사용중입니다.\n>>> ");
 }
 
-TEST_F(RunPromptShellIntegrationTest, SelfReferenceInsideIfBlock_ShouldFailCheckButCurrentlyDoesNot) {
-    // 최상위 블록의 동일한 케이스(ReadLocalVariableInOwnInitializer_FailsCheckWithoutExecuting)는
-    // Checker의 자기참조 검사로 걸러지지만, if문으로 감싸면 Checker가 검사하지 않고
-    // 넘어가 Executor까지 도달한다. Executor는 결국 미정의 변수 참조로 실패하긴 하지만,
-    // 줄 번호 없는 다른 메시지("'a' 변수가 정의되지 않았습니다.")가 나와 원래 기대하는
-    // Checker의 의미 오류 메시지와 달라진다.
+TEST_F(RunPromptShellIntegrationTest, SelfReferenceInsideIfBlock_FailsCheckWithoutExecuting) {
     std::ostringstream out;
     run("if (true) { var a = a; }\n", out);
 
-    EXPECT_EQ(programOutput.str(), "");
+    EXPECT_EQ(programOutput.str(), "");  // Executor가 호출되지 않았다.
     EXPECT_EQ(out.str(), ">>> [1번째 줄] 자신의 초기화식에서 지역변수를 읽을 수 없습니다.\n>>> ");
 }
