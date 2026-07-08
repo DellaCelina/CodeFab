@@ -164,6 +164,42 @@ CallExpression(FieldAccessExpression(IdentifierExpression("sum"), "func"), []))]
 문서를 고칠 필요는 없고, **Executor 구현 시 이 동작을 놓치지 않도록 아래 Integration
 test §2의 "동적 필드 추가" 시나리오로 회귀를 막아두는 것**만 필요하다.
 
+## 7. 논리 연산자(`and`/`or`)와 나머지 연산자(`%`)가 Token/AST/Architecture.md/Implement.md 어디에도 없음
+
+1일차 PDF의 기본 토큰 표에는 `AND`/`OR`(`and`, `or` 키워드, "논리" 연산)가 이미
+포함되어 있고, 실행전 최적화 슬라이드의 예시식도 `(... ) % 1000 % 30`처럼 `%`
+(나머지) 연산자를 사용한다. 그런데 **이 셋은 3일차 확장 대상이 아니라 원래
+1일차부터 있었어야 하는 기본 기능인데도** 현재 `Token.h`의 `TokenType`,
+`SyntaxTree.h`의 `Expression` 노드, Architecture.md, Implement.md 어디에도
+등장하지 않는다(`EQUAL`/`LESS`/`PLUS`/`STAR`/`SLASH` 등만 있고 `AND`/`OR`/`PERCENT`
+없음). `RunPromptShellIntegrationTest`에 이미 `LogicalAnd_...`/`LogicalOr_...`라는
+이름의 테스트가 있는 것(위 4번 항목 참고)도 이 빈틈 때문에 실패하는 것으로 보인다
+— 토큰 자체가 없으니 Tokenizer가 `and`/`or`를 `IDENTIFIER`로 처리하거나 인식
+불가 문자로 실패할 것이다.
+
+**해야 할 일**:
+- [ ] `Token.h`에 `AND`, `OR`, `PERCENT`(`%`) 토큰 추가, `Tokenizer`의 `KEYWORDS`
+      맵에 `and`/`or` 추가하고 `scanToken()`에 `%` 한 글자 처리 추가.
+- [ ] `SyntaxTree.h`에 논리 연산 노드 추가 - `and`/`or`는 short-circuit(좌항으로
+      결과가 확정되면 우항을 평가하지 않음) 여부를 팀이 먼저 정해야 한다: 단순
+      `BinaryExpression` 하위 타입으로 두면 Executor의 공용 `evaluate(left)`/
+      `evaluate(right)` 패턴상 항상 양쪽을 평가하게 되어 short-circuit이 안 되므로,
+      short-circuit이 필요하다면 `LogicalExpression`을 `BinaryExpression`과
+      별도 계열로 두고 Executor에서 좌항 평가 후 조건부로만 우항을 평가하도록
+      분기해야 한다.
+- [ ] `%`는 기존 `PLUS`/`MINUS`(낮은 우선순위)나 `STAR`/`SLASH`(높은 우선순위) 중
+      어느 그룹과 같은 우선순위 레벨에 둘지 결정(최적화 슬라이드 예시상 `*`/`/`와
+      같은 레벨이 자연스러움) 후 `kDefaultOperatorPriority`에 반영. `ModuloExpression`
+      (또는 `BinaryExpression` 재사용) 노드와 Assembler의 `makeBinaryExpression`
+      분기 추가.
+- [ ] Executor에 `and`/`or`/`%` 실행 로직 추가(`%`는 `DivideExpression`과 동일하게
+      0으로 나누기 검사 필요 - "0으로 나눌 수 없습니다"류 오류 재사용 가능).
+- [ ] Checker의 상수 폴딩(§6.2)이 `%`도 다른 산술 연산자와 동일하게 다루는지 확인.
+- [ ] Architecture.md/Implement.md에 위 내용을 정식 절로 추가(지금은 완전히
+      누락되어 있어 이번 TODO 항목이 유일한 기록임).
+- [ ] 위 4번 항목의 `LogicalAnd_...`/`LogicalOr_...` 실패 테스트가 이 갭 때문인지
+      확인하고, 맞다면 이 항목으로 통합.
+
 # Integration test
 
 Architecture.md/3일차 PDF에 기술된 기능들이 실제로 구현되고 나면
@@ -337,6 +373,35 @@ Shell의 File/Debug 모드가 구현되면, 기존 REPL 통합 테스트와 별�
 - **디버그 모드 - watch 출력**: `watch` 등록 후 매 정지 시점마다 해당 변수의 현재
   값이 출력에 포함되는지 확인.
 - **디버그 모드 - inspect**: 현재 스코프의 모든 변수가 출력되는지 확인.
+
+## 8. 논리 연산자(`and`/`or`)와 나머지 연산자(`%`)
+
+**주의**: 위 "# TODO"의 7번 항목 참고 - `and`/`or`/`%`는 토큰/AST/실행 로직이
+전부 빠져있어서 지금은 파싱 단계부터 실패한다. 아래 시나리오는 그 갭이 채워진
+뒤 테스트로 옮긴다.
+
+- **and - 정상**: `print true and true;` → `true`, `print true and false;` →
+  `false`, `print false and true;` → `false`, `print false and false;` → `false`.
+- **or - 정상**: `print false or true;` → `true`, `print true or false;` →
+  `true`, `print false or false;` → `false`.
+- **비교/산술 연산자와의 조합**: `print (1 < 2) and (3 > 2);` → `true`,
+  `print (1 > 2) or (3 > 2);` → `true`.
+- **short-circuit 평가**: `and`는 좌항이 false면 우항을 평가하지 않아야 하고,
+  `or`는 좌항이 true면 우항을 평가하지 않아야 한다 - 부작용이 있는 함수 호출을
+  우항에 두고(예: 카운터를 증가시키는 함수) 실제로 호출되지 않는지 확인
+  (`Func bump() { c = c + 1; return true; } var c = 0; var x = false and bump();
+  print c;` → `0`, 우항이 평가됐다면 `1`이 나올 것).
+- **에러 정책 결정 필요**: `print 1 and 2;`처럼 피연산자가 Boolean이 아닐 때
+  타입 오류를 낼지, 아니면 truthy 기반으로 통과시킬지는 팀 결정 사항 - 결정된
+  정책대로 정상/에러 케이스를 확정한다.
+- **% - 정상**: `print 7 % 3;` → `1`, `print 10 % 5;` → `0`, `print 2 * 3 % 4;` →
+  `2`(우선순위가 `*`/`/`와 같은 레벨인지, 좌결합인지 확인).
+- **% - 최적화 슬라이드 예시 재현**: `print (1 - 2 * 3 * 4 * 5 / 6 + 7 + 8 + 9) %
+  1000 % 30;`처럼 여러 연산자가 섞인 식에서 `%`가 마지막에 두 번 연속 적용되는
+  경우까지 정확한 값이 나오는지 확인(§6 실행전 최적화가 이 식을 상수 폴딩할 때도
+  동일한 값을 내야 한다는 회귀 테스트와도 연결됨).
+- **에러: 0으로 나머지 연산**: `print 5 % 0;` → `DivideExpression`과 동일하게
+  런타임 오류("0으로 나눌 수 없습니다" 류).
 
 # 코드 정리
 
