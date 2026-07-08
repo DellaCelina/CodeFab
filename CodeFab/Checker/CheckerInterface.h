@@ -4,7 +4,7 @@
 #include <stdexcept>
 #include <string>
 
-#include "SyntaxTree.h"
+#include "../Assembler/SyntaxTree.h"
 
 // Checker가 의미 오류(변수 중복 선언, 자기 참조 등)를 발견하면 던지는 예외.
 // ExecuteInterface.h의 ExecutorError와 같은 모양: std::exception을 직접

@@ -4,10 +4,10 @@
 
 #include <iostream>
 
-#include "Tokenizer.h"
-#include "Assembler.h"
-#include "Checker.h"
-#include "Executor.h"
+#include "../Tokenizer/Tokenizer.h"
+#include "../Assembler/Assembler.h"
+#include "../Checker/Checker.h"
+#include "../Executor/Executor.h"
 #include "RunPromptShell.h"
 
 #endif

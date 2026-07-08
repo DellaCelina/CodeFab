@@ -6,7 +6,7 @@
 #include <format>
 
 #include "SyntaxTree.h"
-#include "Token.h"
+#include "../Tokenizer/Token.h"
 
 class AssemblerError : public std::exception {
 public:

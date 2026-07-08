@@ -3,7 +3,7 @@
 #include <vector>
 #include <unordered_set>
 
-#include "SyntaxTree.h"
+#include "../Assembler/SyntaxTree.h"
 #include "CheckerInterface.h"
 
 using namespace std;

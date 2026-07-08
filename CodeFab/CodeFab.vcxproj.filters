@@ -13,105 +13,120 @@
       <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
       <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
     </Filter>
+    <Filter Include="Tokenizer">
+      <UniqueIdentifier>{1a2b3c4d-0001-4a1a-9c1a-000000000001}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Assembler">
+      <UniqueIdentifier>{1a2b3c4d-0002-4a1a-9c1a-000000000002}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Checker">
+      <UniqueIdentifier>{1a2b3c4d-0003-4a1a-9c1a-000000000003}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Executor">
+      <UniqueIdentifier>{1a2b3c4d-0004-4a1a-9c1a-000000000004}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Shell">
+      <UniqueIdentifier>{1a2b3c4d-0005-4a1a-9c1a-000000000005}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="Tokenizer.cpp">
-      <Filter>소스 파일</Filter>
+    <ClCompile Include="Tokenizer\Tokenizer.cpp">
+      <Filter>Tokenizer</Filter>
     </ClCompile>
-    <ClCompile Include="TokenizerTest.cpp">
-      <Filter>소스 파일</Filter>
+    <ClCompile Include="Tokenizer\TokenizerTest.cpp">
+      <Filter>Tokenizer</Filter>
     </ClCompile>
-    <ClCompile Include="main.cpp">
-      <Filter>소스 파일</Filter>
+    <ClCompile Include="Assembler\Assembler.cpp">
+      <Filter>Assembler</Filter>
     </ClCompile>
-    <ClCompile Include="ExecutorTest.cpp">
-      <Filter>소스 파일</Filter>
+    <ClCompile Include="Assembler\AssemblerTest.cpp">
+      <Filter>Assembler</Filter>
     </ClCompile>
-    <ClCompile Include="ExecutorVariableTest.cpp">
-      <Filter>소스 파일</Filter>
+    <ClCompile Include="Checker\Checker.cpp">
+      <Filter>Checker</Filter>
     </ClCompile>
-    <ClCompile Include="ExecutorControlFlowTest.cpp">
-      <Filter>소스 파일</Filter>
+    <ClCompile Include="Checker\CheckerTest.cpp">
+      <Filter>Checker</Filter>
     </ClCompile>
-    <ClCompile Include="Executor.cpp">
-      <Filter>소스 파일</Filter>
+    <ClCompile Include="Executor\Executor.cpp">
+      <Filter>Executor</Filter>
     </ClCompile>
-    <ClCompile Include="Value.cpp">
-      <Filter>소스 파일</Filter>
+    <ClCompile Include="Executor\ExecutorTest.cpp">
+      <Filter>Executor</Filter>
     </ClCompile>
-    <ClCompile Include="RunPromptShell.cpp">
-      <Filter>소스 파일</Filter>
+    <ClCompile Include="Executor\ExecutorVariableTest.cpp">
+      <Filter>Executor</Filter>
     </ClCompile>
-    <ClCompile Include="RunPromptShellTest.cpp">
-      <Filter>소스 파일</Filter>
+    <ClCompile Include="Executor\ExecutorControlFlowTest.cpp">
+      <Filter>Executor</Filter>
     </ClCompile>
-    <ClCompile Include="Assembler.cpp">
-      <Filter>소스 파일</Filter>
+    <ClCompile Include="Executor\Value.cpp">
+      <Filter>Executor</Filter>
     </ClCompile>
-    <ClCompile Include="AssemblerTest.cpp">
-      <Filter>소스 파일</Filter>
+    <ClCompile Include="Executor\Environment.cpp">
+      <Filter>Executor</Filter>
     </ClCompile>
-    <ClCompile Include="Checker.cpp">
-      <Filter>소스 파일</Filter>
+    <ClCompile Include="Executor\Scope.cpp">
+      <Filter>Executor</Filter>
     </ClCompile>
-    <ClCompile Include="CheckerTest.cpp">
-      <Filter>소스 파일</Filter>
+    <ClCompile Include="Executor\EnvironmentTest.cpp">
+      <Filter>Executor</Filter>
     </ClCompile>
-    <ClCompile Include="Environment.cpp">
-      <Filter>소스 파일</Filter>
+    <ClCompile Include="Shell\main.cpp">
+      <Filter>Shell</Filter>
     </ClCompile>
-    <ClCompile Include="Scope.cpp">
-      <Filter>소스 파일</Filter>
+    <ClCompile Include="Shell\RunPromptShell.cpp">
+      <Filter>Shell</Filter>
     </ClCompile>
-    <ClCompile Include="EnvironmentTest.cpp">
-      <Filter>소스 파일</Filter>
+    <ClCompile Include="Shell\RunPromptShellTest.cpp">
+      <Filter>Shell</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="Token.h">
-      <Filter>헤더 파일</Filter>
+    <ClInclude Include="Tokenizer\Token.h">
+      <Filter>Tokenizer</Filter>
     </ClInclude>
-    <ClInclude Include="Tokenizer.h">
-      <Filter>헤더 파일</Filter>
+    <ClInclude Include="Tokenizer\Tokenizer.h">
+      <Filter>Tokenizer</Filter>
     </ClInclude>
-    <ClInclude Include="SyntaxTree.h">
-      <Filter>헤더 파일</Filter>
+    <ClInclude Include="Tokenizer\TokenizeInterface.h">
+      <Filter>Tokenizer</Filter>
     </ClInclude>
-    <ClInclude Include="TokenizeInterface.h">
-      <Filter>헤더 파일</Filter>
+    <ClInclude Include="Assembler\SyntaxTree.h">
+      <Filter>Assembler</Filter>
     </ClInclude>
-    <ClInclude Include="AssemblerInterface.h">
-      <Filter>헤더 파일</Filter>
+    <ClInclude Include="Assembler\AssemblerInterface.h">
+      <Filter>Assembler</Filter>
     </ClInclude>
-    <ClInclude Include="CheckerInterface.h">
-      <Filter>헤더 파일</Filter>
+    <ClInclude Include="Assembler\Assembler.h">
+      <Filter>Assembler</Filter>
     </ClInclude>
-    <ClInclude Include="ExecuteInterface.h">
-      <Filter>헤더 파일</Filter>
+    <ClInclude Include="Checker\CheckerInterface.h">
+      <Filter>Checker</Filter>
     </ClInclude>
-    <ClInclude Include="RunPromptShell.h">
-      <Filter>헤더 파일</Filter>
+    <ClInclude Include="Checker\Checker.h">
+      <Filter>Checker</Filter>
     </ClInclude>
-    <ClInclude Include="Assembler.h">
-      <Filter>헤더 파일</Filter>
+    <ClInclude Include="Executor\ExecuteInterface.h">
+      <Filter>Executor</Filter>
     </ClInclude>
-    <ClInclude Include="Executor.h">
-      <Filter>헤더 파일</Filter>
+    <ClInclude Include="Executor\Executor.h">
+      <Filter>Executor</Filter>
     </ClInclude>
-    <ClInclude Include="Value.h">
-      <Filter>헤더 파일</Filter>
+    <ClInclude Include="Executor\Value.h">
+      <Filter>Executor</Filter>
     </ClInclude>
-    <ClInclude Include="Checker.h">
-      <Filter>헤더 파일</Filter>
+    <ClInclude Include="Executor\Environment.h">
+      <Filter>Executor</Filter>
     </ClInclude>
-    <ClInclude Include="Environment.h">
-      <Filter>헤더 파일</Filter>
+    <ClInclude Include="Executor\Scope.h">
+      <Filter>Executor</Filter>
     </ClInclude>
-    <ClInclude Include="Scope.h">
-      <Filter>헤더 파일</Filter>
+    <ClInclude Include="Shell\RunPromptShell.h">
+      <Filter>Shell</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>
