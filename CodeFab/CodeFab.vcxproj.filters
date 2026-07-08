@@ -87,6 +87,12 @@
     <ClCompile Include="Shell\RunPromptShellTest.cpp">
       <Filter>Shell</Filter>
     </ClCompile>
+    <ClCompile Include="Shell\CommandLineArgs.cpp">
+      <Filter>Shell</Filter>
+    </ClCompile>
+    <ClCompile Include="Shell\CommandLineArgsTest.cpp">
+      <Filter>Shell</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Tokenizer\Token.h">
@@ -141,6 +147,9 @@
       <Filter>Executor</Filter>
     </ClInclude>
     <ClInclude Include="Shell\RunPromptShell.h">
+      <Filter>Shell</Filter>
+    </ClInclude>
+    <ClInclude Include="Shell\CommandLineArgs.h">
       <Filter>Shell</Filter>
     </ClInclude>
   </ItemGroup>
