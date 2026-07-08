@@ -8,16 +8,16 @@
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 
-#include "Assembler.h"
-#include "AssemblerInterface.h"
-#include "Checker.h"
-#include "CheckerInterface.h"
-#include "ExecuteInterface.h"
-#include "Executor.h"
-#include "SyntaxTree.h"
-#include "Token.h"
-#include "TokenizeInterface.h"
-#include "Tokenizer.h"
+#include "../Assembler/Assembler.h"
+#include "../Assembler/AssemblerInterface.h"
+#include "../Checker/Checker.h"
+#include "../Checker/CheckerInterface.h"
+#include "../Executor/ExecuteInterface.h"
+#include "../Executor/Executor.h"
+#include "../Assembler/SyntaxTree.h"
+#include "../Tokenizer/Token.h"
+#include "../Tokenizer/TokenizeInterface.h"
+#include "../Tokenizer/Tokenizer.h"
 
 using ::testing::_;
 using ::testing::AllOf;

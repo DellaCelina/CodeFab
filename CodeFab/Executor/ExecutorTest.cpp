@@ -4,7 +4,7 @@
 #include "gmock/gmock.h"
 #include "Executor.h"
 #include "ExecuteInterface.h"
-#include "SyntaxTree.h"
+#include "../Assembler/SyntaxTree.h"
 
 struct ExecutorTester : public testing::Test {
     Executor executor;

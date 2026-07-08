@@ -2,7 +2,7 @@
 
 #include "gmock/gmock.h"
 #include "Executor.h"
-#include "SyntaxTree.h"
+#include "../Assembler/SyntaxTree.h"
 
 // if/else and for.
 

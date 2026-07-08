@@ -4,7 +4,7 @@
 #include <stdexcept>
 #include <string>
 
-#include "SyntaxTree.h"
+#include "../Assembler/SyntaxTree.h"
 
 // 실행 중 발생하는 런타임 오류(타입 불일치, 미정의 변수, 0으로 나누기 등)를
 // 나타낸다. AssemblerInterface.h의 AssemblerError와 같은 모양: std::exception을

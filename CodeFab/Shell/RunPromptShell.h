@@ -3,10 +3,10 @@
 #include <istream>
 #include <ostream>
 
-#include "AssemblerInterface.h"
-#include "CheckerInterface.h"
-#include "ExecuteInterface.h"
-#include "TokenizeInterface.h"
+#include "../Assembler/AssemblerInterface.h"
+#include "../Checker/CheckerInterface.h"
+#include "../Executor/ExecuteInterface.h"
+#include "../Tokenizer/TokenizeInterface.h"
 
 // CodeFab Prompt Shell.
 // 4개의 Unit 인터페이스에 의존하여 한 줄씩 입력받아

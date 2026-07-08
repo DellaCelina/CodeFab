@@ -2,7 +2,7 @@
 
 #include "gmock/gmock.h"
 #include "Executor.h"
-#include "SyntaxTree.h"
+#include "../Assembler/SyntaxTree.h"
 
 // Variables, assignment, and block scope. None of DeclareStatement /
 // IdentifierExpression / AssignExpression / BlockStatement have handlers

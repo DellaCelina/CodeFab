@@ -4,7 +4,7 @@
 #include <vector>
 #include <string>
 
-#include "Token.h"
+#include "../Tokenizer/Token.h"
 
 // Syntax tree
 class SyntaxNode {

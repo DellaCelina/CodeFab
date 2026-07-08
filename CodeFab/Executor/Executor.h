@@ -7,7 +7,7 @@
 
 #include "Environment.h"
 #include "ExecuteInterface.h"
-#include "SyntaxTree.h"
+#include "../Assembler/SyntaxTree.h"
 #include "Value.h"
 
 // Executes a SyntaxTree via recursive DFS.
