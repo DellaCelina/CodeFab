@@ -105,6 +105,12 @@
     <ClCompile Include="Shell\CommandLineArgsTest.cpp">
       <Filter>Shell</Filter>
     </ClCompile>
+    <ClCompile Include="Shell\FileRunMode.cpp">
+      <Filter>Shell</Filter>
+    </ClCompile>
+    <ClCompile Include="Shell\FileRunModeTest.cpp">
+      <Filter>Shell</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Tokenizer\Token.h">
@@ -162,6 +168,9 @@
       <Filter>Shell</Filter>
     </ClInclude>
     <ClInclude Include="Shell\CommandLineArgs.h">
+      <Filter>Shell</Filter>
+    </ClInclude>
+    <ClInclude Include="Shell\FileRunMode.h">
       <Filter>Shell</Filter>
     </ClInclude>
   </ItemGroup>
