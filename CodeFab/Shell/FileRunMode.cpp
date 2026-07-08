@@ -1,4 +1,4 @@
-#include "FileRunMode.h"
+﻿#include "FileRunMode.h"
 
 #include <fstream>
 #include <sstream>
