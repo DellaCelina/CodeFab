@@ -265,17 +265,26 @@ TEST_F(RunPromptShellTest, ErrorOnOneLine_DoesNotPreventNextLineFromRunning) {
 // Executor는 생성자로 받은 스트림(programOutput)에 프로그램의 print 결과를 쓰고,
 // 셸의 프롬프트/에러 스트림(out)과는 분리되어 있다 -> 두 스트림을 각각 검증한다.
 //
-// 현재 구현의 실제 한계:
-// - Checker는 예외를 던지지 않고 bool만 반환한다. 실패 시 Shell은 상세 메시지 없이
-//   "코드 검사에 실패했습니다."만 출력한다.
-// - Checker는 BlockStatement/DeclareStatement/PrintStatement (그리고 그 안의
-//   IdentifierExpression/BinaryExpression)만 검사한다. If/For/Assign 등은 아직
-//   검사하지 않고 통과시킨다.
-// - Executor는 PrintStatement 하나와, 리터럴(Number/String/Boolean)·산술·비교
-//   연산자만 처리한다. 변수 참조(IdentifierExpression), 선언/블록/if/for 문은
-//   처리기가 없어 std::logic_error를 던진다. 타입이 맞지 않는 산술 연산은
-//   std::bad_variant_access를 던진다. RunPromptShell은 이 둘을 std::exception
-//   catch-all로 잡아 보고만 하고 죽지 않는다 (RunPromptShell.cpp 참고).
+// 현재 구현의 실제 한계 (2026-07-08 기준, 아래 테스트 중 일부는 이 한계 때문에
+// 스펙(gist)이 기대하는 값과 다르게 실패한다 - 각 테스트 옆 주석 참고):
+// - CheckerInterface::check()는 예외를 던지지 않고 bool만 반환하고, 상세 메시지를
+//   꺼낼 방법이 없다. 실패 시 Shell은 항상 "코드 검사에 실패했습니다."만 출력하므로,
+//   gist가 요구하는 영어 메시지("Can't read local variable in initializer." 등)는
+//   RunPromptShell 통합 레벨에서는 절대 노출되지 않는다 (CheckerInterface에 상세
+//   메시지를 얻는 방법을 추가하고 RunPromptShell이 이를 사용하도록 바꿔야 한다).
+// - Checker::checkDetailed()는 호출될 때마다 scopes를 초기화한다(checker.cpp 참고).
+//   RunPromptShell은 한 줄(또는 완결된 블록)마다 checker_.check()를 새로 호출하므로,
+//   변수 선언과 사용이 서로 다른 REPL 줄에 걸쳐 있으면 Checker가 이전 줄에서
+//   선언된 변수를 "선언되지 않음"으로 오판해 검사에 실패한다. Executor의
+//   Environment는 세션 전체에 걸쳐 유지되므로 Executor 자체는 문제없이 동작하지만,
+//   Checker가 먼저 막아버려 실행까지 도달하지 못한다.
+// - Executor는 PrintStatement, DeclareStatement, BlockStatement, IfStatement,
+//   ForStatement, 리터럴/산술/비교/대입 연산자를 모두 처리한다. 다만 타입이 맞지
+//   않는 산술 연산은 다듬어진 영어 메시지가 아니라 한글 메시지("타입 오류: ...")를
+//   던진다.
+// - Assembler의 for문 초기화절은 expression만 허용하고 var 선언은 지원하지 않는다
+//   (assembler.cpp의 parseForStatement 참고). gist가 요구하는
+//   `for (var j = 0; ...)` 문법 자체가 파싱 단계에서 "Expect expression."으로 실패한다.
 // ============================================================================
 class RunPromptShellIntegrationTest : public ::testing::Test {
 protected:
@@ -335,6 +344,70 @@ TEST_F(RunPromptShellIntegrationTest, BooleanLiteral_PrintsTrue) {
     EXPECT_EQ(out.str(), ">>> >>> ");
 }
 
+TEST_F(RunPromptShellIntegrationTest, BooleanLiteral_PrintsFalse) {
+    std::ostringstream out;
+    run("print false;\n", out);
+
+    EXPECT_EQ(programOutput.str(), "false\n");
+    EXPECT_EQ(out.str(), ">>> >>> ");
+}
+
+TEST_F(RunPromptShellIntegrationTest, SubtractionIsLeftAssociative_PrintsThree) {
+    std::ostringstream out;
+    run("print 10 - 4 - 3;\n", out);
+
+    EXPECT_EQ(programOutput.str(), "3\n");
+    EXPECT_EQ(out.str(), ">>> >>> ");
+}
+
+TEST_F(RunPromptShellIntegrationTest, DivisionIsLeftAssociative_PrintsTwo) {
+    std::ostringstream out;
+    run("print 8 / 2 / 2;\n", out);
+
+    EXPECT_EQ(programOutput.str(), "2\n");
+    EXPECT_EQ(out.str(), ">>> >>> ");
+}
+
+TEST_F(RunPromptShellIntegrationTest, UnaryMinusThenAddition_PrintsNegativeOne) {
+    std::ostringstream out;
+    run("print -3 + 2;\n", out);
+
+    EXPECT_EQ(programOutput.str(), "-1\n");
+    EXPECT_EQ(out.str(), ">>> >>> ");
+}
+
+TEST_F(RunPromptShellIntegrationTest, ComparisonExpression_PrintsFalse) {
+    std::ostringstream out;
+    run("print 3 > 5;\n", out);
+
+    EXPECT_EQ(programOutput.str(), "false\n");
+    EXPECT_EQ(out.str(), ">>> >>> ");
+}
+
+TEST_F(RunPromptShellIntegrationTest, IntegerLiteral_PrintsWithoutDecimalPart) {
+    std::ostringstream out;
+    run("print 5;\n", out);
+
+    EXPECT_EQ(programOutput.str(), "5\n");
+    EXPECT_EQ(out.str(), ">>> >>> ");
+}
+
+TEST_F(RunPromptShellIntegrationTest, WholeNumberFloatLiteral_PrintsWithoutTrailingZero) {
+    std::ostringstream out;
+    run("print 5.0;\n", out);
+
+    EXPECT_EQ(programOutput.str(), "5\n");
+    EXPECT_EQ(out.str(), ">>> >>> ");
+}
+
+TEST_F(RunPromptShellIntegrationTest, DecimalLiteral_PrintsWithDecimalPart) {
+    std::ostringstream out;
+    run("print 3.14;\n", out);
+
+    EXPECT_EQ(programOutput.str(), "3.14\n");
+    EXPECT_EQ(out.str(), ">>> >>> ");
+}
+
 // --- 2-1. 구문 에러 시나리오: 실제 Assembler가 std::invalid_argument를 던지는 경우 ---
 // Assembler가 던지는 메시지에는 실제 Tokenizer가 항상 덧붙이는 EOF 토큰 등의 영향으로
 // "(near '...' at line N)" 접미사가 붙을 수 있어, 핵심 문구만 부분 일치로 검증한다.
@@ -384,12 +457,21 @@ TEST_F(RunPromptShellIntegrationTest, UnexpectedTokenInExpression_ReportsSyntaxE
 // 공통 실패 메시지만 출력한다 (상세 메시지는 Checker::checkDetailed()로만 얻을 수 있다.
 // CheckerTest.cpp가 그 상세 메시지/줄 번호를 별도로 검증한다).
 
+// 참고: 아래 세 테스트는 gist가 요구하는 정확한 영어 메시지를 기대값으로 쓴다.
+// CheckerInterface::check()가 bool만 반환하는 현재 구조에서는 RunPromptShell이
+// 항상 공통 메시지("코드 검사에 실패했습니다.")만 출력하므로 지금은 실패한다.
+// CheckerInterface에 상세 메시지를 노출하는 방법을 추가하고 RunPromptShell이
+// 이를 사용하도록 바꿔야 통과한다 (상세 메시지 자체는 Checker::checkDetailed()가
+// 이미 만들고 있다 - CheckerTest.cpp 참고, 다만 거기 문구도 한글이라 별도로
+// 스펙 문구에 맞게 고쳐야 한다).
 TEST_F(RunPromptShellIntegrationTest, ReadLocalVariableInOwnInitializer_FailsCheckWithoutExecuting) {
     std::ostringstream out;
     run("{ var a = a; }\n", out);
 
     EXPECT_EQ(programOutput.str(), "");  // Executor가 호출되지 않았다.
-    EXPECT_EQ(out.str(), ">>> 코드 검사에 실패했습니다.\n>>> ");
+    EXPECT_THAT(out.str(), AllOf(StartsWith(">>> "),
+                                  HasSubstr("Can't read local variable in initializer."),
+                                  EndsWith(">>> ")));
 }
 
 TEST_F(RunPromptShellIntegrationTest, DuplicateLocalDeclaration_FailsCheckWithoutExecuting) {
@@ -397,49 +479,104 @@ TEST_F(RunPromptShellIntegrationTest, DuplicateLocalDeclaration_FailsCheckWithou
     run("{ var a = \"hi\"; var a = 3; }\n", out);
 
     EXPECT_EQ(programOutput.str(), "");
-    EXPECT_EQ(out.str(), ">>> 코드 검사에 실패했습니다.\n>>> ");
+    EXPECT_THAT(out.str(), AllOf(StartsWith(">>> "),
+                                  HasSubstr("Already a variable with this name in this scope."),
+                                  EndsWith(">>> ")));
 }
 
-TEST_F(RunPromptShellIntegrationTest, UndefinedVariableReference_FailsCheckWithoutExecuting) {
+TEST_F(RunPromptShellIntegrationTest, UndefinedVariableReference_ReportsRuntimeError) {
     std::ostringstream out;
     run("print notDefined;\n", out);
 
-    // 참고: gist는 이 케이스를 "런타임 에러"로 분류하지만, 실제로는 Checker의
-    // "선언되지 않은 변수" 규칙(checkIdentifier의 isDeclaredInAnyScope 검사)이
-    // 이미 이 시점에 잡아내서 Executor까지 도달하지 않는다. Checker는 예외를
-    // 던지지 않고 bool만 반환하므로 상세 메시지는 노출되지 않는다.
+    // gist는 이 케이스를 "런타임 에러"로 분류한다. 실제로 Executor에는 정확히
+    // 이 문구를 던지는 코드가 있다(Executor.cpp의 IdentifierExpression 처리기).
+    // 하지만 지금은 Checker의 "선언되지 않은 변수" 규칙(checkIdentifier의
+    // isDeclaredInAnyScope 검사)이 실행 전에 먼저 걸러내 항상 공통 검사-실패
+    // 메시지만 나오고 Executor까지 도달하지 않는다. gist 스펙대로라면 이 검사는
+    // Checker가 아니라 런타임(Executor)의 책임이어야 한다.
     EXPECT_EQ(programOutput.str(), "");
-    EXPECT_EQ(out.str(), ">>> 코드 검사에 실패했습니다.\n>>> ");
+    EXPECT_THAT(out.str(), AllOf(StartsWith(">>> "),
+                                  HasSubstr("Undefined variable 'notDefined'"),
+                                  EndsWith(">>> ")));
 }
 
 // --- 2-3. 실행 중(런타임) 에러 시나리오 ---
-// 실제 Executor는 아직 타입 검증을 지원하지 않는다 (Executor.cpp의
-// registerDefaultHandlers 참고: 산술 연산은 asNumber()/asString()에서 타입이
-// 안 맞으면 std::bad_variant_access를 던진다). 그래서 gist가 기대하는
-// "Operands must be two numbers or two strings." 같은 다듬어진 메시지는 아직 없고,
-// RunPromptShell의 catch-all(std::exception)이 잡은 원본 예외 메시지가 그대로 노출된다.
-// Executor가 이 케이스들을 제대로 지원하게 되면 아래 기대값도 다듬어진 메시지로 바꿔야 한다.
+// 실제 Executor는 타입이 안 맞는 산술 연산에서 RuntimeCodeFabError를 던지긴 하지만,
+// 메시지가 gist가 기대하는 다듬어진 영어 문구가 아니라 한글 문구("타입 오류: ...")다.
+// 아래 두 테스트는 gist 스펙 문구를 기대값으로 쓰므로 Executor.cpp의
+// AddExpression/NegativeExpression 처리기(및 requireNumberOperands)의 에러 메시지를
+// 스펙 문구로 바꾸기 전까지는 실패한다.
 
-TEST_F(RunPromptShellIntegrationTest, MixedTypeAddition_CurrentlyThrowsOnTypeMismatch) {
+TEST_F(RunPromptShellIntegrationTest, MixedTypeAddition_ReportsTypeMismatchError) {
     std::ostringstream out;
     run("print 1 + \"HI\";\n", out);
 
-    // std::bad_variant_access::what()의 정확한 문구는 표준 라이브러리 구현에 따라
-    // 달라질 수 있어 내용은 검증하지 않고, "출력 없이 에러로 보고됐는지"만 확인한다.
     EXPECT_EQ(programOutput.str(), "");
-    EXPECT_THAT(out.str(), AllOf(StartsWith(">>> "), EndsWith(">>> ")));
+    EXPECT_THAT(out.str(), AllOf(StartsWith(">>> "),
+                                  HasSubstr("Operands must be two numbers or two strings."),
+                                  EndsWith(">>> ")));
 }
 
-TEST_F(RunPromptShellIntegrationTest, UnaryMinusOnNonNumber_CurrentlyThrowsOnTypeMismatch) {
+TEST_F(RunPromptShellIntegrationTest, UnaryMinusOnNonNumber_ReportsOperandTypeError) {
     std::ostringstream out;
     run("print -\"FabCoding\";\n", out);
 
     EXPECT_EQ(programOutput.str(), "");
-    EXPECT_THAT(out.str(), AllOf(StartsWith(">>> "), EndsWith(">>> ")));
+    EXPECT_THAT(out.str(), AllOf(StartsWith(">>> "),
+                                  HasSubstr("Operand must be a number."),
+                                  EndsWith(">>> ")));
 }
 
-// --- 3. 블록 스코프 / if-else: Checker/Executor가 지원하므로 실제 출력을 검증한다 ---
-// for문은 Assembler가 초기화절에 var 선언을 아직 지원하지 않아 별도로 다룬다(아래 참고).
+// --- 3. 변수 선언 / 할당 / 블록 스코프 / shadowing ---
+// 참고: 아래 시나리오들은 gist 원문처럼 선언과 사용을 서로 다른 REPL 줄로 나눠
+// 테스트한다. Executor의 Environment는 세션 전체에 걸쳐 유지되므로 실행 자체는
+// 문제없이 동작하지만, Checker::checkDetailed()가 호출될 때마다 scopes를
+// 초기화하기 때문에(checker.cpp 참고) 이전 줄에서 선언한 변수를 다음 줄에서
+// "선언되지 않음"으로 오판해 검사에서 막힌다. 그래서 아래 테스트들은 Checker가
+// 줄(호출) 단위가 아니라 세션 전체에 걸쳐 선언 상태를 기억하도록 고치기 전까지는
+// 실패한다.
+
+TEST_F(RunPromptShellIntegrationTest, VariableDeclarationAndUse_PrintsSum) {
+    std::ostringstream out;
+    run("var a = 10;\nvar b = 20;\nprint a + b;\n", out);
+
+    EXPECT_EQ(programOutput.str(), "30\n");
+    EXPECT_EQ(out.str(), ">>> >>> >>> >>> ");
+}
+
+TEST_F(RunPromptShellIntegrationTest, Reassignment_PrintsUpdatedValue) {
+    std::ostringstream out;
+    run("var a = 10;\na = a + 5;\nprint a;\n", out);
+
+    EXPECT_EQ(programOutput.str(), "15\n");
+    EXPECT_EQ(out.str(), ">>> >>> >>> >>> ");
+}
+
+TEST_F(RunPromptShellIntegrationTest, BlockScopeShadowing_InnerHidesOuterButOuterSurvivesBlock) {
+    std::ostringstream out;
+    run("var x = \"global\";\n{ var x = \"inner\"; print x; }\nprint x;\n", out);
+
+    EXPECT_EQ(programOutput.str(), "inner\nglobal\n");
+    EXPECT_EQ(out.str(), ">>> >>> >>> ");
+}
+
+TEST_F(RunPromptShellIntegrationTest, MutatingOuterVariableFromInnerBlock_UpdatesOuter) {
+    std::ostringstream out;
+    run("var count = 0;\n{ count = count + 1; }\nprint count;\n", out);
+
+    EXPECT_EQ(programOutput.str(), "1\n");
+    EXPECT_EQ(out.str(), ">>> >>> >>> ");
+}
+
+TEST_F(RunPromptShellIntegrationTest, NestedScopeResolution_ReferencesOuterAndInnerVariables) {
+    std::ostringstream out;
+    run("var outer = \"A\";\n{ var inner = \"B\"; { print outer + inner; } }\n", out);
+
+    EXPECT_EQ(programOutput.str(), "AB\n");
+    EXPECT_EQ(out.str(), ">>> >>> ");
+}
+
+// --- 4. 제어 흐름: 블록 스코프 / if-else / for ---
 
 TEST_F(RunPromptShellIntegrationTest, BlockScope_PrintsInner) {
     std::ostringstream out;
@@ -457,13 +594,21 @@ TEST_F(RunPromptShellIntegrationTest, IfElse_PrintsKfc) {
     EXPECT_EQ(out.str(), ">>> >>> ");
 }
 
-TEST_F(RunPromptShellIntegrationTest, ForLoop_NotYetSupportedByExecutor_DoesNotCrashShell) {
+TEST_F(RunPromptShellIntegrationTest, DanglingElse_BindsToNearestIf) {
     std::ostringstream out;
-    // 참고: gist 원문은 `for (var j = 0; ...)`이지만, 현재 Assembler의 for문 문법은
-    // 초기화절에 expression만 허용하고 var 선언은 지원하지 않는다 (assembler.cpp
-    // parseForStatement 참고). 그래서 대입식(j = 0)으로 바꿔 최소한 Assembler는 통과하게 둔다.
-    run("for (j = 0; j < 3; j = j + 1) { print j; }\n", out);  // expect(실제 언어 동작): 0, 1, 2
+    run("if (true) { if (false) print \"kfc\"; else print \"bbq\"; }\n", out);
 
-    EXPECT_EQ(programOutput.str(), "");
-    EXPECT_THAT(out.str(), AllOf(StartsWith(">>> "), EndsWith(">>> ")));
+    EXPECT_EQ(programOutput.str(), "bbq\n");
+    EXPECT_EQ(out.str(), ">>> >>> ");
+}
+
+TEST_F(RunPromptShellIntegrationTest, ForLoop_WithVarInitializer_PrintsZeroOneTwo) {
+    std::ostringstream out;
+    // 참고: 현재 Assembler의 for문 초기화절은 expression만 허용하고 var 선언은
+    // 지원하지 않는다 (assembler.cpp의 parseForStatement 참고). 그래서 이 테스트는
+    // gist 원문 그대로의 문법으로 지금은 "Expect expression."을 내며 실패한다.
+    run("for (var j = 0; j < 3; j = j + 1) { print j; }\n", out);
+
+    EXPECT_EQ(programOutput.str(), "0\n1\n2\n");
+    EXPECT_EQ(out.str(), ">>> >>> ");
 }
