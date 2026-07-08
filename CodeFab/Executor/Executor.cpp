@@ -9,6 +9,13 @@ ExecutorError undefinedVariableError(const std::string& name) {
     return ExecutorError("'{}' 변수가 정의되지 않았습니다.", name);
 }
 
+// return 문이 함수/메서드 호출 스택을 즉시 빠져나가기 위해 던지는 내부 전용
+// 제어 흐름 신호. Executor 밖으로 노출하지 않는다(공개 헤더에 없음) - 일반
+// ExecutorError와 섞이지 않도록 별도 타입으로 둔다.
+struct ReturnSignal {
+    Value value;
+};
+
 // Pushes a new scope on construction and guarantees it's popped when the
 // block ends, whether that's normal control flow or an exception unwinding
 // through it (e.g. a statement inside the block throwing).
@@ -217,6 +224,37 @@ void Executor::registerDefaultHandlers() {
         auto* notExpr = static_cast<NotExpression*>(expr);
         return Value(!evaluate(notExpr->operand).isTruthy());
     };
+
+    statementHandlers_[std::type_index(typeid(FunctionDeclareStatement))] = [this](Statement* stmt) {
+        auto* decl = static_cast<FunctionDeclareStatement*>(stmt);
+        // 선언 시점에 이름부터 현재 스코프에 등록해둔다 - 그래야 body 안에서
+        // 자기 자신을 부르는 재귀 호출이 자연스럽게 동작한다(호출은 실제로
+        // 실행될 때 일어나므로, 그 시점엔 이미 이름이 등록되어 있다).
+        environment_.define(decl->name.origin, Value(decl));
+    };
+
+    statementHandlers_[std::type_index(typeid(ReturnStatement))] = [this](Statement* stmt) {
+        auto* ret = static_cast<ReturnStatement*>(stmt);
+        throw ReturnSignal{ ret->value ? evaluate(ret->value) : Value() };
+    };
+
+    expressionHandlers_[std::type_index(typeid(CallExpression))] = [this](Expression* expr) {
+        auto* call = static_cast<CallExpression*>(expr);
+
+        Value callee = evaluate(call->callee);
+        std::vector<Value> args;
+        args.reserve(call->arguments.size());
+        for (Expression* arg : call->arguments) {
+            args.push_back(evaluate(arg));
+        }
+
+        if (callee.isFunction()) {
+            return callFunction(callee.asFunction(), args);
+        }
+        // 클래스 인스턴스화(callee.isClass())와 메서드 호출(callee가
+        // FieldAccessExpression)은 클래스 지원 작업에서 이어서 구현한다.
+        throw ExecutorError("호출할 수 없는 대상입니다.");
+    };
 }
 
 void Executor::execute(SyntaxTree& tree) {
@@ -249,6 +287,37 @@ void Executor::setStatementHook(StatementHook hook) {
 void Executor::requireNumberOperands(const Value& left, const Value& right, const char* op) const {
     if (!left.isNumber() || !right.isNumber())
         throw ExecutorError("타입 오류: {} {} {}", left.typeName(), op, right.typeName());
+}
+
+Value Executor::invoke(const Token& name, const std::vector<Token>& params, const std::vector<Statement*>& body,
+    const std::vector<Value>& args, std::optional<Value> boundThis) {
+    if (args.size() != params.size()) {
+        throw ExecutorError("'{}' 호출에는 인자 {}개가 필요합니다 (전달된 인자: {}개)",
+            name.origin, params.size(), args.size());
+    }
+
+    // ScopeGuard가 소멸자에서 popScope()를 보장하므로, body 실행 중 던져진
+    // ReturnSignal이나 다른 예외로 스택을 빠져나가도 스코프가 안전하게 정리된다.
+    ScopeGuard guard(environment_);
+    if (boundThis) {
+        environment_.define("this", *boundThis);
+    }
+    for (size_t i = 0; i < params.size(); ++i) {
+        environment_.define(params[i].origin, args[i]);
+    }
+
+    try {
+        for (Statement* stmt : body) {
+            execute(stmt);
+        }
+    } catch (const ReturnSignal& ret) {
+        return ret.value;
+    }
+    return Value();  // return 없이 끝나면 Nil.
+}
+
+Value Executor::callFunction(const FunctionDeclareStatement* decl, const std::vector<Value>& args) {
+    return invoke(decl->name, decl->params, decl->body, args);
 }
 
 Value Executor::evaluate(Expression* expr) {

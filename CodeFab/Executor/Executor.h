@@ -2,8 +2,10 @@
 
 #include <functional>
 #include <iostream>
+#include <optional>
 #include <typeindex>
 #include <unordered_map>
+#include <vector>
 
 #include "Environment.h"
 #include "ExecuteInterface.h"
@@ -48,6 +50,17 @@ public:
 private:
     void registerDefaultHandlers();
     void requireNumberOperands(const Value& left, const Value& right, const char* op) const;
+
+    // 함수/메서드 호출의 공용 절차: 새 스코프를 push하고 (this가 있으면 먼저
+    // bind한 뒤) 파라미터를 bind, body를 실행, ReturnStatement가 던지는
+    // ReturnSignal을 잡아 반환값으로 변환한다. FunctionDeclareStatement(this
+    // 없음)와 MethodDeclareStatement(this 있음, §클래스)가 이 헬퍼 하나를
+    // 공유한다.
+    Value invoke(const Token& name, const std::vector<Token>& params, const std::vector<Statement*>& body,
+        const std::vector<Value>& args, std::optional<Value> boundThis = std::nullopt);
+
+    // 최상위 함수 호출 (this 없음).
+    Value callFunction(const FunctionDeclareStatement* decl, const std::vector<Value>& args);
 
     std::ostream& out_;
     Environment environment_;
