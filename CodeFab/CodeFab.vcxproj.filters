@@ -71,9 +71,6 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="ShellErrors.h">
-      <Filter>헤더 파일</Filter>
-    </ClInclude>
     <ClInclude Include="Token.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>

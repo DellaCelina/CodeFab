@@ -164,7 +164,6 @@
     <ClInclude Include="Checker.h" />
     <ClInclude Include="Token.h" />
     <ClInclude Include="Tokenizer.h" />
-    <ClInclude Include="ShellErrors.h" />
     <ClInclude Include="SyntaxTree.h" />
     <ClInclude Include="TokenizeInterface.h" />
     <ClInclude Include="AssemblerInterface.h" />

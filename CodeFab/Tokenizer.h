@@ -5,17 +5,11 @@
 #include <vector>
 #include <string>
 
-// scanTokens() 도중 소스가 아직 끝나지 않은 괄호/문자열을 만나면 던진다.
-// (실제 문법 오류가 아니라 "입력이 더 필요하다"는 신호)
-class TokenizerIncompleteError : public std::runtime_error {
-public:
-    using std::runtime_error::runtime_error;
-};
-
 class Tokenizer : public TokenizeInterface {
 public:
-    // TokenizeInterface 구현: scanTokens()를 감싸서 예외를
-    // IncompleteInputError / AssemblyError로 변환한다.
+    // TokenizeInterface 구현: scanTokens() 중 발견한 문법 오류를 AssemblyError로
+    // 변환해서 던진다 (줄 번호를 메시지에 담는다). 괄호/문자열이 아직 안 닫힌
+    // 경우에는 scanTokens()가 직접 IncompleteInputError를 던진다.
     std::vector<Token> tokenize(const std::string& source) override;
 
 private:

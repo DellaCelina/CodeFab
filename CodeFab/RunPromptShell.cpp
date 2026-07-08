@@ -1,11 +1,7 @@
 ﻿#include "RunPromptShell.h"
 
 #include <cctype>
-#include <stdexcept>
 #include <string>
-
-#include "CheckerInterface.h"
-#include "ShellErrors.h"
 
 namespace {
 
@@ -64,19 +60,12 @@ void RunPromptShell::run(std::istream& in, std::ostream& out) {
             // 괄호/문자열이 아직 안 닫힌 상태: 버퍼를 비우지 않고 다음 줄을 이어받는다.
             out << kContinuationPrompt;
             continue;
-        } catch (const CheckerError& e) {
-            // CheckerError는 CodeFabError를 상속하지 않는 독립적인 예외라서
-            // (CheckerInterface.h 참고, ExecutorError와 같은 방식) 별도로 잡아야 한다.
-            out << "[" << e.line() << "번째 줄] " << e.what() << "\n";
-        } catch (const CodeFabError& e) {
-            out << "[" << e.line() << "번째 줄] " << e.what() << "\n";
-        } catch (const std::invalid_argument& e) {
-            // Assembler가 문법 오류를 std::invalid_argument로 던진다 (line() 정보 없음).
-            out << e.what() << "\n";
         } catch (const std::exception& e) {
-            // Executor가 타입 불일치 등을 만나면 ExecutorError를 던진다. ExecutorError는
-            // line() 정보가 없는 순수 std::exception이라 여기서 마지막 안전망으로 잡아
-            // 메시지만 보고한다 (RunPromptShell.cpp 밖에서 줄 번호를 붙일 방법이 없다).
+            // AssemblyError/AssemblerError/CheckerError/ExecutorError 모두 각자의
+            // 인터페이스 헤더(TokenizeInterface.h/AssemblerInterface.h/
+            // CheckerInterface.h/ExecuteInterface.h)에 정의된, 줄 번호를 별도로
+            // 들고 있지 않는 순수 std::exception이다 (필요하면 메시지에 직접
+            // 줄 번호를 담는다). 그래서 여기서 한 번에 잡아 메시지만 보고한다.
             out << e.what() << "\n";
         }
 

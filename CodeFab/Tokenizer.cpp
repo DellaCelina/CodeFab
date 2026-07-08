@@ -1,5 +1,4 @@
 ﻿#include "Tokenizer.h"
-#include "ShellErrors.h"
 #include <stdexcept>
 #include <cctype>
 #include <unordered_map>
@@ -37,7 +36,7 @@ std::vector<Token> Tokenizer::scanTokens(const std::string& src) {
     // (여는 괄호 없이 등장한 닫는 괄호는 depth를 0 밑으로 내리지 않으므로
     //  문법 오류 여부는 별개로 Assembler가 판단한다.)
     if (parenDepth > 0 || braceDepth > 0) {
-        throw TokenizerIncompleteError("입력이 완결되지 않았습니다.");
+        throw IncompleteInputError("입력이 완결되지 않았습니다.");
     }
 
     tokens.push_back({ TokenType::END_OF_FILE, "", line });
@@ -47,10 +46,11 @@ std::vector<Token> Tokenizer::scanTokens(const std::string& src) {
 std::vector<Token> Tokenizer::tokenize(const std::string& src) {
     try {
         return scanTokens(src);
-    } catch (const TokenizerIncompleteError& e) {
-        throw IncompleteInputError(line, e.what());
     } catch (const std::runtime_error& e) {
-        throw AssemblyError(line, e.what());
+        // IncompleteInputError는 std::exception을 직접 상속해(std::runtime_error가
+        // 아니다) 여기서 잡히지 않고 그대로 통과한다. 그 외의 문법 오류만 줄 번호를
+        // 담아 AssemblyError로 변환한다.
+        throw AssemblyError("[{}번째 줄] {}", line, e.what());
     }
 }
 
@@ -133,7 +133,7 @@ void Tokenizer::scanString() {
         advance();
     }
     if (isAtEnd())
-        throw TokenizerIncompleteError("문자열이 종결되지 않았습니다.");
+        throw IncompleteInputError("문자열이 종결되지 않았습니다.");
 
     advance(); // 닫는 '"' 소비
     // 따옴표를 제거한 실제 문자열 값을 origin에 저장

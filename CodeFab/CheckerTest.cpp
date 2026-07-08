@@ -82,7 +82,9 @@ TEST(CheckerTest, DuplicateDeclarationInSameScopeReportsError) {
         checker.check(tree);
         FAIL() << "CheckerError가 발생해야 합니다.";
     } catch (const CheckerError& e) {
-        EXPECT_EQ(3, e.line());
+        // CheckerError는 줄 번호를 따로 들고 있지 않고 메시지에 직접 담는다
+        // (CheckerInterface.h/checker.cpp의 reportError() 참고).
+        EXPECT_THAT(std::string(e.what()), testing::HasSubstr("3번째 줄"));
         EXPECT_THAT(std::string(e.what()), testing::HasSubstr("이미 해당 변수는 현재 스코프에서 사용중입니다"));
     }
 }
@@ -117,7 +119,7 @@ TEST(CheckerTest, SelfReferenceInInitializerReportsError) {
         checker.check(tree);
         FAIL() << "CheckerError가 발생해야 합니다.";
     } catch (const CheckerError& e) {
-        EXPECT_EQ(2, e.line());
+        EXPECT_THAT(std::string(e.what()), testing::HasSubstr("2번째 줄"));
         EXPECT_THAT(std::string(e.what()), testing::HasSubstr("자신의 초기화식에서 지역변수를 읽을 수 없습니다"));
     }
 }
