@@ -123,6 +123,16 @@ TEST_F(TokenizerFixture, UnknownCharacter) {
     EXPECT_THROW(tokenizer.tokenize("@"), AssemblyError);
 }
 
+// 닫히지 않은 괄호: Tokenizer는 에러 없이 토큰을 반환, 구조 오류는 Assembler가 처리
+TEST_F(TokenizerFixture, UnclosedParen_DoesNotThrow) {
+    EXPECT_NO_THROW(tokenizer.tokenize("print (1 + 2;"));
+}
+
+// 닫히지 않은 중괄호: Tokenizer는 에러 없이 토큰을 반환, 구조 오류는 Assembler가 처리
+TEST_F(TokenizerFixture, UnclosedBrace_DoesNotThrow) {
+    EXPECT_NO_THROW(tokenizer.tokenize("{ var a = 1;"));
+}
+
 // var 선언 구문
 TEST_F(TokenizerFixture, VarDeclaration) {
     auto tokens = tokenizer.tokenize("var x = 10;");
