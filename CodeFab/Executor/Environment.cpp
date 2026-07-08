@@ -38,3 +38,13 @@ std::optional<Value> Environment::lookup(const std::string& name) const {
     }
     return std::nullopt;
 }
+
+std::optional<Value> Environment::lookupAt(int distance, const std::string& name) const {
+    size_t index = scopes_.size() - 1 - static_cast<size_t>(distance);
+    return scopes_[index].get(name);
+}
+
+bool Environment::assignAt(int distance, const std::string& name, const Value& value) {
+    size_t index = scopes_.size() - 1 - static_cast<size_t>(distance);
+    return scopes_[index].assign(name, value);
+}

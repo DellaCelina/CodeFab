@@ -146,6 +146,7 @@
     <ClCompile Include="Tokenizer\TokenizerTest.cpp" />
     <ClCompile Include="Assembler\Assembler.cpp" />
     <ClCompile Include="Assembler\AssemblerTest.cpp" />
+    <ClCompile Include="Assembler\FileSourceReader.cpp" />
     <ClCompile Include="Checker\Checker.cpp" />
     <ClCompile Include="Checker\CheckerTest.cpp" />
     <ClCompile Include="Executor\Executor.cpp" />
@@ -167,11 +168,15 @@
     <ClInclude Include="Assembler\SyntaxTree.h" />
     <ClInclude Include="Assembler\AssemblerInterface.h" />
     <ClInclude Include="Assembler\Assembler.h" />
+    <ClInclude Include="Assembler\SourceReaderInterface.h" />
+    <ClInclude Include="Assembler\FileSourceReader.h" />
     <ClInclude Include="Checker\Checker.h" />
     <ClInclude Include="Checker\CheckerInterface.h" />
     <ClInclude Include="Executor\ExecuteInterface.h" />
     <ClInclude Include="Executor\Executor.h" />
     <ClInclude Include="Executor\Value.h" />
+    <ClInclude Include="Executor\InstanceValue.h" />
+    <ClInclude Include="Executor\ArrayValue.h" />
     <ClInclude Include="Executor\Environment.h" />
     <ClInclude Include="Executor\Scope.h" />
     <ClInclude Include="Shell\RunPromptShell.h" />

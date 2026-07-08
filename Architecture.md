@@ -87,14 +87,22 @@
 
 **Statement 계열**
 
-- `FunctionDeclareStatement(name, params, body)` — `Func add(a, b) { ... }`. 클래스
-  안의 메서드도 **같은 노드**를 그대로 재사용한다("구현을 쉽게 하려고 메서드 앞에도 `Func`를
-  붙인다" — 클래스 바디는 `FunctionDeclareStatement`의 목록일 뿐, 별도의 "메서드 선언" 문법이
-  없다). 생성자도 별도 노드가 아니라 이름이 관례적으로 `init`인 평범한
-  `FunctionDeclareStatement`다.
-- `ReturnStatement(keyword, value?)` — `value`는 없을 수 있다(nullptr 허용).
-- `ClassDeclareStatement(name, methods)` — `methods`는 `FunctionDeclareStatement*` 목록.
-  (상속 확장 시 `superclass` 필드를 추가하면 됨 — §4.5)
+- `FunctionDeclareStatement(name, params, body)` — `Func add(a, b) { ... }`. 최상위
+  함수 선언 전용 노드다.
+- `MethodDeclareStatement(name, params, body)` — `move(dist) { ... }`처럼 클래스
+  바디 안에서 `Func` 키워드 없이 `이름(params) { ... }` 형태로 선언되는 메서드 전용
+  노드다(3일차 슬라이드의 실제 문법을 그대로 따름). `FunctionDeclareStatement`와 필드
+  모양은 동일하지만(`name`/`params`/`body`), **문법이 서로 다르므로**(하나는 `FUNC`
+  토큰으로 시작하고, 하나는 바로 식별자로 시작) 별도 타입으로 둔다 — 이렇게 하면
+  Assembler가 "지금 클래스 바디 안이라 Func 없이 파싱"이라는 문맥을 노드 타입 자체로
+  표현할 수 있고, Checker/Executor도 `dynamic_cast`로 "이건 메서드다"를 바로 구분할 수
+  있다. 생성자도 별도 노드가 아니라 이름이 관례적으로 `init`인 평범한
+  `MethodDeclareStatement`다.
+- `ReturnStatement(keyword, value?)` — `value`는 없을 수 있다(nullptr 허용). 최상위
+  함수와 메서드 모두 이 노드를 공유한다(둘 다 body가 `Statement*` 목록이라는 점은
+  같으므로 return 문 자체를 분기할 필요는 없다).
+- `ClassDeclareStatement(name, methods)` — `methods`는 `MethodDeclareStatement*`
+  목록. (상속 확장 시 `superclass` 필드를 추가하면 됨 — §4.5)
 - `ImportStatement(alias, declarations)` — `alias`는 식별자 Token, `declarations`는
   import 대상 파일에서 뽑아낸 최상위 `Statement*` 목록(주로 `VarDeclareStatement`,
   `FunctionDeclareStatement`). **파일을 읽고 파싱하는 일은 Assembler가 이 노드를 만드는
@@ -250,6 +258,14 @@ std::variant<std::monostate, bool, double, std::string,
      인자 값을 `define`, `body`의 각 `Statement`를 실행한다.
   3. `Class` 타입이면 §4.3의 인스턴스 생성 로직으로 위임한다.
   4. 그 외 타입이면 `ExecutorError`("호출할 수 없는 대상입니다").
+- "새 스코프 push → 파라미터 bind(+ 있으면 `this` bind) → body 실행 → `ReturnSignal`
+  캐치 → 스코프 pop"이라는 호출 절차 자체는 최상위 함수(`FunctionDeclareStatement`)와
+  클래스 메서드(`MethodDeclareStatement`, §4.3)가 완전히 동일하다. 두 노드 타입이
+  달라서 코드가 중복되지 않도록, `name`/`params`/`body`만 받는 공용 내부 헬퍼(예:
+  `Value invoke(const Token& name, const std::vector<Token>& params, const
+  std::vector<Statement*>& body, const std::vector<Value>& args,
+  std::optional<Value> boundThis)`)로 뽑아서 두 CallExpression 경로(일반 호출,
+  §4.3의 메서드 호출)가 함께 호출하는 것을 권장한다.
 - **`this`가 없는 일반 함수는 호출 시 현재 스코프 스택(호출부의 지역 스코프 포함) 바로
   위에 새 스코프를 얹는 가장 단순한 방식을 쓴다.** 즉, 클로저(선언 시점 환경 캡처)는
   구현하지 않는다 — 함수는 자신의 파라미터와 전역만 참조하는 것을 전제로 하고, 호출부의
@@ -270,9 +286,12 @@ std::variant<std::monostate, bool, double, std::string,
 ### 4.1 Assembler
 
 - `parseDeclaration()`에 `CLASS` 분기 추가. `Class Name { method* }`를 파싱해
-  `ClassDeclareStatement`를 만든다. `method*`는 각각 `FUNC` 키워드로 시작하는
-  `FunctionDeclareStatement` 파싱을 그대로 반복 호출한 것 — **클래스 전용 파싱 로직이
-  따로 필요 없다**.
+  `ClassDeclareStatement`를 만든다. `method*`는 `FUNC` 키워드 없이 바로
+  `IDENTIFIER LEFT_PAREN params? RIGHT_PAREN blockStmt` 형태로 파싱해서
+  `MethodDeclareStatement`를 만든다 — 최상위 함수 파싱(`parseFunction`, `FUNC` 토큰
+  소비 포함)과는 진입 조건이 다르지만, `FUNC` 토큰 소비 한 줄만 빠질 뿐 나머지
+  (이름/파라미터 목록/바디 파싱) 로직은 그대로 재사용할 수 있다(공용 헬퍼로 뽑아
+  `parseFunction`과 `parseMethod`가 함께 호출하게 만들면 중복이 없다).
 - Primary 표현식에 `THIS` 분기 추가: `This` → `ThisExpression`.
 - §3.1에서 추가한 postfix 체인의 `.` 분기가 `FieldAccessExpression`을 만든다. 이 체인
   바로 다음에 `=`이 오면(대입 파싱 레벨에서) 좌변이 `FieldAccessExpression`인
@@ -303,7 +322,7 @@ std::variant<std::monostate, bool, double, std::string,
   1. `object`를 평가해 `Instance`가 아니면 `ExecutorError`.
   2. `instance.fields->get(name)`이 있으면 그 값을 반환.
   3. 없으면 `instance.klass->methods`에서 이름이 일치하는
-     `FunctionDeclareStatement`를 찾는다 — 있으면 **"바인딩된 메서드"** 를 표현할 별도
+     `MethodDeclareStatement`를 찾는다 — 있으면 **"바인딩된 메서드"** 를 표현할 별도
      타입을 새로 만들지 않고, 이 경우는 항상 바로 다음에 `CallExpression`의 callee로만
      쓰인다는 점을 이용해 **`CallExpression` 핸들러가 callee 표현식 자체가
      `FieldAccessExpression`인지를 먼저 검사**하도록 한다(아래).
@@ -475,14 +494,31 @@ public:
 
 ### 7.1 Assembler 의존성 확장
 
-`Assembler`는 이제 `import`를 처리하려면 (1) 파일 내용을 읽고 (2) 그 내용을 토큰화하고
-(3) 다시 문법 트리로 조립해야 하므로 아래 두 협력자를 주입받는다.
+`Assembler`는 이제 `import`를 처리하려면 (1) 파일 내용을 읽고 (2) 그 내용을 토큰화해야
+한다. 이 두 단계를 **Assembler가 직접 하지 않고 `SourceReaderInterface` 하나에
+위임**한다 — `SourceReaderInterface`가 내부적으로 `TokenizeInterface`를 들고 있다가
+`read(path)` 호출 시 파일을 읽고 그 자리에서 토큰화까지 마친
+`std::vector<Token>`을 반환한다. 그 결과 **Assembler는 `SourceReaderInterface`
+하나만 주입받으면 된다** — Tokenizer에 대한 의존은 `SourceReaderInterface` 구현체
+안으로 완전히 캡슐화된다.
 
 ```cpp
 // Assembler/SourceReaderInterface.h  (신규, 테스트에서 Fake로 대체하기 위한 최소 추상화)
 struct SourceReaderInterface {
     virtual ~SourceReaderInterface() = default;
-    virtual std::string read(const std::string& path) = 0; // 파일 없으면 예외
+    // path의 소스를 읽어 토큰화까지 마친 결과를 반환한다. 파일이 없으면 예외.
+    virtual std::vector<Token> read(const std::string& path) = 0;
+};
+```
+
+```cpp
+// Assembler/FileSourceReader.h  (SourceReaderInterface의 실제 파일 시스템 구현체)
+class FileSourceReader : public SourceReaderInterface {
+public:
+    explicit FileSourceReader(TokenizeInterface& tokenizer);
+    std::vector<Token> read(const std::string& path) override;
+private:
+    TokenizeInterface& tokenizer_; // 파일 내용을 읽은 뒤 이걸로 토큰화한다
 };
 ```
 
@@ -490,16 +526,19 @@ struct SourceReaderInterface {
 // Assembler/Assembler.h
 class Assembler : public AssemblerInterface {
 public:
-    Assembler(TokenizeInterface& tokenizer, SourceReaderInterface& sourceReader);
+    explicit Assembler(SourceReaderInterface& sourceReader);
     ...
 private:
     std::vector<std::string> importStack_; // 순환 import 검출용
 };
 ```
 
-`main.cpp`는 실제 파일을 읽는 `SourceReaderInterface` 구현체(표준 `ifstream` 기반)를
-만들어 주입하고, `AssemblerTest`/`CheckerTest`는 인메모리 Fake를 주입해 파일 시스템 없이
-테스트한다.
+`main.cpp`는 `Tokenizer`를 먼저 만들고, 그걸 `FileSourceReader`에 주입하고, 그
+`FileSourceReader`를 다시 `Assembler`에 주입한다(생성 순서: `tokenizer` →
+`sourceReader(tokenizer)` → `assembler(sourceReader)`). `AssemblerTest`/`CheckerTest`는
+`SourceReaderInterface`의 인메모리 Fake(맵 기반: path → 미리 만들어둔
+`vector<Token>`)를 주입해 파일 시스템과 실제 Tokenizer 없이도 import 관련 케이스를
+테스트할 수 있다.
 
 ### 7.2 import 문 파싱과 재귀 컴파일
 
@@ -507,11 +546,12 @@ private:
   1. 문자열 리터럴 `path`가 이미 `importStack_`에 있으면 `AssemblerError`("순환
      import").
   2. `importStack_.push_back(path)`.
-  3. `sourceReader_.read(path)`로 파일 내용을 읽는다(파일이 없으면 `SourceReaderInterface`
-     구현체가 던지는 예외를 `AssemblerError`("import 대상 파일 없음")로 감싸 다시 던진다).
-  4. `tokenizer_.tokenize(content)` → `assemble(tokens)`를 **재귀 호출**해서 그 파일의
-     `SyntaxTree`를 얻는다(그 파일 안에 또 `import`가 있으면 자연스럽게 더 재귀된다 —
-     `importStack_`을 인스턴스 멤버로 두었기 때문에 순환은 재귀 스택 전체에서 감지된다).
+  3. `sourceReader_.read(path)`로 파일을 읽고 토큰화까지 완료된
+     `std::vector<Token>`을 받는다(파일이 없으면 `SourceReaderInterface` 구현체가
+     던지는 예외를 `AssemblerError`("import 대상 파일 없음")로 감싸 다시 던진다).
+  4. 받은 토큰으로 `assemble(tokens)`를 **재귀 호출**해서 그 파일의 `SyntaxTree`를
+     얻는다(그 파일 안에 또 `import`가 있으면 자연스럽게 더 재귀된다 — `importStack_`을
+     인스턴스 멤버로 두었기 때문에 순환은 재귀 스택 전체에서 감지된다).
   5. 결과 트리의 최상위 문장들 중 `VarDeclareStatement`/`FunctionDeclareStatement`만
      추려 `ImportStatement(alias, declarations)`에 담는다(그 외 문장이 섞여 있으면
      팀 컨벤션에 따라 무시하거나 `AssemblerError` — "선언 외 내용은 허용하지 않음"을
@@ -641,7 +681,7 @@ void setStatementHook(StatementHook hook); // 미설정 시 REPL/File 모드는 
 | Unit | 신규 파일 | 주요 변경 파일 |
 |---|---|---|
 | Tokenizer | — | `Token.h` (TokenType 추가: FUNC/RETURN/CLASS/THIS/ARRAY/IMPORT/ALIAS/INSTANCEOF/DOT/LEFT_BRACKET/RIGHT_BRACKET/COMMA) |
-| Assembler | `SourceReaderInterface.h` | `SyntaxTree.h` (신규 노드, `AssignExpression` 대상 일반화, `IdentifierExpression::depth`, `SyntaxNode::containsLine`, 자식 포인터 const 완화), `Assembler.h/.cpp` (신규 문법 파싱 + postfix 체인 + import 재귀 컴파일, `TokenizeInterface&`/`SourceReaderInterface&` 의존성 추가) |
+| Assembler | `SourceReaderInterface.h`, `FileSourceReader.h/.cpp` | `SyntaxTree.h` (신규 노드 — `MethodDeclareStatement` 포함, `AssignExpression` 대상 일반화, `IdentifierExpression::depth`, `SyntaxNode::containsLine`, 자식 포인터 const 완화), `Assembler.h/.cpp` (신규 문법 파싱 + postfix 체인 + import 재귀 컴파일, `SourceReaderInterface&` 의존성 추가) |
 | Checker | `Resolver.h/.cpp`(선택), `ConstantFolder.h/.cpp`(선택) | `Checker.h/.cpp` (함수/클래스/import 의미 검사, Resolver·ConstantFolder 호출, `ExecuteInterface&` 의존성 추가), `CheckerInterface.h` |
 | Executor | `InstanceValue.h`, `ArrayValue.h` | `Value.h/.cpp` (참조 타입 추가), `Environment.h/.cpp` (`lookupAt`/`assignAt`), `Executor.h/.cpp` (신규 노드 핸들러, ReturnSignal, StatementHook), `ExecuteInterface.h` (`evaluate`, `environment` 공개 메서드 추가) |
 | Shell | `FileRunMode.h/.cpp`, `DebugMode.h/.cpp`, `Debugger.h/.cpp`, `CommandLineArgs.h/.cpp` | `main.cpp` (모드 분기, `SourceReaderInterface` 구현체 생성), `RunPromptShell.h/.cpp` (변경 없음 또는 import 관련 예외 처리 추가) |
@@ -658,9 +698,13 @@ void setStatementHook(StatementHook hook); // 미설정 시 REPL/File 모드는 
   그대로 활용한다.
 - **Command** — Debugger의 각 명령(`step`/`break`/`watch` 등)을 `Command` 객체로
   캡슐화하면 명령 추가/조합이 쉬워진다.
-- **Strategy** — Assembler가 주입받는 `SourceReaderInterface`(실제 파일 시스템 vs.
+- **Strategy** — Assembler가 주입받는 `SourceReaderInterface`(내부적으로
+  `TokenizeInterface`를 캡슐화한 실제 파일 시스템 구현 `FileSourceReader` vs.
   테스트용 인메모리 Fake), 그리고 정적 바인딩 성공/실패에 따라 `Environment` 조회가
   `*At`(정적)과 `lookup`(동적) 사이에서 갈리는 부분이 Strategy 패턴에 해당한다.
+- **Facade** — `SourceReaderInterface`가 "파일 읽기 + 토큰화"라는 두 단계를 `read(path)`
+  호출 하나로 감싸서, Assembler가 `TokenizeInterface`를 직접 알 필요 없이 바로
+  `vector<Token>`을 받게 해준다.
 - **Template Method(참고)** — `Checker::check()`가 SemanticAnalyzer → Resolver →
   ConstantFolder 순서로 고정된 절차를 밟는 구조가 Template Method적 성격을 갖는다.
 
@@ -694,11 +738,18 @@ void setStatementHook(StatementHook hook); // 미설정 시 REPL/File 모드는 
   `AssemblerTest`의 트리 동등성 비교가 "폴딩되지 않은 원본"과 다를 수 있으므로, 이런
   테스트는 최적화 이전 단계(Checker 호출 전)의 트리만 검사하도록 하거나 기대값을 폴딩
   결과로 갱신해야 한다.
-- **`Assembler` 생성자 시그니처 변경**(`TokenizeInterface&`, `SourceReaderInterface&`
-  주입)과 **`Checker` 생성자 시그니처 변경**(`ExecuteInterface&` 주입)은 `AssemblerInterface`/
+- **`Assembler` 생성자 시그니처 변경**(`SourceReaderInterface&` 주입 — `Tokenizer`는
+  더 이상 Assembler가 직접 받지 않고 `FileSourceReader` 내부에 캡슐화됨)과 **`Checker`
+  생성자 시그니처 변경**(`ExecuteInterface&` 주입)은 `AssemblerInterface`/
   `CheckerInterface`를 통해 다형적으로 쓰는 `RunPromptShell`에는 영향이 없지만, 구체
   클래스를 직접 생성하는 `main.cpp`, `AssemblerTest.cpp`, `CheckerTest.cpp`의 생성자
-  호출부는 함께 수정해야 한다.
+  호출부는 함께 수정해야 한다. `main.cpp`는 이제 `Tokenizer` → `FileSourceReader
+  (tokenizer)` → `Assembler(sourceReader)` 순서로 만들어야 한다.
+- **`MethodDeclareStatement`를 `FunctionDeclareStatement`와 별도 타입으로 둔 결정**은
+  Checker/Executor가 "이건 최상위 함수다"와 "이건 메서드다"를 노드 타입만으로 구분할 수
+  있게 해주지만, 반대로 두 타입에 대해 각각 별도의 `dynamic_cast`/핸들러 등록이
+  필요하다는 뜻이기도 하다 - Executor에서는 §3.3에서 제안한 공용 `invoke()` 헬퍼로
+  중복을 줄인다.
 - **`ExecuteInterface`에 `evaluate`/`environment` 추가**는 인터페이스 확장이므로, 이
   인터페이스를 구현하는 테스트용 Mock/Fake(`RunPromptShellTest.cpp` 등에 있을 수 있는
   `MockExecutor` 류)도 새 순수 가상 함수를 구현하도록 함께 갱신해야 컴파일된다.

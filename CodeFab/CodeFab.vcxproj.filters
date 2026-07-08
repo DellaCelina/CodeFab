@@ -45,6 +45,9 @@
     <ClCompile Include="Assembler\AssemblerTest.cpp">
       <Filter>Assembler</Filter>
     </ClCompile>
+    <ClCompile Include="Assembler\FileSourceReader.cpp">
+      <Filter>Assembler</Filter>
+    </ClCompile>
     <ClCompile Include="Checker\Checker.cpp">
       <Filter>Checker</Filter>
     </ClCompile>
@@ -104,6 +107,12 @@
     <ClInclude Include="Assembler\Assembler.h">
       <Filter>Assembler</Filter>
     </ClInclude>
+    <ClInclude Include="Assembler\SourceReaderInterface.h">
+      <Filter>Assembler</Filter>
+    </ClInclude>
+    <ClInclude Include="Assembler\FileSourceReader.h">
+      <Filter>Assembler</Filter>
+    </ClInclude>
     <ClInclude Include="Checker\CheckerInterface.h">
       <Filter>Checker</Filter>
     </ClInclude>
@@ -117,6 +126,12 @@
       <Filter>Executor</Filter>
     </ClInclude>
     <ClInclude Include="Executor\Value.h">
+      <Filter>Executor</Filter>
+    </ClInclude>
+    <ClInclude Include="Executor\InstanceValue.h">
+      <Filter>Executor</Filter>
+    </ClInclude>
+    <ClInclude Include="Executor\ArrayValue.h">
       <Filter>Executor</Filter>
     </ClInclude>
     <ClInclude Include="Executor\Environment.h">

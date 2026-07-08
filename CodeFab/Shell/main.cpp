@@ -6,6 +6,7 @@
 
 #include "../Tokenizer/Tokenizer.h"
 #include "../Assembler/Assembler.h"
+#include "../Assembler/FileSourceReader.h"
 #include "../Checker/Checker.h"
 #include "../Executor/Executor.h"
 #include "RunPromptShell.h"
@@ -19,10 +20,11 @@ int main() {
     return RUN_ALL_TESTS();
 #else
     Tokenizer tokenizer;
+    FileSourceReader sourceReader(tokenizer);
 
-    Assembler assembler;
-    Checker checker;
+    Assembler assembler(sourceReader);
     Executor executor;
+    Checker checker(executor);
 
     RunPromptShell shell(tokenizer, assembler, checker, executor);
     shell.run(std::cin, std::cout);

@@ -1,6 +1,6 @@
 ﻿#include "Checker.h"
 
-Checker::Checker() {
+Checker::Checker(ExecuteInterface& executor) : executor_(executor) {
     enterScope();  // 세션 전체에 걸쳐 유지되는 전역 스코프
 }
 
