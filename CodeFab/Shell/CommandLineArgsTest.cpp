@@ -72,3 +72,31 @@ TEST(CommandLineArgsTest, UnknownMode_ThrowsInvalidArgument) {
     EXPECT_THROW(CommandLineArgs::parse(static_cast<int>(argv.size()), argv.data()),
                  std::invalid_argument);
 }
+
+TEST(CommandLineArgsTest, LongHelpFlag_ParsesHelpModeWithoutPath) {
+    std::vector<std::string> args{ "CodeFab.exe", "--help" };
+    auto argv = makeArgv(args);
+
+    CommandLineArgs result = CommandLineArgs::parse(static_cast<int>(argv.size()), argv.data());
+
+    EXPECT_EQ(result.mode, ShellMode::Help);
+    EXPECT_EQ(result.path, "");
+}
+
+TEST(CommandLineArgsTest, ShortHelpFlag_ParsesHelpModeWithoutPath) {
+    std::vector<std::string> args{ "CodeFab.exe", "-h" };
+    auto argv = makeArgv(args);
+
+    CommandLineArgs result = CommandLineArgs::parse(static_cast<int>(argv.size()), argv.data());
+
+    EXPECT_EQ(result.mode, ShellMode::Help);
+    EXPECT_EQ(result.path, "");
+}
+
+TEST(CommandLineArgsTest, UsageText_MentionsAllThreeModes) {
+    std::string usage = CommandLineArgs::usageText();
+
+    EXPECT_NE(usage.find("REPL"), std::string::npos);
+    EXPECT_NE(usage.find("run"), std::string::npos);
+    EXPECT_NE(usage.find("debug"), std::string::npos);
+}
