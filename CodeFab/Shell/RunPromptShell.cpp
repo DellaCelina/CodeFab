@@ -76,10 +76,6 @@ void RunPromptShell::run(std::istream& in, std::ostream& out) {
             } else {
                 out << "코드 검사에 실패했습니다.\n";
             }
-        } catch (const IncompleteInputError&) {
-            // 괄호/문자열이 아직 안 닫힌 상태: 버퍼를 비우지 않고 다음 줄을 이어받는다.
-            out << kContinuationPrompt;
-            continue;
         } catch (const std::exception& e) {
             // AssemblyError/AssemblerError/CheckerError/ExecutorError 모두 각자의
             // 인터페이스 헤더(TokenizeInterface.h/AssemblerInterface.h/

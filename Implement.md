@@ -881,21 +881,24 @@ statementHandlers_[std::type_index(typeid(ImportStatement))] = [this](Statement*
     auto* importStmt = static_cast<ImportStatement*>(stmt);
     auto moduleScope = std::make_shared<Scope>();
 
-    environment_.pushScope(); // declarations 실행용 임시 프레임
-    for (Statement* decl : importStmt->declarations) {
-        execute(decl);
-    }
-    // 방금 실행한 선언들이 현재(임시) 스코프에 등록되어 있다 - 이를
-    // moduleScope로 복사해 옮긴다. Scope에 내용을 훑는 API가 없다면
-    // 필요한 만큼만(예: 순회용 getter) 추가한다 - Environment/Scope도
-    // 공유 인터페이스이니 추가하게 되면 팀에 공유한다.
-    // (간단한 대안: declarations를 실행하기 전에 어떤 이름들이 선언될지
-    // 미리 알고 있다면 그 이름들만 moduleScope로 복사해도 된다.)
-    environment_.popScope();
+    {
+        ScopeGuard guard(environment_);  // declarations 실행용 임시 프레임.
+        for (Statement* decl : importStmt->declarations) {
+            execute(decl);
+            std::string name = declaredNameOf(decl);
+            moduleScope->define(name, *environment_.lookup(name));
+        }
+    }  // 임시 프레임은 여기서 pop된다 - alias는 바깥(호출 시점) 스코프에 등록한다.
 
     environment_.define(importStmt->alias.origin, Value(moduleScope));
 };
 ```
+
+`declaredNameOf`는 `Statement*`를 받아 해당 선언이 등록하는 이름을 반환하는 파일 내
+헬퍼 함수다(`VarDeclareStatement` / `FunctionDeclareStatement` / `ClassDeclareStatement`
+세 가지를 분기한다). `Scope`에 "내용을 훑는" API를 새로 추가하지 않아도 되며, var이든
+Func이든 Class든 모두 `moduleScope` 하나에 나란히 들어가므로 `moduleScope->get(name)`
+한 번으로 끝난다(Class처럼 "필드 → 없으면 메서드 목록"의 2단계 폴백이 필요 없음).
 
 `FieldAccessExpression`/`CallExpression`의 object가 `Module`이면
 `instance->fields->get(...)` 대신 `moduleScope->get(...)`을 쓰도록 위 핸들러들에

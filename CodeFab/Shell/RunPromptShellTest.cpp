@@ -12,6 +12,10 @@
 #include "../Executor/Executor.h"
 #include "../Tokenizer/Tokenizer.h"
 
+using ::testing::AllOf;
+using ::testing::HasSubstr;
+using ::testing::StartsWith;
+
 // 이 파일은 RunPromptShell 자신의 로직(줄 버퍼링, '\' 줄 이음, 빈 줄/exit 처리,
 // 프롬프트 출력 순서, 4-Unit 중 어디서 예외가 나든 한 줄 실패가 다음 줄 실행을
 // 막지 않는지)을 검증하는 단위 테스트다. 예전에는 4개 *Interface를 gmock으로
@@ -89,24 +93,12 @@ TEST_F(RunPromptShellTest, MultipleLines_ShareStateAcrossLinesUsingSameExecutorI
     EXPECT_EQ(programOutput.str(), "3\n");
 }
 
-TEST_F(RunPromptShellTest, UnterminatedString_WaitsForMoreInputWhenTokenizerReportsIncomplete) {
-    // 실제 Tokenizer가 IncompleteInputError를 던지는 유일한 경우는 문자열
-    // 리터럴이 닫는 따옴표 없이 끝나는 경우다(괄호/중괄호 깊이는 더 이상
-    // 추적하지 않는다). 이 신호를 받으면 셸은 버퍼를 비우지 않고 다음 줄을
-    // 이어받는다.
+TEST_F(RunPromptShellTest, UnterminatedString_ReportsError) {
     std::ostringstream out;
     run("print \"hello\n", out);
 
-    EXPECT_EQ(out.str(), ">>> ... ");
+    EXPECT_THAT(out.str(), AllOf(StartsWith(">>> "), HasSubstr("문자열이 종결되지 않았습니다")));
     EXPECT_EQ(programOutput.str(), "");
-}
-
-TEST_F(RunPromptShellTest, MultilineString_CompletesWhenClosingQuoteArrives) {
-    std::ostringstream out;
-    run("print \"hello\nworld\";\n", out);
-
-    EXPECT_EQ(out.str(), ">>> ... >>> ");
-    EXPECT_EQ(programOutput.str(), "hello\nworld\n");
 }
 
 TEST_F(RunPromptShellTest, LineEndingWithBackslash_WaitsForNextLineWithoutRunningPipeline) {

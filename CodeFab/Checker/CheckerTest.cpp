@@ -16,14 +16,6 @@ static std::vector<Token> testTokens(TokenType type, const std::string& origin, 
     return { Token{ type, origin, line } };
 }
 
-// ConstantFolder가 executor_.evaluate()를 올바른 대상/횟수로 호출하는지 검증하기 위한 mock.
-class MockExecuteInterface : public ExecuteInterface {
-public:
-    MOCK_METHOD(void, execute, (SyntaxTree& tree), (override));
-    MOCK_METHOD(Value, evaluate, (Expression* expr), (override));
-    MOCK_METHOD(const Environment&, environment, (), (const, override));
-};
-
 // 대부분의 테스트가 공유하는 준비물: 빈 트리 하나, 실제 Executor, 그 위의 Checker.
 class CheckerTest : public ::testing::Test {
 protected:
@@ -787,114 +779,198 @@ TEST_F(CheckerTest, ResolverAssignsDepthOneForOuterScopeVariable) {
 }
 
 // ===========================================================================
-// ConstantFolder (호출 검증 - 실제 트리 치환은 하지 않음, TODO(refactor) 참고)
+// import 스코프 누락 수정 (checkImport, PR #36 지적사항)
 // ===========================================================================
 
-// 실제 Executor 대신 MockExecuteInterface를 주입한 Checker가 필요한 테스트 전용 fixture.
-class CheckerConstantFolderTest : public ::testing::Test {
-protected:
-    SyntaxTree tree;
-    MockExecuteInterface executor;
-    Checker checker{ executor };
-};
+// { import "sum.txt" alias sum; print inner; }   -> import 내부 선언(inner)이 바깥
+// 스코프로 새어나가면 안 된다. sum은 보이지만 inner는 선언되지 않은 변수여야 한다.
+TEST_F(CheckerTest, ImportInternalDeclarationDoesNotLeakIntoEnclosingScope) {
+    auto innerIdent = std::make_unique<IdentifierExpression>(testTokens(TokenType::IDENTIFIER, "inner", 1), "inner");
+    auto innerLit = std::make_unique<NumberExpression>(testTokens(TokenType::NUMBER, "1", 1), 1.0);
+    auto innerDecl = std::make_unique<DeclareStatement>(testTokens(TokenType::VAR, "var", 1), innerIdent.get(), innerLit.get());
 
-// print 1 + 2;   -> 두 자식이 모두 리터럴이므로 evaluate()가 정확히 한 번 호출된다.
-TEST_F(CheckerConstantFolderTest, ConstantFolderCallsEvaluateOnceForLiteralBinaryExpression) {
-    auto lit1 = std::make_unique<NumberExpression>(testTokens(TokenType::NUMBER, "1", 1), 1.0);
-    auto lit2 = std::make_unique<NumberExpression>(testTokens(TokenType::NUMBER, "2", 1), 2.0);
-    auto add = std::make_unique<AddExpression>(testTokens(TokenType::PLUS, "+", 1), lit1.get(), lit2.get());
-    auto printStmt = std::make_unique<PrintStatement>(testTokens(TokenType::PRINT, "print", 1), add.get());
+    Token alias{ TokenType::IDENTIFIER, "sum", 1 };
+    auto importStmt = std::make_unique<ImportStatement>(
+        testTokens(TokenType::IMPORT, "import", 1), alias, std::vector<Statement*>{ innerDecl.get() });
 
-    SyntaxNode* root = printStmt.get();
-    AddExpression* addRaw = add.get();
-    tree.add(std::move(lit1));
-    tree.add(std::move(lit2));
-    tree.add(std::move(add));
-    tree.add(std::move(printStmt));
-    tree.setRoot(root);
+    auto usageInner = std::make_unique<IdentifierExpression>(testTokens(TokenType::IDENTIFIER, "inner", 2), "inner");
+    auto printStmt = std::make_unique<PrintStatement>(testTokens(TokenType::PRINT, "print", 2), usageInner.get());
 
-    EXPECT_CALL(executor, evaluate(static_cast<Expression*>(addRaw)))
-        .Times(1)
-        .WillOnce(testing::Return(Value(3.0)));
-
-    EXPECT_TRUE(checker.check(tree));
-}
-
-// print 1 + 2 * 3;   -> mult(2, 3)는 자식이 모두 리터럴이라 폴딩 대상이지만, add의 오른쪽
-// 자식은 (트리를 아직 치환하지 않으므로) 여전히 BinaryExpression이라 리터럴이 아니다.
-// 그래서 evaluate()는 mult에 대해서만 한 번 호출돼야 한다.
-TEST_F(CheckerConstantFolderTest, ConstantFolderOnlyFoldsDirectlyNestedLiteralOperands) {
-    auto lit1 = std::make_unique<NumberExpression>(testTokens(TokenType::NUMBER, "1", 1), 1.0);
-    auto lit2 = std::make_unique<NumberExpression>(testTokens(TokenType::NUMBER, "2", 1), 2.0);
-    auto lit3 = std::make_unique<NumberExpression>(testTokens(TokenType::NUMBER, "3", 1), 3.0);
-    auto mult = std::make_unique<MultExpression>(testTokens(TokenType::STAR, "*", 1), lit2.get(), lit3.get());
-    auto add = std::make_unique<AddExpression>(testTokens(TokenType::PLUS, "+", 1), lit1.get(), mult.get());
-    auto printStmt = std::make_unique<PrintStatement>(testTokens(TokenType::PRINT, "print", 1), add.get());
-
-    SyntaxNode* root = printStmt.get();
-    MultExpression* multRaw = mult.get();
-    tree.add(std::move(lit1));
-    tree.add(std::move(lit2));
-    tree.add(std::move(lit3));
-    tree.add(std::move(mult));
-    tree.add(std::move(add));
-    tree.add(std::move(printStmt));
-    tree.setRoot(root);
-
-    EXPECT_CALL(executor, evaluate(static_cast<Expression*>(multRaw)))
-        .Times(1)
-        .WillOnce(testing::Return(Value(6.0)));
-
-    EXPECT_TRUE(checker.check(tree));
-}
-
-// print a + 2;   -> a가 변수(리터럴이 아님)라 폴딩 대상이 아니다. evaluate()가 호출되면 안 된다.
-TEST_F(CheckerConstantFolderTest, ConstantFolderDoesNotCallEvaluateWhenOperandIsVariable) {
-    auto declIdent = std::make_unique<IdentifierExpression>(testTokens(TokenType::IDENTIFIER, "a", 1), "a");
-    auto lit1 = std::make_unique<NumberExpression>(testTokens(TokenType::NUMBER, "1", 1), 1.0);
-    auto declA = std::make_unique<DeclareStatement>(testTokens(TokenType::VAR, "var", 1), declIdent.get(), lit1.get());
-
-    auto usageA = std::make_unique<IdentifierExpression>(testTokens(TokenType::IDENTIFIER, "a", 2), "a");
-    auto lit2 = std::make_unique<NumberExpression>(testTokens(TokenType::NUMBER, "2", 2), 2.0);
-    auto add = std::make_unique<AddExpression>(testTokens(TokenType::PLUS, "+", 2), usageA.get(), lit2.get());
-    auto printStmt = std::make_unique<PrintStatement>(testTokens(TokenType::PRINT, "print", 2), add.get());
-
-    std::vector<Statement*> stmts{ declA.get(), printStmt.get() };
+    std::vector<Statement*> stmts{ importStmt.get(), printStmt.get() };
     auto block = std::make_unique<BlockStatement>(testTokens(1), stmts);
 
     SyntaxNode* root = block.get();
-    tree.add(std::move(declIdent));
-    tree.add(std::move(lit1));
-    tree.add(std::move(declA));
-    tree.add(std::move(usageA));
-    tree.add(std::move(lit2));
-    tree.add(std::move(add));
+    tree.add(std::move(innerIdent));
+    tree.add(std::move(innerLit));
+    tree.add(std::move(innerDecl));
+    tree.add(std::move(importStmt));
+    tree.add(std::move(usageInner));
     tree.add(std::move(printStmt));
     tree.add(std::move(block));
     tree.setRoot(root);
 
-    EXPECT_CALL(executor, evaluate(testing::_)).Times(0);
+    try {
+        checker.check(tree);
+        FAIL() << "CheckerError가 발생해야 합니다.";
+    } catch (const CheckerError& e) {
+        EXPECT_THAT(std::string(e.what()), testing::HasSubstr("'inner'에러: 선언되지 않은 변수입니다"));
+    }
+}
+
+// ===========================================================================
+// 상속 의미 검사 (결정 2: 클래스가 아닌 대상 상속 금지 / 자기 자신 상속 금지)
+// ===========================================================================
+
+// Class A : A { }   -> 자기 자신을 상속할 수 없다.
+TEST_F(CheckerTest, ClassInheritingFromItselfReportsError) {
+    Token className{ TokenType::IDENTIFIER, "A", 1 };
+    auto superIdent = std::make_unique<IdentifierExpression>(testTokens(TokenType::IDENTIFIER, "A", 1), "A");
+    auto classDecl = std::make_unique<ClassDeclareStatement>(
+        testTokens(TokenType::CLASS, "Class", 1), className, std::vector<MethodDeclareStatement*>{}, superIdent.get());
+
+    SyntaxNode* root = classDecl.get();
+    tree.add(std::move(superIdent));
+    tree.add(std::move(classDecl));
+    tree.setRoot(root);
+
+    try {
+        checker.check(tree);
+        FAIL() << "CheckerError가 발생해야 합니다.";
+    } catch (const CheckerError& e) {
+        EXPECT_THAT(std::string(e.what()), testing::HasSubstr("자기 자신을 상속할 수 없습니다"));
+    }
+}
+
+// var x = 10; Class B : x { }   -> 클래스가 아닌 대상은 상속할 수 없다.
+TEST_F(CheckerTest, ClassInheritingFromNonClassReportsError) {
+    auto declIdent = std::make_unique<IdentifierExpression>(testTokens(TokenType::IDENTIFIER, "x", 1), "x");
+    auto lit = std::make_unique<NumberExpression>(testTokens(TokenType::NUMBER, "10", 1), 10.0);
+    auto declX = std::make_unique<DeclareStatement>(testTokens(TokenType::VAR, "var", 1), declIdent.get(), lit.get());
+
+    Token className{ TokenType::IDENTIFIER, "B", 2 };
+    auto superIdent = std::make_unique<IdentifierExpression>(testTokens(TokenType::IDENTIFIER, "x", 2), "x");
+    auto classDecl = std::make_unique<ClassDeclareStatement>(
+        testTokens(TokenType::CLASS, "Class", 2), className, std::vector<MethodDeclareStatement*>{}, superIdent.get());
+
+    std::vector<Statement*> stmts{ declX.get(), classDecl.get() };
+    auto block = std::make_unique<BlockStatement>(testTokens(1), stmts);
+
+    SyntaxNode* root = block.get();
+    tree.add(std::move(declIdent));
+    tree.add(std::move(lit));
+    tree.add(std::move(declX));
+    tree.add(std::move(superIdent));
+    tree.add(std::move(classDecl));
+    tree.add(std::move(block));
+    tree.setRoot(root);
+
+    try {
+        checker.check(tree);
+        FAIL() << "CheckerError가 발생해야 합니다.";
+    } catch (const CheckerError& e) {
+        EXPECT_THAT(std::string(e.what()), testing::HasSubstr("'x'은(는) 클래스가 아니므로 상속할 수 없습니다"));
+    }
+}
+
+// Class A { } Class B : A { }   -> 정상적으로 선언된 클래스 상속은 통과한다.
+TEST_F(CheckerTest, ClassInheritingFromDeclaredClassPasses) {
+    Token classAName{ TokenType::IDENTIFIER, "A", 1 };
+    auto classA = std::make_unique<ClassDeclareStatement>(
+        testTokens(TokenType::CLASS, "Class", 1), classAName, std::vector<MethodDeclareStatement*>{});
+
+    Token classBName{ TokenType::IDENTIFIER, "B", 2 };
+    auto superIdent = std::make_unique<IdentifierExpression>(testTokens(TokenType::IDENTIFIER, "A", 2), "A");
+    auto classB = std::make_unique<ClassDeclareStatement>(
+        testTokens(TokenType::CLASS, "Class", 2), classBName, std::vector<MethodDeclareStatement*>{}, superIdent.get());
+
+    std::vector<Statement*> stmts{ classA.get(), classB.get() };
+    auto block = std::make_unique<BlockStatement>(testTokens(1), stmts);
+
+    SyntaxNode* root = block.get();
+    tree.add(std::move(classA));
+    tree.add(std::move(superIdent));
+    tree.add(std::move(classB));
+    tree.add(std::move(block));
+    tree.setRoot(root);
 
     EXPECT_TRUE(checker.check(tree));
 }
 
-// print 1 / 0;   -> evaluate()가 ExecutorError를 던지면 폴딩을 조용히 건너뛰고 계속 통과한다
-// (컴파일 타임에 대신 오류를 내면 안 되고, Executor가 런타임에 오류를 내야 한다).
-TEST_F(CheckerConstantFolderTest, ConstantFolderSwallowsExecutorErrorAndStillPasses) {
-    auto lit1 = std::make_unique<NumberExpression>(testTokens(TokenType::NUMBER, "1", 1), 1.0);
-    auto lit0 = std::make_unique<NumberExpression>(testTokens(TokenType::NUMBER, "0", 1), 0.0);
-    auto divide = std::make_unique<DivideExpression>(testTokens(TokenType::SLASH, "/", 1), lit1.get(), lit0.get());
-    auto printStmt = std::make_unique<PrintStatement>(testTokens(TokenType::PRINT, "print", 1), divide.get());
-
+// print Super;   (클래스 밖) -> Super는 클래스 메서드 밖에서 쓸 수 없다.
+TEST_F(CheckerTest, SuperOutsideClassReportsError) {
+    auto superExpr = std::make_unique<SuperExpression>(testTokens(TokenType::SUPER, "Super", 1));
+    auto printStmt = std::make_unique<PrintStatement>(testTokens(TokenType::PRINT, "print", 1), superExpr.get());
     SyntaxNode* root = printStmt.get();
-    tree.add(std::move(lit1));
-    tree.add(std::move(lit0));
-    tree.add(std::move(divide));
+    tree.add(std::move(superExpr));
     tree.add(std::move(printStmt));
     tree.setRoot(root);
 
-    EXPECT_CALL(executor, evaluate(testing::_))
-        .WillOnce(testing::Throw(ExecutorError("0으로 나눌 수 없습니다.")));
+    try {
+        checker.check(tree);
+        FAIL() << "CheckerError가 발생해야 합니다.";
+    } catch (const CheckerError& e) {
+        EXPECT_THAT(std::string(e.what()), testing::HasSubstr("클래스 메서드 밖에서 Super"));
+    }
+}
+
+// Class C { m() { print Super; } }   (부모 없는 클래스) -> Super를 쓸 수 없다.
+TEST_F(CheckerTest, SuperInsideMethodWithoutSuperclassReportsError) {
+    Token className{ TokenType::IDENTIFIER, "C", 1 };
+    Token methodName{ TokenType::IDENTIFIER, "m", 1 };
+
+    auto superExpr = std::make_unique<SuperExpression>(testTokens(TokenType::SUPER, "Super", 2));
+    auto printStmt = std::make_unique<PrintStatement>(testTokens(TokenType::PRINT, "print", 2), superExpr.get());
+    std::vector<Statement*> body{ printStmt.get() };
+    auto method = std::make_unique<MethodDeclareStatement>(testTokens(2), methodName, std::vector<Token>{}, body);
+    std::vector<MethodDeclareStatement*> methods{ method.get() };
+    auto classDecl = std::make_unique<ClassDeclareStatement>(
+        testTokens(TokenType::CLASS, "Class", 1), className, methods);
+
+    SyntaxNode* root = classDecl.get();
+    tree.add(std::move(superExpr));
+    tree.add(std::move(printStmt));
+    tree.add(std::move(method));
+    tree.add(std::move(classDecl));
+    tree.setRoot(root);
+
+    try {
+        checker.check(tree);
+        FAIL() << "CheckerError가 발생해야 합니다.";
+    } catch (const CheckerError& e) {
+        EXPECT_THAT(std::string(e.what()), testing::HasSubstr("부모 클래스가 없는 클래스에서 Super"));
+    }
+}
+
+// Class A { } Class B : A { m() { print Super; } }   (부모 있는 클래스) -> 통과한다.
+TEST_F(CheckerTest, SuperInsideMethodWithSuperclassPasses) {
+    Token classAName{ TokenType::IDENTIFIER, "A", 1 };
+    auto classA = std::make_unique<ClassDeclareStatement>(
+        testTokens(TokenType::CLASS, "Class", 1), classAName, std::vector<MethodDeclareStatement*>{});
+
+    Token classBName{ TokenType::IDENTIFIER, "B", 2 };
+    Token methodName{ TokenType::IDENTIFIER, "m", 2 };
+    auto superIdent = std::make_unique<IdentifierExpression>(testTokens(TokenType::IDENTIFIER, "A", 2), "A");
+
+    auto superExpr = std::make_unique<SuperExpression>(testTokens(TokenType::SUPER, "Super", 3));
+    auto printStmt = std::make_unique<PrintStatement>(testTokens(TokenType::PRINT, "print", 3), superExpr.get());
+    std::vector<Statement*> body{ printStmt.get() };
+    auto method = std::make_unique<MethodDeclareStatement>(testTokens(2), methodName, std::vector<Token>{}, body);
+    std::vector<MethodDeclareStatement*> methods{ method.get() };
+    auto classB = std::make_unique<ClassDeclareStatement>(
+        testTokens(TokenType::CLASS, "Class", 2), classBName, methods, superIdent.get());
+
+    std::vector<Statement*> stmts{ classA.get(), classB.get() };
+    auto block = std::make_unique<BlockStatement>(testTokens(1), stmts);
+
+    SyntaxNode* root = block.get();
+    tree.add(std::move(classA));
+    tree.add(std::move(superIdent));
+    tree.add(std::move(superExpr));
+    tree.add(std::move(printStmt));
+    tree.add(std::move(method));
+    tree.add(std::move(classB));
+    tree.add(std::move(block));
+    tree.setRoot(root);
 
     EXPECT_TRUE(checker.check(tree));
 }

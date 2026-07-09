@@ -237,3 +237,326 @@ TEST(ExecutorClassTest, InstanceOf_NonInstanceOperand_ReturnsFalse) {
 
     EXPECT_FALSE(executor.evaluate(&instOf).asBoolean());
 }
+
+// 클래스 상속(Super, `:`) - findMethod/resolveSuperclass의 superclass 체인 탐색.
+
+TEST(ExecutorClassTest, MethodOverriding_ChildImplementationWins) {
+    // Class Robot { move(dist) { print "move"; } }
+    // Class SpeedRobot : Robot { move(dist) { print "speed move"; } }
+    // SpeedRobot().move(3); // expect: speed move
+    std::ostringstream out;
+    Executor executor(out);
+
+    StringExpression moveMsg({}, "move");
+    PrintStatement printMove({}, &moveMsg);
+    std::vector<Statement*> robotMoveBody{ &printMove };
+    MethodDeclareStatement robotMove({}, Token{ TokenType::IDENTIFIER, "move", 0 },
+        { Token{ TokenType::IDENTIFIER, "dist", 0 } }, robotMoveBody);
+    std::vector<MethodDeclareStatement*> robotMethods{ &robotMove };
+    ClassDeclareStatement robotClass({}, Token{ TokenType::IDENTIFIER, "Robot", 0 }, robotMethods);
+    executor.execute(&robotClass);
+
+    StringExpression speedMoveMsg({}, "speed move");
+    PrintStatement printSpeedMove({}, &speedMoveMsg);
+    std::vector<Statement*> speedMoveBody{ &printSpeedMove };
+    MethodDeclareStatement speedMove({}, Token{ TokenType::IDENTIFIER, "move", 0 },
+        { Token{ TokenType::IDENTIFIER, "dist", 0 } }, speedMoveBody);
+    std::vector<MethodDeclareStatement*> speedMethods{ &speedMove };
+    IdentifierExpression superclassRef({}, "Robot");
+    ClassDeclareStatement speedRobotClass({}, Token{ TokenType::IDENTIFIER, "SpeedRobot", 0 }, speedMethods, &superclassRef);
+    executor.execute(&speedRobotClass);
+
+    IdentifierExpression calleeRef({}, "SpeedRobot");
+    std::vector<Expression*> noArgs;
+    CallExpression construct({}, &calleeRef, noArgs);
+    IdentifierExpression rIdent({}, "r");
+    DeclareStatement declareR({}, &rIdent, &construct);
+    executor.execute(&declareR);
+
+    IdentifierExpression rRef({}, "r");
+    FieldAccessExpression moveAccess({}, &rRef, Token{ TokenType::IDENTIFIER, "move", 0 });
+    NumberExpression three({}, 3);
+    std::vector<Expression*> callArgs{ &three };
+    CallExpression callMove({}, &moveAccess, callArgs);
+    ExpressionStatement callMoveStmt({}, &callMove);
+
+    executor.execute(&callMoveStmt);
+
+    EXPECT_EQ(out.str(), "speed move\n");
+}
+
+TEST(ExecutorClassTest, NonOverriddenMethod_InheritsParentImplementation) {
+    // Class Robot { move(dist) { print "move"; } }
+    // Class SpeedRobot : Robot { }
+    // SpeedRobot().move(3); // expect: move (부모 구현 그대로 상속)
+    std::ostringstream out;
+    Executor executor(out);
+
+    StringExpression moveMsg({}, "move");
+    PrintStatement printMove({}, &moveMsg);
+    std::vector<Statement*> robotMoveBody{ &printMove };
+    MethodDeclareStatement robotMove({}, Token{ TokenType::IDENTIFIER, "move", 0 },
+        { Token{ TokenType::IDENTIFIER, "dist", 0 } }, robotMoveBody);
+    std::vector<MethodDeclareStatement*> robotMethods{ &robotMove };
+    ClassDeclareStatement robotClass({}, Token{ TokenType::IDENTIFIER, "Robot", 0 }, robotMethods);
+    executor.execute(&robotClass);
+
+    std::vector<MethodDeclareStatement*> speedMethods;  // 재정의 없음.
+    IdentifierExpression superclassRef({}, "Robot");
+    ClassDeclareStatement speedRobotClass({}, Token{ TokenType::IDENTIFIER, "SpeedRobot", 0 }, speedMethods, &superclassRef);
+    executor.execute(&speedRobotClass);
+
+    IdentifierExpression calleeRef({}, "SpeedRobot");
+    std::vector<Expression*> noArgs;
+    CallExpression construct({}, &calleeRef, noArgs);
+    IdentifierExpression rIdent({}, "r");
+    DeclareStatement declareR({}, &rIdent, &construct);
+    executor.execute(&declareR);
+
+    IdentifierExpression rRef({}, "r");
+    FieldAccessExpression moveAccess({}, &rRef, Token{ TokenType::IDENTIFIER, "move", 0 });
+    NumberExpression three({}, 3);
+    std::vector<Expression*> callArgs{ &three };
+    CallExpression callMove({}, &moveAccess, callArgs);
+    ExpressionStatement callMoveStmt({}, &callMove);
+
+    executor.execute(&callMoveStmt);
+
+    EXPECT_EQ(out.str(), "move\n");
+}
+
+TEST(ExecutorClassTest, SuperCall_InvokesParentImplementationBeforeChildContinues) {
+    // Class Robot { move(dist) { print "move"; } }
+    // Class SpeedRobot : Robot { move(dist) { Super.move(dist); print "speed!"; } }
+    // SpeedRobot().move(3); // expect: move, speed! (이 순서로)
+    std::ostringstream out;
+    Executor executor(out);
+
+    StringExpression moveMsg({}, "move");
+    PrintStatement printMove({}, &moveMsg);
+    std::vector<Statement*> robotMoveBody{ &printMove };
+    MethodDeclareStatement robotMove({}, Token{ TokenType::IDENTIFIER, "move", 0 },
+        { Token{ TokenType::IDENTIFIER, "dist", 0 } }, robotMoveBody);
+    std::vector<MethodDeclareStatement*> robotMethods{ &robotMove };
+    ClassDeclareStatement robotClass({}, Token{ TokenType::IDENTIFIER, "Robot", 0 }, robotMethods);
+    executor.execute(&robotClass);
+
+    SuperExpression superExpr(std::vector<Token>{});
+    FieldAccessExpression superMoveAccess({}, &superExpr, Token{ TokenType::IDENTIFIER, "move", 0 });
+    IdentifierExpression distRef({}, "dist");
+    std::vector<Expression*> superCallArgs{ &distRef };
+    CallExpression callSuperMove({}, &superMoveAccess, superCallArgs);
+    ExpressionStatement callSuperMoveStmt({}, &callSuperMove);
+    StringExpression speedBangMsg({}, "speed!");
+    PrintStatement printSpeedBang({}, &speedBangMsg);
+    std::vector<Statement*> speedMoveBody{ &callSuperMoveStmt, &printSpeedBang };
+    MethodDeclareStatement speedMove({}, Token{ TokenType::IDENTIFIER, "move", 0 },
+        { Token{ TokenType::IDENTIFIER, "dist", 0 } }, speedMoveBody);
+    std::vector<MethodDeclareStatement*> speedMethods{ &speedMove };
+    IdentifierExpression superclassRef({}, "Robot");
+    ClassDeclareStatement speedRobotClass({}, Token{ TokenType::IDENTIFIER, "SpeedRobot", 0 }, speedMethods, &superclassRef);
+    executor.execute(&speedRobotClass);
+
+    IdentifierExpression calleeRef({}, "SpeedRobot");
+    std::vector<Expression*> noArgs;
+    CallExpression construct({}, &calleeRef, noArgs);
+    IdentifierExpression rIdent({}, "r");
+    DeclareStatement declareR({}, &rIdent, &construct);
+    executor.execute(&declareR);
+
+    IdentifierExpression rRef({}, "r");
+    FieldAccessExpression moveAccess({}, &rRef, Token{ TokenType::IDENTIFIER, "move", 0 });
+    NumberExpression three({}, 3);
+    std::vector<Expression*> callArgs{ &three };
+    CallExpression callMove({}, &moveAccess, callArgs);
+    ExpressionStatement callMoveStmt({}, &callMove);
+
+    executor.execute(&callMoveStmt);
+
+    EXPECT_EQ(out.str(), "move\nspeed!\n");
+}
+
+TEST(ExecutorClassTest, SuperCall_SharesSameInstanceFieldsAsCaller) {
+    // Class Robot { move(dist) { This.position = This.position + dist; } }
+    // Class SpeedRobot : Robot { move(dist) { Super.move(dist); } }
+    // var r = SpeedRobot(); r.position = 0; r.move(5); print r.position; // expect: 5
+    std::ostringstream out;
+    Executor executor(out);
+
+    ThisExpression thisWrite(std::vector<Token>{});
+    FieldAccessExpression posWriteTarget({}, &thisWrite, Token{ TokenType::IDENTIFIER, "position", 0 });
+    ThisExpression thisRead(std::vector<Token>{});
+    FieldAccessExpression posReadForAdd({}, &thisRead, Token{ TokenType::IDENTIFIER, "position", 0 });
+    IdentifierExpression distRefForAdd({}, "dist");
+    AddExpression sumExpr({}, &posReadForAdd, &distRefForAdd);
+    AssignExpression assignPos({}, &posWriteTarget, &sumExpr);
+    ExpressionStatement assignPosStmt({}, &assignPos);
+    std::vector<Statement*> robotMoveBody{ &assignPosStmt };
+    MethodDeclareStatement robotMove({}, Token{ TokenType::IDENTIFIER, "move", 0 },
+        { Token{ TokenType::IDENTIFIER, "dist", 0 } }, robotMoveBody);
+    std::vector<MethodDeclareStatement*> robotMethods{ &robotMove };
+    ClassDeclareStatement robotClass({}, Token{ TokenType::IDENTIFIER, "Robot", 0 }, robotMethods);
+    executor.execute(&robotClass);
+
+    SuperExpression superExpr(std::vector<Token>{});
+    FieldAccessExpression superMoveAccess({}, &superExpr, Token{ TokenType::IDENTIFIER, "move", 0 });
+    IdentifierExpression distRefForSuperCall({}, "dist");
+    std::vector<Expression*> superCallArgs{ &distRefForSuperCall };
+    CallExpression callSuperMove({}, &superMoveAccess, superCallArgs);
+    ExpressionStatement callSuperMoveStmt({}, &callSuperMove);
+    std::vector<Statement*> speedMoveBody{ &callSuperMoveStmt };
+    MethodDeclareStatement speedMove({}, Token{ TokenType::IDENTIFIER, "move", 0 },
+        { Token{ TokenType::IDENTIFIER, "dist", 0 } }, speedMoveBody);
+    std::vector<MethodDeclareStatement*> speedMethods{ &speedMove };
+    IdentifierExpression superclassRef({}, "Robot");
+    ClassDeclareStatement speedRobotClass({}, Token{ TokenType::IDENTIFIER, "SpeedRobot", 0 }, speedMethods, &superclassRef);
+    executor.execute(&speedRobotClass);
+
+    IdentifierExpression calleeRef({}, "SpeedRobot");
+    std::vector<Expression*> noArgs;
+    CallExpression construct({}, &calleeRef, noArgs);
+    IdentifierExpression rIdent({}, "r");
+    DeclareStatement declareR({}, &rIdent, &construct);
+    executor.execute(&declareR);
+
+    IdentifierExpression rRefForInit({}, "r");
+    FieldAccessExpression posInitTarget({}, &rRefForInit, Token{ TokenType::IDENTIFIER, "position", 0 });
+    NumberExpression zero({}, 0);
+    AssignExpression assignZero({}, &posInitTarget, &zero);
+    ExpressionStatement assignZeroStmt({}, &assignZero);
+    executor.execute(&assignZeroStmt);
+
+    IdentifierExpression rRefForMove({}, "r");
+    FieldAccessExpression moveAccess({}, &rRefForMove, Token{ TokenType::IDENTIFIER, "move", 0 });
+    NumberExpression five({}, 5);
+    std::vector<Expression*> callArgs{ &five };
+    CallExpression callMove({}, &moveAccess, callArgs);
+    ExpressionStatement callMoveStmt({}, &callMove);
+    executor.execute(&callMoveStmt);
+
+    IdentifierExpression rRefForPrint({}, "r");
+    FieldAccessExpression posRead({}, &rRefForPrint, Token{ TokenType::IDENTIFIER, "position", 0 });
+    PrintStatement printResult({}, &posRead);
+    executor.execute(&printResult);
+
+    EXPECT_EQ(out.str(), "5\n");
+}
+
+TEST(ExecutorClassTest, MultilevelInheritance_GrandparentMethodIsReachable) {
+    // Class A { greet() { print "A"; } }
+    // Class B : A { }
+    // Class C : B { }
+    // C().greet(); // expect: A (조부모 메서드까지 체인을 타고 올라가 탐색)
+    std::ostringstream out;
+    Executor executor(out);
+
+    StringExpression aMsg({}, "A");
+    PrintStatement printA({}, &aMsg);
+    std::vector<Statement*> greetBody{ &printA };
+    MethodDeclareStatement greetMethod({}, Token{ TokenType::IDENTIFIER, "greet", 0 }, {}, greetBody);
+    std::vector<MethodDeclareStatement*> aMethods{ &greetMethod };
+    ClassDeclareStatement classA({}, Token{ TokenType::IDENTIFIER, "A", 0 }, aMethods);
+    executor.execute(&classA);
+
+    std::vector<MethodDeclareStatement*> bMethods;
+    IdentifierExpression superRefB({}, "A");
+    ClassDeclareStatement classB({}, Token{ TokenType::IDENTIFIER, "B", 0 }, bMethods, &superRefB);
+    executor.execute(&classB);
+
+    std::vector<MethodDeclareStatement*> cMethods;
+    IdentifierExpression superRefC({}, "B");
+    ClassDeclareStatement classC({}, Token{ TokenType::IDENTIFIER, "C", 0 }, cMethods, &superRefC);
+    executor.execute(&classC);
+
+    IdentifierExpression calleeRef({}, "C");
+    std::vector<Expression*> noCtorArgs;
+    CallExpression construct({}, &calleeRef, noCtorArgs);
+    IdentifierExpression cIdent({}, "c");
+    DeclareStatement declareC({}, &cIdent, &construct);
+    executor.execute(&declareC);
+
+    IdentifierExpression cRef({}, "c");
+    FieldAccessExpression greetAccess({}, &cRef, Token{ TokenType::IDENTIFIER, "greet", 0 });
+    std::vector<Expression*> noArgs;
+    CallExpression callGreet({}, &greetAccess, noArgs);
+    ExpressionStatement callGreetStmt({}, &callGreet);
+
+    executor.execute(&callGreetStmt);
+
+    EXPECT_EQ(out.str(), "A\n");
+}
+
+TEST(ExecutorClassTest, InstanceOf_MatchesAnyClassInSuperclassChainButNotUnrelatedClass) {
+    // Class Robot { } Class SpeedRobot : Robot { } Class Other { }
+    // var w = SpeedRobot();
+    // w instanceof SpeedRobot -> true, w instanceof Robot -> true, w instanceof Other -> false
+    std::ostringstream out;
+    Executor executor(out);
+
+    std::vector<MethodDeclareStatement*> robotMethods;
+    ClassDeclareStatement robotClass({}, Token{ TokenType::IDENTIFIER, "Robot", 0 }, robotMethods);
+    executor.execute(&robotClass);
+
+    std::vector<MethodDeclareStatement*> speedMethods;
+    IdentifierExpression superclassRef({}, "Robot");
+    ClassDeclareStatement speedRobotClass({}, Token{ TokenType::IDENTIFIER, "SpeedRobot", 0 }, speedMethods, &superclassRef);
+    executor.execute(&speedRobotClass);
+
+    std::vector<MethodDeclareStatement*> otherMethods;
+    ClassDeclareStatement otherClass({}, Token{ TokenType::IDENTIFIER, "Other", 0 }, otherMethods);
+    executor.execute(&otherClass);
+
+    IdentifierExpression calleeRef({}, "SpeedRobot");
+    std::vector<Expression*> noArgs;
+    CallExpression construct({}, &calleeRef, noArgs);
+    IdentifierExpression wIdent({}, "w");
+    DeclareStatement declareW({}, &wIdent, &construct);
+    executor.execute(&declareW);
+
+    IdentifierExpression wRefForSpeed({}, "w");
+    InstanceOfExpression instOfSpeed({}, &wRefForSpeed, Token{ TokenType::IDENTIFIER, "SpeedRobot", 0 });
+    EXPECT_TRUE(executor.evaluate(&instOfSpeed).asBoolean());
+
+    IdentifierExpression wRefForRobot({}, "w");
+    InstanceOfExpression instOfRobot({}, &wRefForRobot, Token{ TokenType::IDENTIFIER, "Robot", 0 });
+    EXPECT_TRUE(executor.evaluate(&instOfRobot).asBoolean());
+
+    IdentifierExpression wRefForOther({}, "w");
+    InstanceOfExpression instOfOther({}, &wRefForOther, Token{ TokenType::IDENTIFIER, "Other", 0 });
+    EXPECT_FALSE(executor.evaluate(&instOfOther).asBoolean());
+}
+
+TEST(ExecutorClassTest, SuperCall_WithoutSuperclass_ThrowsExecutorError) {
+    // Class Robot { move(dist) { Super.move(dist); } } // 부모 없음.
+    // Robot().move(1); // expect: ExecutorError
+    std::ostringstream out;
+    Executor executor(out);
+
+    SuperExpression superExpr(std::vector<Token>{});
+    FieldAccessExpression superMoveAccess({}, &superExpr, Token{ TokenType::IDENTIFIER, "move", 0 });
+    IdentifierExpression distRef({}, "dist");
+    std::vector<Expression*> superCallArgs{ &distRef };
+    CallExpression callSuperMove({}, &superMoveAccess, superCallArgs);
+    ExpressionStatement callSuperMoveStmt({}, &callSuperMove);
+    std::vector<Statement*> moveBody{ &callSuperMoveStmt };
+    MethodDeclareStatement moveMethod({}, Token{ TokenType::IDENTIFIER, "move", 0 },
+        { Token{ TokenType::IDENTIFIER, "dist", 0 } }, moveBody);
+    std::vector<MethodDeclareStatement*> methods{ &moveMethod };
+    ClassDeclareStatement robotClass({}, Token{ TokenType::IDENTIFIER, "Robot", 0 }, methods);
+    executor.execute(&robotClass);
+
+    IdentifierExpression calleeRef({}, "Robot");
+    std::vector<Expression*> noCtorArgs;
+    CallExpression construct({}, &calleeRef, noCtorArgs);
+    IdentifierExpression rIdent({}, "r");
+    DeclareStatement declareR({}, &rIdent, &construct);
+    executor.execute(&declareR);
+
+    IdentifierExpression rRef({}, "r");
+    FieldAccessExpression moveAccess({}, &rRef, Token{ TokenType::IDENTIFIER, "move", 0 });
+    NumberExpression one({}, 1);
+    std::vector<Expression*> callArgs{ &one };
+    CallExpression callMove({}, &moveAccess, callArgs);
+
+    EXPECT_THROW(executor.evaluate(&callMove), ExecutorError);
+}

@@ -977,3 +977,19 @@ TEST_F(RunPromptShellIntegrationTest, DISABLED_SuperInClassWithoutSuperclass_Rep
     EXPECT_EQ(programOutput.str(), "");
     EXPECT_EQ(out.str(), ">>> [1번째 줄] 부모 클래스가 없는 클래스에서 Super를 사용할 수 없습니다.\n>>> ");
 }
+
+TEST_F(RunPromptShellIntegrationTest, ParameterReassignment_DoesNotAffectCaller) {
+    std::ostringstream out;
+    run("Func set(a) { a = 99; }\nvar x = 1;\nset(x);\nprint x;\n", out);
+
+    EXPECT_EQ(programOutput.str(), "1\n");
+    EXPECT_EQ(out.str(), ">>> >>> >>> >>> >>> ");
+}
+
+TEST_F(RunPromptShellIntegrationTest, VariableIndex_ReadsCorrectElement) {
+    std::ostringstream out;
+    run("var arr = Array(3);\narr[0] = 10;\narr[1] = 20;\nvar i = 1;\nprint arr[i];\n", out);
+
+    EXPECT_EQ(programOutput.str(), "20\n");
+    EXPECT_EQ(out.str(), ">>> >>> >>> >>> >>> >>> ");
+}
