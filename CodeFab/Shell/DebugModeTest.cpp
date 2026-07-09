@@ -226,16 +226,62 @@ TEST_F(DebugModeIntegrationTest, WatchAcrossSteps_ShowsUndefinedBeforeDeclaratio
     EXPECT_EQ(programOutput.str(), "3\n");
     // "watch a"는 등록하는 즉시 현재 값을 보여준다(이 시점엔 아직 a가
     // 정의되기 전이라 undefined) - 이후 매 정지마다 printWatches가 자동으로
-    // 최신 값을 다시 보여준다.
+    // 최신 값을 다시 보여준다. 최상위 문장 2개(var a=3;, print a;)는 각각
+    // 정확히 한 번씩만 멈춰야 한다 - 파일을 감싸는 합성 블록에서 중복으로
+    // 멈추지 않는다(아래 MultiStatementWithNestedIfBlock_... 테스트가 이
+    // 회귀를 더 명확하게 검증한다).
     EXPECT_EQ(out.str(),
               "[DEBUG] 1번째 줄에서 정지\n"
               "> [WATCH] a = undefined\n"
               "> "
-              "[DEBUG] 1번째 줄에서 정지\n"
-              "[WATCH] a = undefined\n"
-              "> "
               "[DEBUG] 2번째 줄에서 정지\n"
               "[WATCH] a = 3\n"
+              "> ");
+}
+
+TEST_F(DebugModeIntegrationTest, MultiStatementWithNestedIfBlock_StepsThroughEachRealStatementExactlyOnce) {
+    // 회귀 테스트: DebugMode::run()이 파일 전체를 "{ }"로 감싸 만드는 합성
+    // 최상위 블록 자체가 예전엔 Debugger에도 노출되어, 첫 번째 "step"이 실제
+    // 문장을 진행시키지 못하고 1번째 줄에서 다시 멈추는 버그가 있었다(가짜
+    // 문장 하나가 실제 문장들 앞에 끼어 있었음). 이 테스트는 최상위 선언 ->
+    // if(중첩 블록: 선언+print) -> 최상위 print로 이어지는 실제 파일에서,
+    // 정지 지점이 정확히 실제 문장 개수(6개)만큼만, 각 줄마다 한 번씩만
+    // 발생하는지 확인한다 - 1번째 줄이 두 번 나오면 이 버그가 재발한 것이다.
+    writeFile("var g = 1;\nif (true)\n{\n\tvar a = 1;\n\tprint a;\n}\nprint g;\n");
+
+    std::istringstream in("step\nstep\nstep\nstep\nstep\nstep\n");
+    std::ostringstream out;
+    bool result = mode.run(tempPath.string(), in, out);
+
+    EXPECT_TRUE(result);
+    EXPECT_EQ(programOutput.str(), "1\n1\n");
+    EXPECT_EQ(out.str(),
+              "[DEBUG] 1번째 줄에서 정지\n"  // var g = 1;
+              "> [DEBUG] 2번째 줄에서 정지\n"  // if (true)
+              "> [DEBUG] 3번째 줄에서 정지\n"  // { (중첩 블록 자체 - 실제 소스에 있는 블록)
+              "> [DEBUG] 4번째 줄에서 정지\n"  // var a = 1;
+              "> [DEBUG] 5번째 줄에서 정지\n"  // print a;
+              "> [DEBUG] 7번째 줄에서 정지\n"  // print g;
+              "> ");
+}
+
+TEST_F(DebugModeIntegrationTest, NextOverIfStatement_SkipsNestedBlockAndStopsAtNextTopLevelStatement) {
+    writeFile("var g = 1;\nif (true)\n{\n\tvar a = 1;\n\tprint a;\n}\nprint g;\n");
+
+    std::istringstream in("step\nnext\ncontinue\n");
+    std::ostringstream out;
+    bool result = mode.run(tempPath.string(), in, out);
+
+    EXPECT_TRUE(result);
+    EXPECT_EQ(programOutput.str(), "1\n1\n");
+    // if문(2번째 줄)에서 "next"를 치면, 최상위 문장이 depth 1부터 시작하기
+    // 때문에(합성 블록이 depth를 하나 차지하지 않음) 그 안의 중첩 블록/선언/
+    // print(3~5번째 줄, depth 2~3)는 전부 건너뛰고 실제로 실행만 되며, 다음
+    // 최상위 문장(7번째 줄)에서 멈춘다.
+    EXPECT_EQ(out.str(),
+              "[DEBUG] 1번째 줄에서 정지\n"
+              "> [DEBUG] 2번째 줄에서 정지\n"
+              "> [DEBUG] 7번째 줄에서 정지\n"
               "> ");
 }
 

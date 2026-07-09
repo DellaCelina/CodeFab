@@ -3,6 +3,7 @@
 #include <filesystem>
 #include <fstream>
 #include <sstream>
+#include <stdexcept>
 #include <vector>
 
 #include "Debugger.h"
@@ -54,7 +55,22 @@ bool DebugMode::run(const std::string& filePath, std::istream& in, std::ostream&
             out << "코드 검사에 실패했습니다.\n";
             return false;
         }
-        executor_.execute(tree);
+
+        // 여기서 만든 "{ }" 래핑 블록은 실제 소스에는 없는 합성 statement라,
+        // executor_.execute(tree)로 그대로 실행하면 Executor::execute(Statement*)가
+        // 이 블록 자체에도 statementHook_을 호출한다 - Debugger가 Step 모드에서는
+        // 이걸 실제 문장과 구분하지 못해 파일의 첫 줄에서 한 번 더(가짜로) 멈추고,
+        // depth도 한 칸씩 밀려 "next"가 최상위 문장을 하나 더 깊은 것으로
+        // 취급하게 된다. 그래서 래핑 블록 자체는 실행하지 않고, 그 안의
+        // top-level 문장들을 직접 하나씩 실행한다 - 각 top-level 문장이 depth
+        // 1부터 시작하고, 래핑 블록은 디버거에 전혀 보이지 않는다.
+        auto* root = dynamic_cast<BlockStatement*>(tree.getRoot());
+        if (!root) {
+            throw std::logic_error("DebugMode::run: wrapped tree root is not a BlockStatement");
+        }
+        for (Statement* stmt : root->statements) {
+            executor_.execute(stmt);
+        }
         return true;
     } catch (const std::exception& e) {
         // AssemblyError/AssemblerError/CheckerError/ExecutorError/
