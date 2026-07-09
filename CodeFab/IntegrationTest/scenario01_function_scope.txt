@@ -1,0 +1,28 @@
+var ga = 100;
+{
+    var a = 2;
+    {
+        var a = 7;
+        {
+            print a;
+            print ga;
+        }
+        print a;
+    }
+}
+
+Func fact(n) {
+    if (n <= 1) {
+        return 1;
+    }
+    return n * fact(n - 1);
+}
+
+var i = 0;
+var sum = 0;
+for (i = 0; i < 5; i = i + 1) {
+    sum = sum + i;
+}
+
+print fact(5);
+print sum;
