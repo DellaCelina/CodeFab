@@ -1,0 +1,30 @@
+[시나리오 04] 존재하지 않는 필드 접근 런타임 오류 시나리오
+============================================================
+
+참고 요구사항
+  - 3일차 PDF: class 관련 요구사항 - "존재하지 않는 필드 읽기" -> 런타임 오류
+    (var r = Robot(); print r.power; -> 런타임 오류)
+
+실행 방법 (Release 빌드, repo 루트에서 실행)
+  CodeFab\x64\Release\CodeFab.exe run scenario04_class_missing_field_error.txt
+
+검증 목적
+  - 필드도 메서드도 전혀 없는 빈 클래스(Empty)의 인스턴스에서, 정의된 적
+    없는 필드(missing)를 읽으려 할 때 Executor.cpp의 "필드가 존재하지
+    않습니다" 오류가 발생해야 한다.
+  - 이 오류는 Checker의 정적 검사가 아니라 런타임에만 판정 가능하므로
+    (인스턴스가 실제로 어떤 클래스인지, 그 클래스에 어떤 필드/메서드가
+    있는지는 실행해봐야 안다), "instance created"까지는 정상적으로
+    출력된 뒤 그 다음 문장에서 실행이 중단되어야 한다.
+
+예상 표준출력
+  [모드: RUN]
+  instance created
+  'missing' 필드가 존재하지 않습니다.
+
+  ("unreachable"은 절대 출력되지 않아야 한다.)
+
+성공 판정 기준
+  - 종료 코드 1
+  - "instance created"는 출력되지만 "unreachable"은 출력되지 않음
+  - 오류 메시지에 "필드" 및 "missing" 관련 문구가 포함됨

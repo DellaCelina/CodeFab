@@ -1,0 +1,9 @@
+Func add(a, b) {
+    return a + b;
+}
+
+Func mul(a, b) {
+    return a * b;
+}
+
+var version = 1;

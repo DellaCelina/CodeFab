@@ -17,6 +17,7 @@ Release 빌드로 수동 확인하는 샘플이다.
 Release 빌드 산출물이 있는 `CodeFab\x64\Release` 안에서 실행하는 경우:
 
 ```
+
 CodeFab.exe run ..\..\CodeFab\IntegrationTest\01_arithmetic_precedence.txt
 ```
 
@@ -39,6 +40,7 @@ CodeFab.exe run ..\..\CodeFab\IntegrationTest\01_arithmetic_precedence.txt
 | `06_block_scope_shadowing.txt` | 블록 스코프 shadowing | `inner`\n`global` | 성공(exit 0) |
 | `07_if_else.txt` | if-else, dangling-else | `kfc`\n`bbq` | 성공(exit 0) |
 | `08_for_loop.txt` | for문 (var 초기화절 포함) | `0`\n`1`\n`2` | 성공(exit 0) |
+
 | `09_error_missing_semicolon.txt` | 세미콜론 누락 → 문법 오류 | (없음) | 실패(exit 1), 오류 메시지: `[line 2] Expect ';' after value. (near '}')` |
 | `10_error_unclosed_brace.txt` | 중괄호 미종결 → 문법 오류 | (없음) | 실패(exit 1), 오류 메시지: `Expect '}' after block.` |
 | `11_error_duplicate_declaration.txt` | 같은 스코프 변수 중복 선언 → Checker 오류 | (없음) | 실패(exit 1), 오류 메시지: `[line 2] 'a' is already declared in this scope.` |
@@ -48,6 +50,16 @@ CodeFab.exe run ..\..\CodeFab\IntegrationTest\01_arithmetic_precedence.txt
 | `15_error_division_by_zero.txt` | 0으로 나누기 → Executor 런타임 오류 | (없음) | 실패(exit 1), 오류 메시지: `[line 1] division by zero.` |
 | `16_inheritance_super_call.txt` | 상속 + `Super.method()` 호출(파일 모드 전용 회귀) | `BasicBot`\n`3`\n`FastBot`\n`9`\n`Speeeed!` | 성공(exit 0) |
 | `17_inheritance_super_init_and_instanceof.txt` | 상속 + `Super.init()` + `instanceof`(파일 모드 전용 회귀) | `AndOr`\n`10`\n`Zeta`\n`Sam`\n`999`\n`true`\n`true`\n`false`\n`false`\n`false` | 성공(exit 0) |
+| `scenario01_function_scope.txt` | 중첩 블록 스코프 shadowing + 전역 변수 참조 + 함수 재귀호출(fact) + for 반복 | `7`\n`100`\n`7`\n`120`\n`10` | 성공(exit 0) |
+| `scenario02_function_error_arity.txt` | 함수 호출 인자 개수 불일치 → Executor 런타임 오류 | `start` | 실패(exit 1), 오류 메시지: `'add' 호출에는 인자 2개가 필요합니다 (전달된 인자: 1개)` |
+| `scenario03_class_field_method.txt` | 클래스 인스턴스 필드 동적 생성/갱신 + This로 메서드에서 필드 접근 | `8`\n`SpeedRobot`\n`15` | 성공(exit 0) |
+| `scenario04_class_missing_field_error.txt` | 존재하지 않는 인스턴스 필드 읽기 → Executor 런타임 오류 | `instance created` | 실패(exit 1), 오류 메시지: `'missing' 필드가 존재하지 않습니다.` |
+| `scenario05_class_inheritance_super.txt` | 클래스 상속 + 메서드 오버라이딩 + Super로 부모 메서드 호출(상속된 init 포함) | `BasicBot`\n`3`\n`FastBot`\n`9`\n`Speeeed!` | 성공(exit 0) |
+| `scenario06_class_init_instanceof.txt` | 생성자(init) 인자 전달/상속 + 인스턴스 간 필드 독립성 + instanceof(자기/부모/무관 클래스/비인스턴스) | `AndOr`\n`10`\n`Zeta`\n`Sam`\n`999`\n`true`\n`true`\n`false`\n`false`\n`false` | 성공(exit 0) |
+| `scenario07_array_basic.txt` | 정적 배열 생성 후 for 반복으로 값 채우기 + 변수 기반 인덱스 연산으로 갱신 | `10`\n`50`\n`999`\n`1129` | 성공(exit 0) |
+| `scenario08_array_index_error.txt` | 배열 인덱스 범위 초과 접근 → Executor 런타임 오류 | `filled` | 실패(exit 1), 오류 메시지: `배열 인덱스 범위를 벗어났습니다.` |
+| `scenario09_static_binding_and_folding.txt` | 정적 바인딩(중첩 스코프 depth) + 상수 연산 폴딩이 적용되어도 결과가 동일한지 확인 | `7`\n`100`\n`7`\n`10` | 성공(exit 0) |
+| `scenario10_import_module_usage.txt` | import "path" alias name; 로 외부 파일(`scenario10_import_module_lib.txt`)을 읽어 alias로 함수/변수 접근 | `7`\n`12`\n`1`\n`11` | 성공(exit 0) |
 
 ## 참고
 
@@ -65,3 +77,12 @@ CodeFab.exe run ..\..\CodeFab\IntegrationTest\01_arithmetic_precedence.txt
   안에 있다. `ClassRuntime::resolveSuperclass`가 depth 캐싱이 아니라 항상 동적
   `lookup`을 쓰는 이유가 바로 이 차이 때문이라(`ClassRuntime.cpp` 주석 참고),
   상속/`Super`/`instanceof`가 파일 모드에서도 실제로 동작하는지 별도로 확인한다.
+
+- `scenario01`~`scenario10`은 1일차/3일차 요구사항(함수·클래스·상속·정적 배열·
+  실행 전 최적화·import)을 검증하는 복합 시나리오다. 각 스크립트와 이름이 같은
+  `..._doc.txt` 파일에 참고 요구사항, 실행 방법, 검증 목적, 줄 단위 예상 출력
+  설명, 성공 판정 기준이 정리되어 있다.
+- `scenario10_import_module_usage.txt`는 같은 폴더의
+  `scenario10_import_module_lib.txt`를 `import`하므로, 두 파일이 항상 함께
+  있어야 하고 import 경로가 상대경로이므로 `CodeFab.exe`를 이 폴더(또는 이
+  폴더를 기준으로 상대경로가 맞는 위치)에서 실행해야 한다.
