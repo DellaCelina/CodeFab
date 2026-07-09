@@ -140,12 +140,27 @@ inline bool SyntaxNode::operator==(const SyntaxNode& op) const {
 
 class SyntaxTree {
 public:
+    // 기존 단일-root 계약과 호환: 첫 번째 root를 돌려준다(대부분의 호출부는
+    // 여전히 "이 tree는 최상위 statement 하나"라고 가정한다).
     auto getRoot() {
-        return root;
+        return roots.empty() ? nullptr : roots.front();
     }
 
+    // 기존 계약과 동일하게 root를 하나로 교체한다.
     void setRoot(SyntaxNode* root) {
-        this->root = root;
+        roots = { root };
+    }
+
+    // REPL처럼 한 tree가 최상위 statement를 여러 개 담아야 하는 경우를 위한
+    // 확장 - Architecture.md 변경 없이 SyntaxTree 내부 표현만 vector로 넓힌다.
+    // AssemblerInterface::assemble()의 시그니처/계약은 그대로 두고, Assembler가
+    // 내부에서 여러 statement를 파싱했을 때 이 메서드로 차례차례 담는다.
+    void addRoot(SyntaxNode* root) {
+        roots.push_back(root);
+    }
+
+    const std::vector<SyntaxNode*>& getRoots() const {
+        return roots;
     }
 
     void add(std::unique_ptr<SyntaxNode> node) {
@@ -154,7 +169,7 @@ public:
 
 private:
     std::vector<std::unique_ptr<SyntaxNode>> nodes;
-    SyntaxNode* root;
+    std::vector<SyntaxNode*> roots;
 };
 
 struct Statement : public SyntaxNode {

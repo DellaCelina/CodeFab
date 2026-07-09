@@ -70,11 +70,19 @@ void RunPromptShell::run(std::istream& in, std::ostream& out) {
         }
 
         try {
+            // 한 제출(buffer)에 최상위 statement가 여러 개 들어올 수 있다(예: '\'로
+            // 이어붙인 여러 줄). assemble()이 돌려주는 tree는 이제 root를 여러 개
+            // 담을 수 있으므로(SyntaxTree::getRoots() 참고), 그 순서대로 하나씩
+            // check+execute한다 - 새 블록 스코프로 감싸지 않고 그대로 실행해서
+            // REPL의 "한 줄 선언 -> 다음 줄에서 사용" 동작을 그대로 유지한다.
             std::vector<Token> tokens = tokenizer_.tokenize(buffer);
             SyntaxTree tree = assembler_.assemble(tokens);
-            checker_.check(tree);
-            optimizer_.optimize(tree);
-            executor_.execute(tree);
+            std::vector<SyntaxNode*> statements = tree.getRoots();
+            for (SyntaxNode* statement : statements) {
+                tree.setRoot(statement);
+                checker_.check(tree);
+                executor_.execute(tree);
+            }
             sessionTrees.push_back(std::move(tree));
         } catch (const std::exception& e) {
             // AssemblyError/AssemblerError/CheckerError/ExecutorError 모두 각자의
