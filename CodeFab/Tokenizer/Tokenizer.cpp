@@ -23,6 +23,17 @@ static const std::unordered_map<std::string, TokenType> KEYWORDS = {
     { "or",         TokenType::OR         },
 };
 
+static const std::unordered_map<char, TokenType> SINGLE_CHAR = {
+    { '(', TokenType::LEFT_PAREN    }, { ')', TokenType::RIGHT_PAREN  },
+    { '{', TokenType::LEFT_BRACE    }, { '}', TokenType::RIGHT_BRACE  },
+    { '[', TokenType::LEFT_BRACKET  }, { ']', TokenType::RIGHT_BRACKET },
+    { ';', TokenType::SEMICOLON     }, { '.', TokenType::DOT          },
+    { ',', TokenType::COMMA         }, { ':', TokenType::COLON        },
+    { '+', TokenType::PLUS          }, { '-', TokenType::MINUS        },
+    { '*', TokenType::STAR          }, { '/', TokenType::SLASH        },
+    { '%', TokenType::PERCENT       },
+};
+
 void Tokenizer::reset(const std::string& src) {
     source  = src;
     start   = 0;
@@ -87,23 +98,13 @@ bool Tokenizer::isAlphaNumeric(char c) {
 
 void Tokenizer::scanToken() {
     char c = advance();
-    switch (c) {
-        case '(': addToken(TokenType::LEFT_PAREN);  break;
-        case ')': addToken(TokenType::RIGHT_PAREN); break;
-        case '{': addToken(TokenType::LEFT_BRACE);  break;
-        case '}': addToken(TokenType::RIGHT_BRACE); break;
-        case ';': addToken(TokenType::SEMICOLON);     break;
-        case '.': addToken(TokenType::DOT);           break;
-        case '[': addToken(TokenType::LEFT_BRACKET);  break;
-        case ']': addToken(TokenType::RIGHT_BRACKET); break;
-        case ',': addToken(TokenType::COMMA);         break;
-        case ':': addToken(TokenType::COLON);         break;
-        case '+': addToken(TokenType::PLUS);        break;
-        case '-': addToken(TokenType::MINUS);       break;
-        case '*': addToken(TokenType::STAR);        break;
-        case '/': addToken(TokenType::SLASH);       break;
-        case '%': addToken(TokenType::PERCENT);     break;
 
+    if (auto it = SINGLE_CHAR.find(c); it != SINGLE_CHAR.end()) {
+        addToken(it->second);
+        return;
+    }
+
+    switch (c) {
         case '=': addToken(match('=') ? TokenType::EQUAL_EQUAL   : TokenType::EQUAL);   break;
         case '!': addToken(match('=') ? TokenType::BANG_EQUAL    : TokenType::BANG);    break;
         case '<': addToken(match('=') ? TokenType::LESS_EQUAL    : TokenType::LESS);    break;
