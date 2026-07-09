@@ -45,24 +45,15 @@
       구조라는 점을 오해 없이 밝히기)
 - [ ] Implement.md §5의 "§4.3와 사실상 같은 코드 경로" 문구를 위 설명으로 보강
 
-## 12. Executor: 클래스 메서드에 대한 재귀 호출 integration test 없음
+## 12. (해결됨) Executor: 클래스 메서드에 대한 재귀 호출 integration test 없음
 
-**증상**: `IntegrationTest/DebugIntegrationTest.cpp`에는 함수 재귀 호출 테스트
-(`RecursiveCall_ComputesFactorial`, `Func fact(n) { ... }`)는 있지만, **메서드**를
-`This.method(...)` 형태로 재귀 호출하는 시나리오는 없다. 함수 재귀와 메서드 재귀는
-이름 바인딩 경로가 다르다 - 함수는 `environment_.define(name, Value(decl))`로
-호출 전에 이미 스코프에 등록돼 있어야 하는 반면, 메서드는 `klass->methods` 목록에서
-매 호출마다 이름으로 찾고 `this`를 새로 바인딩해서 실행하므로, 재귀 중에 `this`가
-올바른 인스턴스를 계속 가리키는지, 그리고 메서드 탐색이 매 재귀 호출마다 정상
-동작하는지는 별도로 검증해야 한다.
-
-**해야 할 일**:
-- [ ] `IntegrationTest/DebugIntegrationTest.cpp`(`RunPromptShellIntegrationTest`
-      스위트)에 메서드 재귀 호출 테스트 추가, 예:
-      `Class Calc { fact(n) { if (n <= 1) return 1; return n * This.fact(n - 1); } }
-      var c = Calc(); print c.fact(5);` → `120` 출력
-- [ ] 재귀 도중 `This`가 항상 같은 인스턴스를 가리키는지 확인하는 케이스도 함께
-      추가(예: 재귀 중 필드를 누적시키는 메서드를 만들어 최종 필드 값으로 검증)
+**현재 상태**: `IntegrationTest/DebugIntegrationTest.cpp`(`RunPromptShellIntegrationTest`
+스위트)에 `RecursiveMethodCall_ComputesFactorial`(`This.fact(n - 1)` 재귀로 `120`
+계산)과 `RecursiveMethodCall_ThisRemainsSameInstanceAcrossRecursion`(재귀 중
+`This.count`를 누적시켜 재귀가 끝난 뒤에도 호출자 자신의 필드 저장소에 값이
+쌓였는지로 `This`가 매 호출마다 같은 인스턴스를 가리키는지 검증)를 추가했다.
+둘 다 통과한다 - 메서드 재귀 경로(`findMethod` + 매 호출마다 `this` 재바인딩)에
+별도 버그는 없었다.
 
 ## 13. Executor/Import: module에 대한 integration test 없음
 

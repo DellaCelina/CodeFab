@@ -799,6 +799,36 @@ TEST_F(RunPromptShellIntegrationTest, MethodUpdatesFieldViaThis_AnotherMethodRea
     EXPECT_EQ(out.str(), ">>> >>> >>> >>> >>> >>> ");
 }
 
+// TODO.md #12: 함수 재귀 호출(RecursiveCall_ComputesFactorial)과 달리 메서드
+// 재귀 호출은 이름 바인딩 경로가 다르다 - 함수는 호출 전에 스코프에 미리
+// 등록되지만, 메서드는 매 호출마다 findMethod로 새로 찾고 this를 새로
+// 바인딩해서 실행한다. This.fact(...) 형태의 메서드 재귀가 실제로 정상 동작하는지
+// 확인한다.
+TEST_F(RunPromptShellIntegrationTest, RecursiveMethodCall_ComputesFactorial) {
+    std::ostringstream out;
+    run("Class Calc { fact(n) { if (n <= 1) return 1; return n * This.fact(n - 1); } }\n"
+        "var c = Calc();\n"
+        "print c.fact(5);\n", out);
+
+    EXPECT_EQ(programOutput.str(), "120\n");
+    EXPECT_EQ(out.str(), ">>> >>> >>> >>> ");
+}
+
+// 재귀가 깊어져도 매 호출마다 새로 바인딩되는 this가 항상 같은 인스턴스를
+// 가리키는지 확인한다 - This.count로 필드를 누적시켜, 재귀가 끝난 뒤 필드 값이
+// (별도의 인스턴스가 아니라) 호출자 자신의 필드 저장소에 누적됐는지로 검증한다.
+TEST_F(RunPromptShellIntegrationTest, RecursiveMethodCall_ThisRemainsSameInstanceAcrossRecursion) {
+    std::ostringstream out;
+    run("Class Counter { bump(n) { This.count = This.count + 1; if (n > 1) { This.bump(n - 1); } } }\n"
+        "var c = Counter();\n"
+        "c.count = 0;\n"
+        "c.bump(3);\n"
+        "print c.count;\n", out);
+
+    EXPECT_EQ(programOutput.str(), "3\n");
+    EXPECT_EQ(out.str(), ">>> >>> >>> >>> >>> >>> ");
+}
+
 // 슬라이드의 클래스 관련 오류 검사: init 메서드는 항상 인스턴스를 반환해야 하므로
 // return 값을 갖는 return문은 허용되지 않는다.
 TEST_F(RunPromptShellIntegrationTest, InitWithReturnValue_ReportsCheckError) {
