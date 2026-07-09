@@ -267,6 +267,89 @@ TEST_F(FileRunModeIntegrationTest, FileDoesNotExist_ReportsErrorAndReturnsFalse)
     EXPECT_THAT(out.str(), HasSubstr(missing.string()));
 }
 
+// --- 상속(Inheritance) ---
+// FileRunMode는 파일 전체를 "{" + 내용 + "}"로 감싸 하나의 블록으로 실행한다
+// (FileRunMode.cpp 참고) - 즉 클래스 선언이 전역이 아니라 블록 스코프 한 단계
+// 안에 있다는 점이 RunPromptShellIntegrationTest(REPL, 매 줄이 전역 스코프)와
+// 다르다. ClassRuntime::resolveSuperclass가 depth 캐싱 대신 항상 동적
+// lookup을 쓰는 이유가 바로 이 차이 때문이므로(ClassRuntime.cpp 주석 참고),
+// 상속/Super/instanceof가 파일 모드에서도 실제로 동작하는지 별도로 검증한다.
+TEST_F(FileRunModeIntegrationTest, SuperCallInMethodOverride_PrintsParentThenChildOutput) {
+    writeFile(
+        "Class Robot {\n"
+        "    init(name) {\n"
+        "        This.name = name;\n"
+        "    }\n"
+        "    move(dist) {\n"
+        "        print This.name;\n"
+        "        print dist;\n"
+        "    }\n"
+        "}\n"
+        "\n"
+        "Class SpeedRobot : Robot {\n"
+        "    move(dist) {\n"
+        "        Super.move(dist);\n"
+        "        print \"Speeeed!\";\n"
+        "    }\n"
+        "}\n"
+        "\n"
+        "var normal = Robot(\"BasicBot\");\n"
+        "normal.move(3);\n"
+        "\n"
+        "var fast = SpeedRobot(\"FastBot\");\n"
+        "fast.move(9);\n");
+
+    std::ostringstream out;
+    bool result = mode.run(tempPath.string(), out);
+
+    EXPECT_TRUE(result);
+    EXPECT_EQ(programOutput.str(), "BasicBot\n3\nFastBot\n9\nSpeeeed!\n");
+    EXPECT_EQ(out.str(), "");
+}
+
+TEST_F(FileRunModeIntegrationTest, SuperInitAndInstanceOf_ResolveAcrossInheritanceChain) {
+    writeFile(
+        "Class Robot {\n"
+        "    init(name, speed) {\n"
+        "        This.name = name;\n"
+        "        This.speed = speed;\n"
+        "    }\n"
+        "}\n"
+        "\n"
+        "Class SpeedRobot : Robot {\n"
+        "    init(name) {\n"
+        "        Super.init(name, 999);\n"
+        "    }\n"
+        "}\n"
+        "\n"
+        "Class Cat {\n"
+        "}\n"
+        "\n"
+        "var r1 = Robot(\"AndOr\", 10);\n"
+        "var r2 = Robot(\"Zeta\", 20);\n"
+        "var w = SpeedRobot(\"Sam\");\n"
+        "\n"
+        "print r1.name;\n"
+        "print r1.speed;\n"
+        "print r2.name;\n"
+        "print w.name;\n"
+        "print w.speed;\n"
+        "\n"
+        "print (w instanceof SpeedRobot);\n"
+        "print (w instanceof Robot);\n"
+        "print (r1 instanceof SpeedRobot);\n"
+        "print (r1 instanceof Cat);\n"
+        "print (1 instanceof Robot);\n");
+
+    std::ostringstream out;
+    bool result = mode.run(tempPath.string(), out);
+
+    EXPECT_TRUE(result);
+    EXPECT_EQ(programOutput.str(),
+        "AndOr\n10\nZeta\nSam\n999\ntrue\ntrue\nfalse\nfalse\nfalse\n");
+    EXPECT_EQ(out.str(), "");
+}
+
 TEST_F(FileRunModeIntegrationTest, PathIsDirectory_ReportsErrorAndReturnsFalse) {
     // 파일 1개(단일 파일)가 아닌 디렉터리 경로를 넘기면, 실제 파이프라인까지
     // 가지 않고 명확한 오류로 거부해야 한다.
