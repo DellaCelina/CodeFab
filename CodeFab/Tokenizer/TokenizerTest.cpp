@@ -247,3 +247,19 @@ TEST_F(TokenizerFixture, PercentOperator) {
     ));
     EXPECT_EQ(tokens[1].origin, "%");
 }
+
+// 상속 키워드 Super
+TEST_F(TokenizerFixture, SuperKeyword_IsRecognized) {
+    auto tokens = tokenizer.tokenize("Super");
+    ASSERT_EQ(tokens.size(), 1u);
+    EXPECT_EQ(tokens[0].type, TokenType::SUPER);
+    EXPECT_EQ(tokens[0].origin, "Super");
+}
+
+// 상속 구분자 콜론
+TEST_F(TokenizerFixture, ColonSymbol_IsRecognized) {
+    auto tokens = tokenizer.tokenize(":");
+    ASSERT_EQ(tokens.size(), 1u);
+    EXPECT_EQ(tokens[0].type, TokenType::COLON);
+    EXPECT_EQ(tokens[0].origin, ":");
+}
