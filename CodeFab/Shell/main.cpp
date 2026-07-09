@@ -10,6 +10,7 @@
 #include "../Checker/Checker.h"
 #include "../Executor/Executor.h"
 #include "CommandLineArgs.h"
+#include "DebugMode.h"
 #include "FileRunMode.h"
 #include "RunPromptShell.h"
 
@@ -45,18 +46,21 @@ int main(int argc, char** argv) {
 
     switch (args.mode) {
         case ShellMode::Repl: {
+            std::cout << "[모드: REPL], To Exit: type 'exit'\n";
             RunPromptShell shell(tokenizer, assembler, checker, executor);
             shell.run(std::cin, std::cout);
             return 0;
         }
         case ShellMode::Run: {
+            std::cout << "[모드: RUN]\n";
             FileRunMode mode(tokenizer, assembler, checker, executor);
             return mode.run(args.path, std::cout) ? 0 : 1;
         }
-        case ShellMode::Debug:
-            // 디버그 모드는 3일차 확장 3단계에서 구현 예정 (Architecture.md §9.3 참고).
-            std::cerr << "이 모드는 아직 구현되지 않았습니다. --help로 사용 가능한 모드를 확인하세요.\n";
-            return 1;
+        case ShellMode::Debug: {
+            std::cout << "[모드: DEBUG]\n";
+            DebugMode mode(tokenizer, assembler, checker, executor);
+            return mode.run(args.path, std::cin, std::cout) ? 0 : 1;
+        }
         default:
             return 1;
     }

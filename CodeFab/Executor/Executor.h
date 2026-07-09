@@ -43,10 +43,16 @@ public:
     const Environment& environment() const override;
 
     // 디버그 모드(Shell) 전용 훅. Statement 하나를 실제로 실행하기 직전에 매번
-    // 호출된다. RunPromptShell/FileRunMode는 이 훅을 설정하지 않으므로 기존
-    // 동작에 영향이 없다. ExecuteInterface에는 포함하지 않는다 - 디버그 모드만
-    // 이 구체 타입(Executor)에 직접 의존해서 쓴다 (Architecture.md §9.3 참고).
-    using StatementHook = std::function<void(Statement*)>;
+    // 호출된다. 두 번째 인자는 현재 실행 깊이(최상위 statement = 1, 그 statement가
+    // Block/If/For의 바디이거나 함수/메서드 호출 안이면 그보다 큰 값)다 - 디버그
+    // 모드의 "next"(현재 줄 안의 하위 statement는 건너뛰고, 같거나 더 얕은 깊이로
+    // 돌아왔을 때만 멈추는 step-over) 명령을 구현하려면 depth 정보가 반드시
+    // 필요하다(Implement.md §5 "할 일 3"이 이 필요성을 미리 언급해뒀다). depth는
+    // execute(Statement*)가 재귀 호출될 때마다 증가/감소하는 내부 카운터를 그대로
+    // 넘겨준다. RunPromptShell/FileRunMode는 이 훅을 설정하지 않으므로 기존 동작에
+    // 영향이 없다. ExecuteInterface에는 포함하지 않는다 - 디버그 모드만 이 구체
+    // 타입(Executor)에 직접 의존해서 쓴다 (Architecture.md §9.3 참고).
+    using StatementHook = std::function<void(Statement*, int depth)>;
     void setStatementHook(StatementHook hook);
 
     // SyntaxNodeVisitor: 노드 하나당 visit() 하나. Statement류는 부수효과만
@@ -135,5 +141,6 @@ private:
     std::ostream& out_;
     Environment environment_;
     StatementHook statementHook_;
+    int statementDepth_ = 0;
     Value lastValue_;  // visit(Expression&)이 결과를 여기 담아두고 evaluate()가 꺼내 간다.
 };

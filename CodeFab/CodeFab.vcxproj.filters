@@ -120,6 +120,18 @@
     <ClCompile Include="Shell\FileRunModeTest.cpp">
       <Filter>Shell</Filter>
     </ClCompile>
+    <ClCompile Include="Shell\Debugger.cpp">
+      <Filter>Shell</Filter>
+    </ClCompile>
+    <ClCompile Include="Shell\DebuggerTest.cpp">
+      <Filter>Shell</Filter>
+    </ClCompile>
+    <ClCompile Include="Shell\DebugMode.cpp">
+      <Filter>Shell</Filter>
+    </ClCompile>
+    <ClCompile Include="Shell\DebugModeTest.cpp">
+      <Filter>Shell</Filter>
+    </ClCompile>
     <ClCompile Include="IntegrationTest\DebugIntegrationTest.cpp">
       <Filter>IntegrationTest</Filter>
     </ClCompile>
@@ -189,6 +201,12 @@
       <Filter>Shell</Filter>
     </ClInclude>
     <ClInclude Include="Shell\FileRunMode.h">
+      <Filter>Shell</Filter>
+    </ClInclude>
+    <ClInclude Include="Shell\Debugger.h">
+      <Filter>Shell</Filter>
+    </ClInclude>
+    <ClInclude Include="Shell\DebugMode.h">
       <Filter>Shell</Filter>
     </ClInclude>
   </ItemGroup>

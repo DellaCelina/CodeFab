@@ -39,6 +39,11 @@ public:
     std::optional<Value> lookupAt(int distance, const std::string& name) const;
     bool assignAt(int distance, const std::string& name, const Value& value);
 
+    // scopes_.front()가 전역, scopes_.back()이 가장 안쪽 스코프인 순서 그대로
+    // 읽기 전용으로 노출한다. 디버그 모드의 inspect 명령이 전체 변수 목록을
+    // 보여줄 때 쓴다(Architecture.md §9.3, Implement.md §5 "할 일 3").
+    const std::vector<Scope>& scopes() const { return scopes_; }
+
 private:
     std::vector<Scope> scopes_;
 };
