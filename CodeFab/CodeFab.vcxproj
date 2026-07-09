@@ -181,6 +181,7 @@
     <ClInclude Include="Assembler\FileSourceReader.h" />
     <ClInclude Include="Checker\Checker.h" />
     <ClInclude Include="Checker\CheckerInterface.h" />
+    <ClInclude Include="Checker\OptimizerInterface.h" />
     <ClInclude Include="Executor\ExecuteInterface.h" />
     <ClInclude Include="Executor\Executor.h" />
     <ClInclude Include="Executor\Value.h" />

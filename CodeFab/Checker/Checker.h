@@ -41,6 +41,9 @@ private:
 
     [[noreturn]] void reportError(int line, const string& message);
 
+    // SyntaxNode에 accept()가 추가됐지만(TODO.md #11, Visitor 패턴 적용 결정),
+    // Checker는 이번 라운드 리팩토링 범위가 아니라 여전히 dynamic_cast로 타입
+    // 분기한다 - Executor 전환 이후 별도로 진행한다.
     void registerDefaultHandlers();
 
     // 핸들러 없는 타입(리터럴 등)은 조용히 지나간다.
