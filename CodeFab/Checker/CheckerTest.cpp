@@ -620,7 +620,7 @@ TEST_F(CheckerTest, ImportInNestedScopeWhenAlreadyImportedInOuterScopeReportsErr
         checker.check(tree);
         FAIL() << "CheckerError가 발생해야 합니다.";
     } catch (const CheckerError& e) {
-        EXPECT_THAT(std::string(e.what()), testing::HasSubstr("'sum' is already declared in an enclosing scope."));
+        EXPECT_THAT(std::string(e.what()), testing::HasSubstr("'sum' is already declared in an upper scope."));
     }
 }
 
