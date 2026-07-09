@@ -42,7 +42,7 @@ std::vector<Token> Tokenizer::tokenize(const std::string& src) {
     return tokens;
 }
 
-bool Tokenizer::isAtEnd() {
+bool Tokenizer::isAtEnd() const {
     return current >= static_cast<int>(source.size());
 }
 
@@ -56,11 +56,11 @@ bool Tokenizer::match(char expected) {
     return true;
 }
 
-char Tokenizer::peek() {
+char Tokenizer::peek() const {
     return isAtEnd() ? '\0' : source[current];
 }
 
-char Tokenizer::peekNext() {
+char Tokenizer::peekNext() const {
     if (current + 1 >= static_cast<int>(source.size())) return '\0';
     return source[current + 1];
 }
