@@ -49,7 +49,7 @@ public:
 
 class MockChecker : public CheckerInterface {
 public:
-    MOCK_METHOD(bool, check, (SyntaxTree & tree), (override));
+    MOCK_METHOD(void, check, (SyntaxTree & tree), (override));
 };
 
 class DebugModeTest : public ::testing::Test {
@@ -156,7 +156,7 @@ protected:
     Assembler assembler{ sourceReader };
     std::ostringstream programOutput;
     Executor executor{ programOutput };
-    Checker checker{ executor };
+    Checker checker;
 
     DebugMode mode{ tokenizer, assembler, checker, executor };
 
