@@ -244,7 +244,7 @@ TEST_F(DebuggerTest, InspectCommand_ShowsHeaderAndSeparatesLocalFromGlobalVariab
     EXPECT_NE(out.find("--- 현재 스코프 변수 ---\n"), std::string::npos);
     // unordered_map 순회 순서는 보장되지 않으므로, a/b가 [전역] 표시 뒤에
     // 나오는지만 위치로 확인한다.
-    size_t globalPos = out.find("[전역]\n");
+    size_t globalPos = out.find("[전역]");
     ASSERT_NE(globalPos, std::string::npos);
     EXPECT_GT(out.find("a = 3"), globalPos);
     EXPECT_GT(out.find("b = hi"), globalPos);
@@ -275,10 +275,8 @@ TEST_F(DebuggerTest, InspectCommand_ListsLocalVariableUnderLocalAndGlobalUnderGl
               "> [DEBUG] 1번째 줄에서 정지\n"
               "> [DEBUG] 2번째 줄에서 정지\n"
               "> --- 현재 스코프 변수 ---\n"
-              "[로컬]\n"
-              "l = 2\n"
-              "[전역]\n"
-              "g = 1\n"
+              "[로컬] l = 2 (number)\n"
+              "[전역] g = 1 (number)\n"
               "> ");
 }
 

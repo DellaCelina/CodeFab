@@ -79,16 +79,26 @@ void Debugger::printInspect() const {
 
     out_ << "--- 현재 스코프 변수 ---\n";
 
-    out_ << "[로컬]\n";
+    bool anyLocal = false;
     for (auto it = scopes.rbegin(); it != scopes.rend() - 1; ++it) {
         for (const auto& [name, value] : it->variables()) {
-            out_ << name << " = " << value.toString() << "\n";
+            out_ << "[로컬] " << name << " = " << value.toString() << " (" << value.typeName()
+                 << ")\n";
+            anyLocal = true;
         }
     }
+    if (!anyLocal) {
+        out_ << "[로컬]\n";
+    }
 
-    out_ << "[전역]\n";
+    bool anyGlobal = false;
     for (const auto& [name, value] : scopes.front().variables()) {
-        out_ << name << " = " << value.toString() << "\n";
+        out_ << "[전역] " << name << " = " << value.toString() << " (" << value.typeName()
+             << ")\n";
+        anyGlobal = true;
+    }
+    if (!anyGlobal) {
+        out_ << "[전역]\n";
     }
 }
 
