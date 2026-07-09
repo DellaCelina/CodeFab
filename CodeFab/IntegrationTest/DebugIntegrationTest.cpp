@@ -391,6 +391,27 @@ TEST_F(RunPromptShellIntegrationTest, ForLoop_WithVarInitializer_PrintsZeroOneTw
     EXPECT_EQ(out.str(), ">>> >>> ");
 }
 
+// if 블록도 BlockStatement와 마찬가지로 자기 스코프를 갖는지 확인한다: if 블록
+// 안에서 선언한 지역 변수(a)는 블록을 빠져나오면 사라지고, if 문 이전에 선언한
+// 바깥 변수(g)는 블록 실행 여부와 무관하게 계속 접근 가능해야 한다.
+TEST_F(RunPromptShellIntegrationTest, IfBlockScope_InnerVariableIsScopedAndOuterVariableRemainsAccessible) {
+    std::ostringstream out;
+    run("var g = 1;\nif (true) { var a = 2; print a; }\nprint g;\n", out);
+
+    EXPECT_EQ(programOutput.str(), "2\n1\n");
+    EXPECT_EQ(out.str(), ">>> >>> >>> >>> ");
+}
+
+// 조건이 false면 if 블록 자체가 실행되지 않으므로, 블록 안의 print(2)는 전혀
+// 출력되지 않고 바깥 변수(g)만 출력돼야 한다.
+TEST_F(RunPromptShellIntegrationTest, IfBlockScope_ConditionFalse_SkipsBlockAndDoesNotPrintInnerValue) {
+    std::ostringstream out;
+    run("var g = 1;\nif (false) { var a = 2; print a; }\nprint g;\n", out);
+
+    EXPECT_EQ(programOutput.str(), "1\n");
+    EXPECT_EQ(out.str(), ">>> >>> >>> >>> ");
+}
+
 // --- 5. 논리 연산자(and/or) ---
 // Tokenizer/Assembler/Executor 모두 and/or를 구현하고 있다 (Executor.cpp의
 // AndExpression/OrExpression 핸들러, 둘 다 단락 평가). 아래는 실제 파이프라인으로
