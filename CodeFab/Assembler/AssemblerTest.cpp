@@ -1232,7 +1232,7 @@ TEST(AssemblerImportTest, ClassDeclarationInsideImportDoesNotThrowTest) {
     auto tree = assembler.assemble(tokens);
     auto root = tree.getRoot();
 
-    MethodDeclareStatement initMethod({ classTokens[4], classTokens[6], classTokens[7] },
+    MethodDeclareStatement initMethod({ classTokens[5], classTokens[6], classTokens[7] },
         classTokens[3], {}, {});
     ClassDeclareStatement declareAdder({ classTokens[0], classTokens[2], classTokens[8] },
         classTokens[1], { &initMethod });
