@@ -18,22 +18,20 @@ private:
     int                line    = 1;
     std::vector<Token> tokens;
 
-    std::vector<Token> scanTokens(const std::string& source);
-
+    void reset(const std::string& src);
     bool isAtEnd();
-    void scanToken();
-    void addToken(TokenType type);
     char advance();
     bool match(char expected);
     char peek();
     char peekNext();
+    void addToken(TokenType type);
+    void scanToken();
     void scanString();
     void scanNumber();
     void scanIdentifier();
-
-    void reset(const std::string& src);
-    bool isDigit(char c);
-    bool isAlpha(char c);
-    bool isAlphaNumeric(char c);
     void scanDefault(char c);
+
+    static bool isDigit(char c);
+    static bool isAlpha(char c);
+    static bool isAlphaNumeric(char c);
 };

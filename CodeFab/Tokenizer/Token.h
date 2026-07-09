@@ -15,9 +15,7 @@ enum class TokenType {
     ELSE,
     FOR,
 
-    // 키워드 (3일차 확장: function/class/array/import/instanceof)
-    // Tokenizer는 아직 이 토큰들을 만들어내지 않는다 - Implement.md의 Tokenizer
-    // 담당자 안내를 참고해 키워드 인식(KEYWORDS 맵 등)에 추가해야 한다.
+    // 키워드 (확장: function/class/array/import/instanceof/상속)
     FUNC,           // Func
     RETURN,         // return
     CLASS,          // Class
@@ -27,9 +25,6 @@ enum class TokenType {
     ALIAS,          // alias
     INSTANCEOF,     // instanceof
 
-    // 키워드 (상속 확장: Architecture.md §4.5 / TODO.md #5)
-    // Tokenizer는 아직 이 토큰들을 만들어내지 않는다 - ImplementTodo.md의 상속
-    // 담당 파트를 참고해 키워드/구분자 인식에 추가해야 한다.
     SUPER,          // Super
 
     // 식별자
@@ -63,13 +58,12 @@ enum class TokenType {
     LEFT_BRACE,     // {
     RIGHT_BRACE,    // }
 
-    // 구분자 (3일차 확장: class/array/function)
+    // 구분자 (확장: class/array/function/상속)
     DOT,            // .
     LEFT_BRACKET,   // [
     RIGHT_BRACKET,  // ]
     COMMA,          // ,
 
-    // 구분자 (상속 확장: Architecture.md §4.5 / TODO.md #5)
     COLON,          // :
 };
 
