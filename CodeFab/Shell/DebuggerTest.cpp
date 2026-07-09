@@ -81,11 +81,11 @@ TEST_F(DebuggerTest, SourceLinesProvided_ShowsArrowMarkedSourceLineAfterStopMess
     Debugger debugger(executor, commandInput, debugOutput, { "print 1;", "print 2;" });
 
     debugger.onStatement(block->statements[0], /*depth=*/1);
-    EXPECT_EQ(debugOutput.str(), "[DEBUG] 1번째 줄에서 정지\n-> print 1;\n> ");
+    EXPECT_EQ(debugOutput.str(), "[DEBUG] 1번째 줄에서 정지 -> print 1;\n> ");
     debugOutput.str("");
 
     debugger.onStatement(block->statements[1], /*depth=*/1);
-    EXPECT_EQ(debugOutput.str(), "[DEBUG] 2번째 줄에서 정지\n-> print 2;\n> ");
+    EXPECT_EQ(debugOutput.str(), "[DEBUG] 2번째 줄에서 정지 -> print 2;\n> ");
 }
 
 TEST_F(DebuggerTest, SourceLinesNotProvided_OmitsArrowLine) {

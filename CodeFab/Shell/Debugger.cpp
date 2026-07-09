@@ -13,8 +13,9 @@ void Debugger::onStatement(Statement* stmt, int depth) {
         return;
     }
     int line = stmt->getLine();
-    out_ << "[DEBUG] " << line << "번째 줄에서 정지\n";
+    out_ << "[DEBUG] " << line << "번째 줄에서 정지";
     printCurrentSourceLine(line);
+    out_ << "\n";
     printWatches();
     promptAndHandleCommand(stmt, depth);
 }
@@ -43,7 +44,7 @@ void Debugger::printCurrentSourceLine(int line) const {
     if (line < 1 || static_cast<size_t>(line) > sourceLines_.size()) {
         return;
     }
-    out_ << "-> " << sourceLines_[line - 1] << "\n";
+    out_ << " -> " << sourceLines_[line - 1];
 }
 
 void Debugger::printWatches() const {

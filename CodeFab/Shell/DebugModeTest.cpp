@@ -196,7 +196,7 @@ TEST_F(DebugModeIntegrationTest, ContinueImmediately_RunsWholeScriptAndReturnsTr
 
     EXPECT_TRUE(result);
     EXPECT_EQ(programOutput.str(), "3\n");
-    EXPECT_EQ(out.str(), "[DEBUG] 1번째 줄에서 정지\n-> print 1 + 2;\n> ");
+    EXPECT_EQ(out.str(), "[DEBUG] 1번째 줄에서 정지 -> print 1 + 2;\n> ");
 }
 
 TEST_F(DebugModeIntegrationTest, Breakpoint_StopsAtTargetLineThenFinishesOnContinue) {
@@ -209,11 +209,9 @@ TEST_F(DebugModeIntegrationTest, Breakpoint_StopsAtTargetLineThenFinishesOnConti
     EXPECT_TRUE(result);
     EXPECT_EQ(programOutput.str(), "1\n2\n3\n");
     EXPECT_EQ(out.str(),
-              "[DEBUG] 1번째 줄에서 정지\n"
-              "-> print 1;\n"
+              "[DEBUG] 1번째 줄에서 정지 -> print 1;\n"
               "> [BREAK] 3번째 줄에 브레이크포인트를 설정했습니다.\n"
-              "> [DEBUG] 3번째 줄에서 정지\n"
-              "-> print 3;\n"
+              "> [DEBUG] 3번째 줄에서 정지 -> print 3;\n"
               "> ");
 }
 
@@ -233,12 +231,10 @@ TEST_F(DebugModeIntegrationTest, WatchAcrossSteps_ShowsUndefinedBeforeDeclaratio
     // 멈추지 않는다(아래 MultiStatementWithNestedIfBlock_... 테스트가 이
     // 회귀를 더 명확하게 검증한다).
     EXPECT_EQ(out.str(),
-              "[DEBUG] 1번째 줄에서 정지\n"
-              "-> var a = 3;\n"
+              "[DEBUG] 1번째 줄에서 정지 -> var a = 3;\n"
               "> [WATCH] a = undefined\n"
               "> "
-              "[DEBUG] 2번째 줄에서 정지\n"
-              "-> print a;\n"
+              "[DEBUG] 2번째 줄에서 정지 -> print a;\n"
               "[WATCH] a = 3\n"
               "> ");
 }
@@ -260,12 +256,12 @@ TEST_F(DebugModeIntegrationTest, MultiStatementWithNestedIfBlock_StepsThroughEac
     EXPECT_TRUE(result);
     EXPECT_EQ(programOutput.str(), "1\n1\n");
     EXPECT_EQ(out.str(),
-              "[DEBUG] 1번째 줄에서 정지\n-> var g = 1;\n"
-              "> [DEBUG] 2번째 줄에서 정지\n-> if (true)\n"
-              "> [DEBUG] 3번째 줄에서 정지\n-> {\n"  // 중첩 블록 자체 - 실제 소스에 있는 블록
-              "> [DEBUG] 4번째 줄에서 정지\n-> \tvar a = 1;\n"
-              "> [DEBUG] 5번째 줄에서 정지\n-> \tprint a;\n"
-              "> [DEBUG] 7번째 줄에서 정지\n-> print g;\n"
+              "[DEBUG] 1번째 줄에서 정지 -> var g = 1;\n"
+              "> [DEBUG] 2번째 줄에서 정지 -> if (true)\n"
+              "> [DEBUG] 3번째 줄에서 정지 -> {\n"  // 중첩 블록 자체 - 실제 소스에 있는 블록
+              "> [DEBUG] 4번째 줄에서 정지 -> \tvar a = 1;\n"
+              "> [DEBUG] 5번째 줄에서 정지 -> \tprint a;\n"
+              "> [DEBUG] 7번째 줄에서 정지 -> print g;\n"
               "> ");
 }
 
@@ -283,9 +279,9 @@ TEST_F(DebugModeIntegrationTest, NextOverIfStatement_SkipsNestedBlockAndStopsAtN
     // print(3~5번째 줄, depth 2~3)는 전부 건너뛰고 실제로 실행만 되며, 다음
     // 최상위 문장(7번째 줄)에서 멈춘다.
     EXPECT_EQ(out.str(),
-              "[DEBUG] 1번째 줄에서 정지\n-> var g = 1;\n"
-              "> [DEBUG] 2번째 줄에서 정지\n-> if (true)\n"
-              "> [DEBUG] 7번째 줄에서 정지\n-> print g;\n"
+              "[DEBUG] 1번째 줄에서 정지 -> var g = 1;\n"
+              "> [DEBUG] 2번째 줄에서 정지 -> if (true)\n"
+              "> [DEBUG] 7번째 줄에서 정지 -> print g;\n"
               "> ");
 }
 
