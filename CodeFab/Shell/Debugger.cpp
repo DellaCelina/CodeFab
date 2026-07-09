@@ -3,15 +3,18 @@
 #include <algorithm>
 #include <sstream>
 
-Debugger::Debugger(const ExecuteInterface& executor, std::istream& in, std::ostream& out)
-    : executor_(executor), in_(in), out_(out) {
+Debugger::Debugger(const ExecuteInterface& executor, std::istream& in, std::ostream& out,
+                    std::vector<std::string> sourceLines)
+    : executor_(executor), in_(in), out_(out), sourceLines_(std::move(sourceLines)) {
 }
 
 void Debugger::onStatement(Statement* stmt, int depth) {
     if (!shouldStop(stmt, depth)) {
         return;
     }
-    out_ << "[DEBUG] " << stmt->getLine() << "번째 줄에서 정지\n";
+    int line = stmt->getLine();
+    out_ << "[DEBUG] " << line << "번째 줄에서 정지\n";
+    printCurrentSourceLine(line);
     printWatches();
     promptAndHandleCommand(stmt, depth);
 }
@@ -32,6 +35,15 @@ bool Debugger::shouldStop(Statement* stmt, int depth) const {
         }
     }
     return false;
+}
+
+void Debugger::printCurrentSourceLine(int line) const {
+    // sourceLines_가 비어있으면(Debugger 생성 시 넘기지 않은 경우) 아무것도
+    // 표시하지 않는다 - line 정보 자체는 유효해도 보여줄 원본 텍스트가 없다.
+    if (line < 1 || static_cast<size_t>(line) > sourceLines_.size()) {
+        return;
+    }
+    out_ << "-> " << sourceLines_[line - 1] << "\n";
 }
 
 void Debugger::printWatches() const {

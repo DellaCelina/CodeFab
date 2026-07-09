@@ -35,7 +35,23 @@ bool DebugMode::run(const std::string& filePath, std::istream& in, std::ostream&
     // 파싱하기 때문이다.
     std::string source = "{" + buffer.str() + "}";
 
-    Debugger debugger(executor_, in, out);
+    // Debugger가 정지 시 "-> <원본 소스 줄>"을 보여줄 수 있도록, 원본 파일
+    // 내용(래핑하기 전)을 줄 단위로 나눠 넘긴다. "{"를 줄바꿈 없이 맨 앞에
+    // 붙였을 뿐이라(§ 위 주석), 원본 파일의 줄 번호와 토큰의 line은 항상
+    // 그대로 일치한다.
+    std::vector<std::string> sourceLines;
+    {
+        std::istringstream lineStream(buffer.str());
+        std::string lineText;
+        while (std::getline(lineStream, lineText)) {
+            if (!lineText.empty() && lineText.back() == '\r') {
+                lineText.pop_back();
+            }
+            sourceLines.push_back(lineText);
+        }
+    }
+
+    Debugger debugger(executor_, in, out, sourceLines);
     executor_.setStatementHook([&debugger](Statement* stmt, int depth) {
         debugger.onStatement(stmt, depth);
     });

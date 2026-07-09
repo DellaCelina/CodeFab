@@ -69,6 +69,39 @@ TEST_F(DebuggerTest, StepMode_StopsOnFirstStatementAndPrintsLine) {
     EXPECT_EQ(debugOutput.str(), "[DEBUG] 1번째 줄에서 정지\n> ");
 }
 
+TEST_F(DebuggerTest, SourceLinesProvided_ShowsArrowMarkedSourceLineAfterStopMessage) {
+    SyntaxTree tree = parseAndExecute("print 1;\nprint 2;\n");
+    auto* block = dynamic_cast<BlockStatement*>(tree.getRoot());
+    ASSERT_EQ(block->statements.size(), 2u);
+
+    setCommands("step\ncontinue\n");
+    // sourceLines_[i]는 (i+1)번째 줄에 대응한다 - parseAndExecute()가
+    // 넘겨준 소스는 "{"를 줄바꿈 없이 앞에 붙일 뿐이라 원본 줄 번호가
+    // 그대로 유지된다(DebugMode.cpp가 실제 파일에 대해 하는 것과 동일).
+    Debugger debugger(executor, commandInput, debugOutput, { "print 1;", "print 2;" });
+
+    debugger.onStatement(block->statements[0], /*depth=*/1);
+    EXPECT_EQ(debugOutput.str(), "[DEBUG] 1번째 줄에서 정지\n-> print 1;\n> ");
+    debugOutput.str("");
+
+    debugger.onStatement(block->statements[1], /*depth=*/1);
+    EXPECT_EQ(debugOutput.str(), "[DEBUG] 2번째 줄에서 정지\n-> print 2;\n> ");
+}
+
+TEST_F(DebuggerTest, SourceLinesNotProvided_OmitsArrowLine) {
+    // sourceLines를 넘기지 않으면(기본값 {}) "-> " 줄 자체를 생략한다 - 기존
+    // Debugger 사용처(sourceLines 없이 만드는 다른 테스트들)의 동작을 그대로
+    // 유지하기 위함이다.
+    SyntaxTree tree = parseAndExecute("print 1;\n");
+    Statement* stmt = dynamic_cast<BlockStatement*>(tree.getRoot())->statements[0];
+
+    setCommands("continue\n");
+    Debugger debugger(executor, commandInput, debugOutput);
+    debugger.onStatement(stmt, 1);
+
+    EXPECT_EQ(debugOutput.str(), "[DEBUG] 1번째 줄에서 정지\n> ");
+}
+
 TEST_F(DebuggerTest, ContinueCommand_SwitchesToContinueModeAndStopsOnlyAtBreakpoints) {
     SyntaxTree tree = parseAndExecute("print 1;\nprint 2;\nprint 3;\n");
     auto* block = dynamic_cast<BlockStatement*>(tree.getRoot());
