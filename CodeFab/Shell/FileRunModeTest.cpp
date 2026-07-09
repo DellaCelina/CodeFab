@@ -254,9 +254,6 @@ TEST_F(FileRunModeIntegrationTest, MissingSemicolon_ReportsSyntaxErrorAndReturns
 }
 
 TEST_F(FileRunModeIntegrationTest, UnclosedBraceAtEndOfFile_ReportsErrorInsteadOfWaiting) {
-    // RunPromptShell이라면 IncompleteInputError를 "입력을 더 받아야 함"으로
-    // 해석해 계속 기다리지만, 파일 모드는 파일 전체를 이미 다 읽었으므로
-    // 똑같은 IncompleteInputError를 실제 오류로 보고하고 즉시 종료해야 한다.
     writeFile("if (true) {\nprint 1;\n");
 
     std::ostringstream out;

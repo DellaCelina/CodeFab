@@ -52,12 +52,6 @@ bool FileRunMode::run(const std::string& filePath, std::ostream& out) {
         executor_.execute(tree);
         return true;
     } catch (const std::exception& e) {
-        // AssemblyError/AssemblerError/CheckerError/ExecutorError/
-        // IncompleteInputError 모두 각자의 인터페이스 헤더에 정의된 순수
-        // std::exception이다. RunPromptShell과 달리 파일 모드는 "입력을 더
-        // 받는다"는 개념이 없으므로(파일 전체를 이미 다 읽었다), 여기서는
-        // IncompleteInputError도 다른 예외와 동일하게 실패로 처리한다 -
-        // 파일 끝까지 괄호/문자열이 닫히지 않았다는 뜻이므로 실제 오류가 맞다.
         out << e.what() << "\n";
         return false;
     }

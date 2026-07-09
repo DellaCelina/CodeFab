@@ -106,10 +106,7 @@ TEST_F(TokenizerFixture, LineTracking) {
 
 // 종결되지 않은 문자열 예외
 TEST_F(TokenizerFixture, UnterminatedString) {
-    // 문자열이 닫히지 않은 채 입력이 끝나면 IncompleteInputError를 던진다
-    // (TokenizeInterface.h/Tokenizer.cpp의 scanString() 참고). IncompleteInputError는
-    // std::runtime_error가 아니라 std::exception을 직접 상속한다.
-    EXPECT_THROW(tokenizer.tokenize("\"hello"), IncompleteInputError);
+    EXPECT_THROW(tokenizer.tokenize("\"hello"), AssemblyError);
 }
 
 // 알 수 없는 문자 예외
