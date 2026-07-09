@@ -1009,7 +1009,7 @@ TEST_F(RunPromptShellIntegrationTest, Import_SameModuleInSeparateBlockScopes_Doe
 
     EXPECT_EQ(programOutput.str(), "3\n7\n");
     EXPECT_THAT(out.str(), AllOf(StartsWith(">>> >>> >>> "),
-                                  HasSubstr("'sum'에러: 선언되지 않은 변수입니다."),
+                                  HasSubstr("'sum' is not declared."),
                                   EndsWith(">>> ")));
 }
 
@@ -1025,7 +1025,7 @@ TEST_F(RunPromptShellIntegrationTest, Import_InsideIfBlock_AliasOnlyExistsWithin
 
     EXPECT_EQ(programOutput.str(), "3\n");
     EXPECT_THAT(out.str(), AllOf(StartsWith(">>> >>> "),
-                                  HasSubstr("'sum'에러: 선언되지 않은 변수입니다."),
+                                  HasSubstr("'sum' is not declared."),
                                   EndsWith(">>> ")));
 }
 

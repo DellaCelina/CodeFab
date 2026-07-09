@@ -520,13 +520,16 @@ Assembler::Assembler(SourceReaderInterface& sourceReader) : sourceReader_(source
 }
 
 SyntaxTree Assembler::assemble(const Tokens& tokens) {
+    // parseStatement() 한 번만 부르면 토큰에 최상위 statement가 2개 이상 있을 때
+    // 첫 번째만 파싱되고 나머지는 조용히 버려진다(REPL에서 '\'로 여러 줄을
+    // 이어붙인 경우 실제로 발생). parseProgram()으로 토큰을 끝까지 소비해 모든
+    // 최상위 statement를 파싱하고, SyntaxTree에 root를 여러 개 담는다 - 기존
+    // 단일 root 계약(getRoot()/setRoot())은 그대로 유지되므로(첫 root만 보는
+    // 호출부는 영향 없음) AssemblerInterface는 바꾸지 않는다.
     SyntaxTree tree;
     Parser parser(tokens, tree, kDefaultOperatorPriority, kDefaultUnaryOperator, sourceReader_, importStack_);
-    tree.setRoot(parser.parseStatement());
+    for (Statement* statement : parser.parseProgram()) {
+        tree.addRoot(statement);
+    }
     return std::move(tree);
-}
-
-std::vector<Statement*> Assembler::assembleAll(const Tokens& tokens, SyntaxTree& tree) {
-    Parser parser(tokens, tree, kDefaultOperatorPriority, kDefaultUnaryOperator, sourceReader_, importStack_);
-    return parser.parseProgram();
 }

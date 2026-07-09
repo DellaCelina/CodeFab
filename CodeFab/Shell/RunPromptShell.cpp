@@ -69,13 +69,14 @@ void RunPromptShell::run(std::istream& in, std::ostream& out) {
 
         try {
             // 한 제출(buffer)에 최상위 statement가 여러 개 들어올 수 있다(예: '\'로
-            // 이어붙인 여러 줄). assemble()은 statement 하나만 파싱하므로 그걸 쓰면
-            // 나머지는 조용히 버려진다 - assembleAll()로 전부 파싱해서 순서대로,
-            // 각 statement마다 새 스코프 없이(전역 스코프에 직접) check+execute한다.
+            // 이어붙인 여러 줄). assemble()이 돌려주는 tree는 이제 root를 여러 개
+            // 담을 수 있으므로(SyntaxTree::getRoots() 참고), 그 순서대로 하나씩
+            // check+execute한다 - 새 블록 스코프로 감싸지 않고 그대로 실행해서
+            // REPL의 "한 줄 선언 -> 다음 줄에서 사용" 동작을 그대로 유지한다.
             std::vector<Token> tokens = tokenizer_.tokenize(buffer);
-            SyntaxTree tree;
-            std::vector<Statement*> statements = assembler_.assembleAll(tokens, tree);
-            for (Statement* statement : statements) {
+            SyntaxTree tree = assembler_.assemble(tokens);
+            std::vector<SyntaxNode*> statements = tree.getRoots();
+            for (SyntaxNode* statement : statements) {
                 tree.setRoot(statement);
                 checker_.check(tree);
                 executor_.execute(tree);
