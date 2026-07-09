@@ -1,4 +1,6 @@
-﻿#include "Optimizer.h"
+#include "Optimizer.h"
+
+#include <stdexcept>
 
 namespace {
 
@@ -20,109 +22,43 @@ void Optimizer::foldStatement(Statement* stmt) {
     if (stmt == nullptr) {
         return;
     }
-
-    if (auto* block = dynamic_cast<BlockStatement*>(stmt)) {
-        for (Statement* s : block->statements) {
-            foldStatement(s);
-        }
-    }
-    else if (auto* decl = dynamic_cast<DeclareStatement*>(stmt)) {
-        foldExpression(decl->expr);
-    }
-    else if (auto* print = dynamic_cast<PrintStatement*>(stmt)) {
-        foldExpression(print->expr);
-    }
-    else if (auto* exprStmt = dynamic_cast<ExpressionStatement*>(stmt)) {
-        foldExpression(exprStmt->expr);
-    }
-    else if (auto* ifStmt = dynamic_cast<IfStatement*>(stmt)) {
-        foldExpression(ifStmt->expr);
-        foldStatement(ifStmt->thenBranch);
-        foldStatement(ifStmt->elseBranch);
-    }
-    else if (auto* forStmt = dynamic_cast<ForStatement*>(stmt)) {
-        foldStatement(forStmt->init);
-        foldExpression(forStmt->compare);
-        foldExpression(forStmt->next);
-        foldStatement(forStmt->loop);
-    }
-    else if (auto* funcDecl = dynamic_cast<FunctionDeclareStatement*>(stmt)) {
-        for (Statement* s : funcDecl->body) {
-            foldStatement(s);
-        }
-    }
-    else if (auto* classDecl = dynamic_cast<ClassDeclareStatement*>(stmt)) {
-        for (MethodDeclareStatement* method : classDecl->methods) {
-            for (Statement* s : method->body) {
-                foldStatement(s);
-            }
-        }
-    }
-    else if (auto* ret = dynamic_cast<ReturnStatement*>(stmt)) {
-        foldExpression(ret->value);
-    }
-    else if (auto* importStmt = dynamic_cast<ImportStatement*>(stmt)) {
-        for (Statement* decl : importStmt->declarations) {
-            foldStatement(decl);
-        }
-    }
+    stmt->accept(*this);
 }
 
 Expression* Optimizer::foldExpression(Expression* expr) {
     if (expr == nullptr) {
         return expr;
     }
+    expr->accept(*this);
+    return lastFolded_;
+}
 
-    if (auto* bin = dynamic_cast<BinaryExpression*>(expr)) {
-        bin->left = foldExpression(bin->left);
-        bin->right = foldExpression(bin->right);
-        if (isLiteralExpression(bin->left) && isLiteralExpression(bin->right)) {
-            try {
-                Value v = executor_.evaluate(bin);
-                return replaceWithLiteral(v, bin);
-            } catch (const ExecutorError&) {
-                // 0으로 나누기 등 - 컴파일 타임에 대신 오류를 내면 안 되므로 원본을 그대로 둔다.
-            }
-        }
-        return bin;
-    }
-    if (auto* un = dynamic_cast<UnaryExpression*>(expr)) {
-        un->operand = foldExpression(un->operand);
-        if (isLiteralExpression(un->operand)) {
-            try {
-                Value v = executor_.evaluate(un);
-                return replaceWithLiteral(v, un);
-            } catch (const ExecutorError&) {
-            }
-        }
-        return un;
-    }
-    if (auto* assign = dynamic_cast<AssignExpression*>(expr)) {
-        foldExpression(assign->value); // target은 대입 대상이라 폴딩하지 않는다.
-    }
-    else if (auto* call = dynamic_cast<CallExpression*>(expr)) {
-        // 호출 대상/인자는 CallExpression::callee/arguments가 여전히 const라 반환값을
-        // 대입할 곳이 없다 - 자식 서브트리(중첩된 이항/단항 연산)만 부작용으로 접는다.
-        foldExpression(call->callee);
-        for (Expression* arg : call->arguments) {
-            foldExpression(arg);
+void Optimizer::foldBinary(BinaryExpression& bin) {
+    bin.left = foldExpression(bin.left);
+    bin.right = foldExpression(bin.right);
+    if (isLiteralExpression(bin.left) && isLiteralExpression(bin.right)) {
+        try {
+            Value v = executor_.evaluate(&bin);
+            lastFolded_ = replaceWithLiteral(v, &bin);
+            return;
+        } catch (const ExecutorError&) {
+            // 0으로 나누기 등 - 컴파일 타임에 대신 오류를 내면 안 되므로 원본을 그대로 둔다.
         }
     }
-    else if (auto* field = dynamic_cast<FieldAccessExpression*>(expr)) {
-        foldExpression(field->object);
+    lastFolded_ = &bin;
+}
+
+void Optimizer::foldUnary(UnaryExpression& un) {
+    un.operand = foldExpression(un.operand);
+    if (isLiteralExpression(un.operand)) {
+        try {
+            Value v = executor_.evaluate(&un);
+            lastFolded_ = replaceWithLiteral(v, &un);
+            return;
+        } catch (const ExecutorError&) {
+        }
     }
-    else if (auto* idx = dynamic_cast<IndexExpression*>(expr)) {
-        foldExpression(idx->collection);
-        foldExpression(idx->index);
-    }
-    else if (auto* instOf = dynamic_cast<InstanceOfExpression*>(expr)) {
-        foldExpression(instOf->object);
-    }
-    else if (auto* arr = dynamic_cast<ArrayExpression*>(expr)) {
-        foldExpression(arr->sizeExpr);
-    }
-    // 리터럴/식별자/This/Super는 그 자체로 폴딩 대상이 아니다.
-    return expr;
+    lastFolded_ = &un;
 }
 
 Expression* Optimizer::replaceWithLiteral(const Value& value, Expression* original) {
@@ -152,4 +88,138 @@ Expression* Optimizer::replaceWithLiteral(const Value& value, Expression* origin
     }
     // 산술/비교 연산 결과는 항상 Number/Boolean/String이므로 이론상 도달하지 않는다.
     return original;
+}
+
+// --- 리터럴/변수/this/super: 폴딩 대상이 아니다. 자기 자신을 그대로 반환한다. ---
+
+void Optimizer::visit(NumberExpression& node) { lastFolded_ = &node; }
+void Optimizer::visit(StringExpression& node) { lastFolded_ = &node; }
+void Optimizer::visit(BooleanExpression& node) { lastFolded_ = &node; }
+void Optimizer::visit(IdentifierExpression& node) { lastFolded_ = &node; }
+void Optimizer::visit(ThisExpression& node) { lastFolded_ = &node; }
+void Optimizer::visit(SuperExpression& node) { lastFolded_ = &node; }
+
+// --- BinaryExpression 13종: 전부 foldBinary 공유. ---
+
+void Optimizer::visit(AddExpression& node) { foldBinary(node); }
+void Optimizer::visit(MultExpression& node) { foldBinary(node); }
+void Optimizer::visit(SubExpression& node) { foldBinary(node); }
+void Optimizer::visit(DivideExpression& node) { foldBinary(node); }
+void Optimizer::visit(ModExpression& node) { foldBinary(node); }
+void Optimizer::visit(AndExpression& node) { foldBinary(node); }
+void Optimizer::visit(OrExpression& node) { foldBinary(node); }
+void Optimizer::visit(EqualExpression& node) { foldBinary(node); }
+void Optimizer::visit(NotEqualExpression& node) { foldBinary(node); }
+void Optimizer::visit(LessExpression& node) { foldBinary(node); }
+void Optimizer::visit(LessEqualExpression& node) { foldBinary(node); }
+void Optimizer::visit(GreaterExpression& node) { foldBinary(node); }
+void Optimizer::visit(GreaterEqualExpression& node) { foldBinary(node); }
+
+// --- UnaryExpression 2종: foldUnary 공유. ---
+
+void Optimizer::visit(NegativeExpression& node) { foldUnary(node); }
+void Optimizer::visit(NotExpression& node) { foldUnary(node); }
+
+// --- 그 외 Expression: target/callee/object 등 const 필드는 폴딩하지 않고,
+//     남은 non-const 서브트리(인자, 인덱스 등)만 부작용으로 접는다. 자기 자신은
+//     그대로 반환한다(대입 좌변/호출 대상 자체를 리터럴로 치환할 일은 없다). ---
+
+void Optimizer::visit(AssignExpression& node) {
+    // target은 대입 대상이라 폴딩하지 않는다.
+    foldExpression(node.value);
+    lastFolded_ = &node;
+}
+
+void Optimizer::visit(CallExpression& node) {
+    // 호출 대상/인자는 CallExpression::callee/arguments가 여전히 const라 반환값을
+    // 대입할 곳이 없다 - 자식 서브트리(중첩된 이항/단항 연산)만 부작용으로 접는다.
+    foldExpression(node.callee);
+    for (Expression* arg : node.arguments) {
+        foldExpression(arg);
+    }
+    lastFolded_ = &node;
+}
+
+void Optimizer::visit(FieldAccessExpression& node) {
+    foldExpression(node.object);
+    lastFolded_ = &node;
+}
+
+void Optimizer::visit(ArrayExpression& node) {
+    foldExpression(node.sizeExpr);
+    lastFolded_ = &node;
+}
+
+void Optimizer::visit(IndexExpression& node) {
+    foldExpression(node.collection);
+    foldExpression(node.index);
+    lastFolded_ = &node;
+}
+
+void Optimizer::visit(InstanceOfExpression& node) {
+    foldExpression(node.object);
+    lastFolded_ = &node;
+}
+
+// --- Statement: 자식 statement/expression을 재귀적으로 접는 부수효과만 있다. ---
+
+void Optimizer::visit(BlockStatement& node) {
+    for (Statement* s : node.statements) {
+        foldStatement(s);
+    }
+}
+
+void Optimizer::visit(DeclareStatement& node) {
+    foldExpression(node.expr);
+}
+
+void Optimizer::visit(PrintStatement& node) {
+    foldExpression(node.expr);
+}
+
+void Optimizer::visit(ExpressionStatement& node) {
+    foldExpression(node.expr);
+}
+
+void Optimizer::visit(IfStatement& node) {
+    foldExpression(node.expr);
+    foldStatement(node.thenBranch);
+    foldStatement(node.elseBranch);
+}
+
+void Optimizer::visit(ForStatement& node) {
+    foldStatement(node.init);
+    foldExpression(node.compare);
+    foldExpression(node.next);
+    foldStatement(node.loop);
+}
+
+void Optimizer::visit(FunctionDeclareStatement& node) {
+    for (Statement* s : node.body) {
+        foldStatement(s);
+    }
+}
+
+void Optimizer::visit(MethodDeclareStatement&) {
+    throw std::logic_error(
+        "Optimizer::visit(MethodDeclareStatement&): 메서드는 accept()로 직접 방문되지 않는다 - "
+        "visit(ClassDeclareStatement&)가 각 메서드의 body를 직접 접는다.");
+}
+
+void Optimizer::visit(ReturnStatement& node) {
+    foldExpression(node.value);
+}
+
+void Optimizer::visit(ClassDeclareStatement& node) {
+    for (MethodDeclareStatement* method : node.methods) {
+        for (Statement* s : method->body) {
+            foldStatement(s);
+        }
+    }
+}
+
+void Optimizer::visit(ImportStatement& node) {
+    for (Statement* decl : node.declarations) {
+        foldStatement(decl);
+    }
 }
