@@ -69,6 +69,10 @@ void Tokenizer::addToken(TokenType type) {
     tokens.push_back({ type, source.substr(start, current - start), line });
 }
 
+void Tokenizer::addToken(TokenType type, std::string value) {
+    tokens.push_back({ type, std::move(value), line });
+}
+
 bool Tokenizer::isDigit(char c) {
     return std::isdigit(static_cast<unsigned char>(c));
 }
@@ -129,8 +133,7 @@ void Tokenizer::scanString() {
         throw AssemblyError("[{}번째 줄] 문자열이 종결되지 않았습니다.", line);
 
     advance(); // 닫는 '"' 소비
-    std::string value = source.substr(start + 1, current - start - 2);
-    tokens.push_back({ TokenType::STRING, value, line });
+    addToken(TokenType::STRING, source.substr(start + 1, current - start - 2));
 }
 
 void Tokenizer::scanDefault(char c) {
