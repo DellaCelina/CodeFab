@@ -71,6 +71,10 @@ throw하고, 없으면 그대로 반환한다.
     `ReplacesNestedBinaryExpressionWithFoldedLiteral` 참고).
 - `Checker`는 더 이상 `ExecuteInterface&`에 의존하지 않는다 - 상수 계산은 `Optimizer`가
   전담하므로 `Checker`의 생성자는 인자를 받지 않는다.
+- `Optimizer::optimize(tree)` 호출은 `Checker`가 직접 하지 않는다 - `Shell/main.cpp`가
+  `Optimizer`를 생성해 `RunPromptShell`/`FileRunMode`/`DebugMode`에 주입하고, 각 파이프라인이
+  `checker_.check(tree)` 성공 직후 `executor_.execute(tree)` 이전에 호출한다
+  (`Shell/README.md` 참고).
 
 ## 알려진 제한사항 (코드의 `TODO(refactor)` 참고)
 

@@ -9,8 +9,9 @@
 #include "Debugger.h"
 
 DebugMode::DebugMode(TokenizeInterface& tokenizer, AssemblerInterface& assembler,
-                      CheckerInterface& checker, Executor& executor)
-    : tokenizer_(tokenizer), assembler_(assembler), checker_(checker), executor_(executor) {
+                      CheckerInterface& checker, OptimizerInterface& optimizer, Executor& executor)
+    : tokenizer_(tokenizer), assembler_(assembler), checker_(checker), optimizer_(optimizer),
+      executor_(executor) {
 }
 
 bool DebugMode::run(const std::string& filePath, std::istream& in, std::ostream& out) {
@@ -68,6 +69,7 @@ bool DebugMode::run(const std::string& filePath, std::istream& in, std::ostream&
         std::vector<Token> tokens = tokenizer_.tokenize(source);
         SyntaxTree tree = assembler_.assemble(tokens);
         checker_.check(tree);
+        optimizer_.optimize(tree);
 
         // 여기서 만든 "{ }" 래핑 블록은 실제 소스에는 없는 합성 statement라,
         // executor_.execute(tree)로 그대로 실행하면 Executor::execute(Statement*)가

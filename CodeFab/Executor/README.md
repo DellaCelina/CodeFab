@@ -20,19 +20,29 @@
 | 파일 | 역할 |
 |---|---|
 | `ExecuteInterface.h` | `ExecuteInterface` 추상 클래스 + `ExecutorError` 정의 |
-| `Executor.h` / `.cpp` | `ExecuteInterface` 구현체. `type_index -> handler` 테이블로 Statement/Expression을 디스패치하는 DFS 실행기 |
+| `Executor.h` / `.cpp` | `ExecuteInterface` 구현체. `SyntaxNodeVisitor`(Visitor 패턴)로 Statement/Expression을 디스패치하는 DFS 실행기 |
+| `ClassRuntime.h` / `.cpp` | 클래스 인스턴스화(`instantiate`), 메서드 탐색(`findMethod`)과 superclass 체인 탐색(`resolveSuperclass`), `Super.method(...)` 호출(`callSuperMethod`), 일반 메서드 호출(`callInstanceMethod`), `instanceof` 판정(`isInstanceOf`) |
+| `ModuleRuntime.h` / `.cpp` | `import`로 만든 모듈의 export 스코프 구성(`runImport`), `alias.member(...)` 호출(`callMember`) |
+| `ArrayRuntime.h` / `.cpp` | 정적 배열 생성(`create`)과 인덱스 접근 대상/위치 계산(`resolveIndex`) |
 | `Environment.h` / `.cpp` | `Scope` 스택 관리. `pushScope`/`popScope`, 동적 조회(`lookup`/`assign`)와 정적 바인딩 조회(`lookupAt`/`assignAt`) 제공 |
 | `Scope.h` / `.cpp` | 블록 스코프 하나(이름 → `Value` 테이블). 클래스 인스턴스 필드, 모듈 export 스코프로도 재사용됨 |
 | `Value.h` / `.cpp` | 런타임 값 타입(`Nil`/`Boolean`/`Number`/`String`/`Function`/`Class`/`Instance`/`Array`/`Module`) |
 | `InstanceValue.h` | 클래스 인스턴스 하나(`klass` 비소유 포인터 + `fields` 공유 `Scope`) |
 | `ArrayValue.h` | 고정 크기 배열 하나(`std::vector<Value>`) |
 
+`ClassRuntime`/`ModuleRuntime`/`ArrayRuntime`은 원래 `Executor` 한 클래스에 몰려 있던
+클래스/모듈/배열 실행 로직을 분리한 것이다(God Object 리팩터링). 셋 다 `Executor&`를
+들고 있으며, `Executor`의 private 멤버(`environment_`, `evaluate()`/`callMethodDecl()`
+등 invoke 계열)에 접근해야 해서 `Executor`가 `friend`로 열어준다.
+
 ## 핵심 설계
 
-- **핸들러 테이블 디스패치**: `Executor`는 `dynamic_cast`/`switch` 체인 대신
-  `std::type_index -> std::function` 테이블(`statementHandlers_`/`expressionHandlers_`)로
-  노드 타입을 처리한다. 새 노드 종류를 추가할 때 `execute()`/`evaluate()` 자체를 고칠
-  필요 없이 `registerDefaultHandlers()`만 늘어난다.
+- **Visitor 패턴(GoF) 디스패치**: `Executor`는 `SyntaxNodeVisitor`(`Assembler/SyntaxTree.h`
+  정의, `Checker`/`Optimizer`와 공통)를 구현해 노드 타입을 처리한다. `execute(Statement*)`/
+  `evaluate(Expression*)`는 `node->accept(*this)`만 호출하는 얇은 진입점이고, 실제 분기는
+  `accept()`가 정확한 타입의 `visit()` 오버라이드를 직접 호출해서 이뤄진다. `visit()`가
+  전부 순수 가상 함수라, 새 노드 타입이 추가되면 구현을 빠뜨린 Visitor는 컴파일이 안 된다
+  (예전의 `dynamic_cast`/`type_index` 방식은 등록을 빠뜨려도 조용히 무시됐다).
 - **AST 노드를 값으로 재사용**: 함수/클래스는 별도의 `FunctionObject`/`ClassObject`
   래퍼 없이 `FunctionDeclareStatement*`/`ClassDeclareStatement*`를 `Value`가 직접
   들고 있다. 선언 노드는 `SyntaxTree`가 프로그램 실행 내내 소유하므로 비소유 참조로도
@@ -54,6 +64,6 @@
 | `ExecutorVariableTest.cpp` | 변수 선언/재대입, 블록 스코프 쉐도잉, 중첩 블록에서의 스코프 해석 |
 | `ExecutorControlFlowTest.cpp` | `if`/`else`(댕글링 else 포함), `for`(변수 초기화, 조건 평가) |
 | `ExecutorFunctionTest.cpp` | 함수 선언/호출/재귀, 인자 개수 불일치·호출 불가능한 값 등 오류, 매개변수 스코프 격리 |
-| `ExecutorClassTest.cpp` | `init`/필드 read·write, 존재하지 않는 필드·메서드 접근 오류, `This` 오용, `instanceof`, 동적 필드 추가 |
-| `ExecutorArrayTest.cpp` | 배열 생성 및 기본값, 인덱스 read/write, 크기·인덱스 타입 오류, 범위 초과 오류 |
-| `ExecutorImportTest.cpp` | import로 만든 alias를 통한 변수/함수 접근 |
+| `ExecutorClassTest.cpp` | `init`/필드 read·write, 존재하지 않는 필드·메서드 접근 오류, `This` 오용, 동적 필드 추가, 메서드 오버라이딩/미오버라이딩 상속, `Super` 호출(다단계 상속·부모 없는 클래스에서의 오류 포함), `instanceof`(상속 체인 매칭 포함) — `ClassRuntime`을 이 파일이 간접적으로 커버 |
+| `ExecutorArrayTest.cpp` | 배열 생성 및 기본값, 인덱스 read/write, 크기·인덱스 타입 오류, 범위 초과 오류 — `ArrayRuntime`을 이 파일이 간접적으로 커버 |
+| `ExecutorImportTest.cpp` | import로 만든 alias를 통한 변수/함수 접근 — `ModuleRuntime`을 이 파일이 간접적으로 커버 |

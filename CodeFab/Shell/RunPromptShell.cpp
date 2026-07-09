@@ -33,8 +33,10 @@ bool ConsumeLineContinuation(std::string& line) {
 RunPromptShell::RunPromptShell(TokenizeInterface& tokenizer,
                                 AssemblerInterface& assembler,
                                 CheckerInterface& checker,
+                                OptimizerInterface& optimizer,
                                 ExecuteInterface& executor)
-    : tokenizer_(tokenizer), assembler_(assembler), checker_(checker), executor_(executor) {
+    : tokenizer_(tokenizer), assembler_(assembler), checker_(checker), optimizer_(optimizer),
+      executor_(executor) {
 }
 
 void RunPromptShell::run(std::istream& in, std::ostream& out) {
@@ -71,6 +73,7 @@ void RunPromptShell::run(std::istream& in, std::ostream& out) {
             std::vector<Token> tokens = tokenizer_.tokenize(buffer);
             SyntaxTree tree = assembler_.assemble(tokens);
             checker_.check(tree);
+            optimizer_.optimize(tree);
             executor_.execute(tree);
             sessionTrees.push_back(std::move(tree));
         } catch (const std::exception& e) {

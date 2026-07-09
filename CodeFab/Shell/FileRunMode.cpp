@@ -6,8 +6,10 @@
 #include <vector>
 
 FileRunMode::FileRunMode(TokenizeInterface& tokenizer, AssemblerInterface& assembler,
-                          CheckerInterface& checker, ExecuteInterface& executor)
-    : tokenizer_(tokenizer), assembler_(assembler), checker_(checker), executor_(executor) {
+                          CheckerInterface& checker, OptimizerInterface& optimizer,
+                          ExecuteInterface& executor)
+    : tokenizer_(tokenizer), assembler_(assembler), checker_(checker), optimizer_(optimizer),
+      executor_(executor) {
 }
 
 bool FileRunMode::run(const std::string& filePath, std::ostream& out) {
@@ -46,6 +48,7 @@ bool FileRunMode::run(const std::string& filePath, std::ostream& out) {
         std::vector<Token> tokens = tokenizer_.tokenize(source);
         SyntaxTree tree = assembler_.assemble(tokens);
         checker_.check(tree);
+        optimizer_.optimize(tree);
         executor_.execute(tree);
         return true;
     } catch (const std::exception& e) {

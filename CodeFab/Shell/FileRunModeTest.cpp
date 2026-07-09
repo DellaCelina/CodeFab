@@ -15,6 +15,7 @@
 #include "../Assembler/SyntaxTree.h"
 #include "../Checker/Checker.h"
 #include "../Checker/CheckerInterface.h"
+#include "../Checker/Optimizer.h"
 #include "../Executor/ExecuteInterface.h"
 #include "../Executor/Executor.h"
 #include "../Tokenizer/Token.h"
@@ -62,8 +63,9 @@ protected:
     NiceMock<MockAssembler> assembler;
     NiceMock<MockChecker> checker;
     NiceMock<MockExecutor> executor;
+    Optimizer optimizer{ executor };
 
-    FileRunMode mode{ tokenizer, assembler, checker, executor };
+    FileRunMode mode{ tokenizer, assembler, checker, optimizer, executor };
 
     // 파이프라인 호출 여부를 검증하는 테스트들은 "파일을 열 수 있다"는 사실만
     // 필요하고 실제 내용은 Tokenizer가 Mock이라 의미가 없다. 그래도 매 테스트가
@@ -190,8 +192,9 @@ protected:
     std::ostringstream programOutput;  // Executor가 print 결과를 쓰는 곳 (out과는 별개)
     Executor executor{ programOutput };
     Checker checker;
+    Optimizer optimizer{ executor };
 
-    FileRunMode mode{ tokenizer, assembler, checker, executor };
+    FileRunMode mode{ tokenizer, assembler, checker, optimizer, executor };
 
     std::filesystem::path tempPath =
         std::filesystem::temp_directory_path() / "FileRunModeIntegrationTest_temp.fab";
