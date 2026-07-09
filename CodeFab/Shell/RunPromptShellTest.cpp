@@ -28,14 +28,13 @@ using ::testing::StartsWith;
 class RunPromptShellTest : public ::testing::Test {
 protected:
     // 선언 순서 = 생성 순서: assembler가 참조로 물고 있는 sourceReader(와 그
-    // 내부의 tokenizer), checker가 참조로 물고 있는 executor가 먼저 만들어져
-    // 있어야 한다.
+    // 내부의 tokenizer)가 먼저 만들어져 있어야 한다.
     Tokenizer tokenizer;
     FileSourceReader sourceReader{tokenizer};
     Assembler assembler{sourceReader};
     std::ostringstream programOutput;  // Executor가 print 결과를 쓰는 곳 (out과는 별개)
     Executor executor{programOutput};
-    Checker checker{executor};
+    Checker checker;
 
     RunPromptShell shell{tokenizer, assembler, checker, executor};
 

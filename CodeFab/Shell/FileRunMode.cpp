@@ -45,10 +45,7 @@ bool FileRunMode::run(const std::string& filePath, std::ostream& out) {
     try {
         std::vector<Token> tokens = tokenizer_.tokenize(source);
         SyntaxTree tree = assembler_.assemble(tokens);
-        if (!checker_.check(tree)) {
-            out << "코드 검사에 실패했습니다.\n";
-            return false;
-        }
+        checker_.check(tree);
         executor_.execute(tree);
         return true;
     } catch (const std::exception& e) {

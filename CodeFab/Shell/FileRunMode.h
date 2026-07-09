@@ -32,8 +32,6 @@ public:
     //   ExecutorError 등 std::exception)가 발생하면 out에 메시지를 출력하고
     //   false를 반환한다. RunPromptShell과 달리 다음 줄을 계속 읽지 않고
     //   즉시 종료한다.
-    // - Checker::check()가 예외 없이 false만 반환하면 out에 실패 메시지를
-    //   출력하고 false를 반환한다.
     // - 끝까지 성공하면 true를 반환한다.
     bool run(const std::string& filePath, std::ostream& out);
 

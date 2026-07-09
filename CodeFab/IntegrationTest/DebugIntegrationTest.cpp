@@ -60,7 +60,7 @@ protected:
     Assembler assembler{sourceReader};
     std::ostringstream programOutput;  // Executor가 print 결과를 쓰는 곳 (out과는 별개)
     Executor executor{programOutput};
-    Checker checker{executor};
+    Checker checker;
 
     RunPromptShell shell{tokenizer, assembler, checker, executor};
 

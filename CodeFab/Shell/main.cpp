@@ -42,7 +42,7 @@ int main(int argc, char** argv) {
 
     Assembler assembler(sourceReader);
     Executor executor;
-    Checker checker(executor);
+    Checker checker;
 
     switch (args.mode) {
         case ShellMode::Repl: {
