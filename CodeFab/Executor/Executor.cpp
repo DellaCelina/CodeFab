@@ -9,8 +9,8 @@
 
 namespace {
 
-ExecutorError undefinedVariableError(const std::string& name) {
-    return ExecutorError("'{}' 변수가 정의되지 않았습니다.", name);
+ExecutorError undefinedVariableError(const std::string& name, int line) {
+    return ExecutorError("[line {}] '{}' is not defined.", line, name);
 }
 
 // Environment::lookupAt/assignAt은 depth가 스코프 범위를 벗어나면
@@ -46,7 +46,7 @@ std::string declaredNameOf(Statement* decl) {
     if (auto* klass = dynamic_cast<ClassDeclareStatement*>(decl)) {
         return klass->name.origin;
     }
-    throw ExecutorError("import 대상으로 지원하지 않는 선언입니다.");
+    throw ExecutorError("unsupported declaration type in import.");
 }
 
 // Pushes a new scope on construction and guarantees it's popped when the
@@ -109,9 +109,9 @@ void Executor::setStatementHook(StatementHook hook) {
     statementHook_ = std::move(hook);
 }
 
-void Executor::requireNumberOperands(const Value& left, const Value& right, const char* op) const {
+void Executor::requireNumberOperands(const Value& left, const Value& right, const char* op, int line) const {
     if (!left.isNumber() || !right.isNumber())
-        throw ExecutorError("타입 오류: {} {} {}", left.typeName(), op, right.typeName());
+        throw ExecutorError("[line {}] type error: {} {} {}", line, left.typeName(), op, right.typeName());
 }
 
 void Executor::visit(PrintStatement& stmt) {
@@ -141,50 +141,50 @@ void Executor::visit(AddExpression& node) {
         lastValue_ = Value(left.asNumber() + right.asNumber());
         return;
     }
-    throw ExecutorError("타입 오류: {} + {}", left.typeName(), right.typeName());
+    throw ExecutorError("[line {}] type error: {} + {}", node.getLine(), left.typeName(), right.typeName());
 }
 
 void Executor::visit(SubExpression& node) {
     Value left = evaluate(node.left);
     Value right = evaluate(node.right);
-    requireNumberOperands(left, right, "-");
+    requireNumberOperands(left, right, "-", node.getLine());
     lastValue_ = Value(left.asNumber() - right.asNumber());
 }
 
 void Executor::visit(MultExpression& node) {
     Value left = evaluate(node.left);
     Value right = evaluate(node.right);
-    requireNumberOperands(left, right, "*");
+    requireNumberOperands(left, right, "*", node.getLine());
     lastValue_ = Value(left.asNumber() * right.asNumber());
 }
 
 void Executor::visit(DivideExpression& node) {
     Value left = evaluate(node.left);
     Value right = evaluate(node.right);
-    requireNumberOperands(left, right, "/");
+    requireNumberOperands(left, right, "/", node.getLine());
     if (right.asNumber() == 0.0)
-        throw ExecutorError("0으로 나눌 수 없습니다");
+        throw ExecutorError("[line {}] division by zero.", node.getLine());
     lastValue_ = Value(left.asNumber() / right.asNumber());
 }
 
 void Executor::visit(NegativeExpression& node) {
     Value operand = evaluate(node.operand);
     if (!operand.isNumber())
-        throw ExecutorError("타입 오류: -{}", operand.typeName());
+        throw ExecutorError("[line {}] type error: unary '-' requires a number, got {}.", node.getLine(), operand.typeName());
     lastValue_ = Value(-operand.asNumber());
 }
 
 void Executor::visit(LessExpression& node) {
     Value left = evaluate(node.left);
     Value right = evaluate(node.right);
-    requireNumberOperands(left, right, "<");
+    requireNumberOperands(left, right, "<", node.getLine());
     lastValue_ = Value(left.asNumber() < right.asNumber());
 }
 
 void Executor::visit(GreaterExpression& node) {
     Value left = evaluate(node.left);
     Value right = evaluate(node.right);
-    requireNumberOperands(left, right, ">");
+    requireNumberOperands(left, right, ">", node.getLine());
     lastValue_ = Value(left.asNumber() > right.asNumber());
 }
 
@@ -197,7 +197,7 @@ void Executor::visit(IdentifierExpression& node) {
         ? guardScopeAccess([&] { return environment_.lookupAt(*node.depth, node.name); })
         : environment_.lookup(node.name);
     if (!value) {
-        throw undefinedVariableError(node.name);
+        throw undefinedVariableError(node.name, node.getLine());
     }
     lastValue_ = *value;
 }
@@ -206,7 +206,7 @@ void Executor::visit(AssignExpression& node) {
     if (auto* fieldTarget = dynamic_cast<FieldAccessExpression*>(node.target)) {
         Value object = evaluate(fieldTarget->object);
         if (!object.isInstance()) {
-            throw ExecutorError("인스턴스가 아닌 대상에 필드를 대입했습니다.");
+            throw ExecutorError("[line {}] cannot assign field to a non-instance.", node.getLine());
         }
         Value value = evaluate(node.value);
         object.asInstance()->fields->define(fieldTarget->name.origin, value);  // 없으면 새로 생성.
@@ -224,14 +224,14 @@ void Executor::visit(AssignExpression& node) {
 
     auto* identifier = dynamic_cast<IdentifierExpression*>(node.target);
     if (!identifier) {
-        throw ExecutorError("아직 지원하지 않는 대입 대상입니다.");
+        throw ExecutorError("[line {}] invalid assignment target.", node.getLine());
     }
     Value value = evaluate(node.value);
     bool assigned = identifier->depth
         ? guardScopeAccess([&] { return environment_.assignAt(*identifier->depth, identifier->name, value); })
         : environment_.assign(identifier->name, value);
     if (!assigned) {
-        throw undefinedVariableError(identifier->name);
+        throw undefinedVariableError(identifier->name, node.getLine());
     }
     lastValue_ = value;
 }
@@ -281,14 +281,14 @@ void Executor::visit(NotEqualExpression& node) {
 void Executor::visit(LessEqualExpression& node) {
     Value left = evaluate(node.left);
     Value right = evaluate(node.right);
-    requireNumberOperands(left, right, "<=");
+    requireNumberOperands(left, right, "<=", node.getLine());
     lastValue_ = Value(left.asNumber() <= right.asNumber());
 }
 
 void Executor::visit(GreaterEqualExpression& node) {
     Value left = evaluate(node.left);
     Value right = evaluate(node.right);
-    requireNumberOperands(left, right, ">=");
+    requireNumberOperands(left, right, ">=", node.getLine());
     lastValue_ = Value(left.asNumber() >= right.asNumber());
 }
 
@@ -299,9 +299,9 @@ void Executor::visit(NotExpression& node) {
 void Executor::visit(ModExpression& node) {
     Value left = evaluate(node.left);
     Value right = evaluate(node.right);
-    requireNumberOperands(left, right, "%");
+    requireNumberOperands(left, right, "%", node.getLine());
     if (right.asNumber() == 0.0)
-        throw ExecutorError("0으로 나눌 수 없습니다");
+        throw ExecutorError("[line {}] division by zero.", node.getLine());
     lastValue_ = Value(std::fmod(left.asNumber(), right.asNumber()));
 }
 
@@ -332,8 +332,8 @@ void Executor::visit(FunctionDeclareStatement& node) {
 
 void Executor::visit(MethodDeclareStatement&) {
     throw std::logic_error(
-        "Executor::visit(MethodDeclareStatement&): 메서드는 execute()로 직접 방문되지 않는다 - "
-        "invoke()를 통해서만 호출된다.");
+        "Executor::visit(MethodDeclareStatement&): methods are not visited directly via execute() - "
+        "use invoke() instead.");
 }
 
 void Executor::visit(ReturnStatement& node) {
@@ -364,7 +364,7 @@ void Executor::visit(CallExpression& node) {
         lastValue_ = instantiate(callee.asClass(), args);
         return;
     }
-    throw ExecutorError("호출할 수 없는 대상입니다.");
+    throw ExecutorError("[line {}] callee is not callable.", node.getLine());
 }
 
 void Executor::visit(ClassDeclareStatement& node) {
@@ -393,10 +393,10 @@ void Executor::visit(FieldAccessExpression& node) {
             lastValue_ = *value;
             return;
         }
-        throw ExecutorError("모듈에 '{}'이(가) 없습니다.", node.name.origin);
+        throw ExecutorError("[line {}] '{}' is not defined in module.", node.getLine(), node.name.origin);
     }
     if (!object.isInstance()) {
-        throw ExecutorError("인스턴스가 아닌 대상의 필드에 접근했습니다.");
+        throw ExecutorError("[line {}] cannot access field on a non-instance.", node.getLine());
     }
     if (auto field = object.asInstance()->fields->get(node.name.origin)) {
         lastValue_ = *field;
@@ -404,13 +404,13 @@ void Executor::visit(FieldAccessExpression& node) {
     }
     // 값 읽기 문맥에서 메서드에 접근한 경우: 메서드 호출은 CallExpression
     // 쪽(callMethod)이 전담하므로 여기서는 에러로 처리한다.
-    throw ExecutorError("'{}' 필드가 존재하지 않습니다.", node.name.origin);
+    throw ExecutorError("[line {}] field '{}' does not exist.", node.getLine(), node.name.origin);
 }
 
 void Executor::visit(ArrayExpression& node) {
     Value size = evaluate(node.sizeExpr);
     if (!size.isNumber()) {
-        throw ExecutorError("배열의 사이즈는 반드시 number여야 합니다.");
+        throw ExecutorError("[line {}] array size must be a number.", node.getLine());
     }
     auto array = std::make_shared<ArrayValue>();
     array->items.resize(static_cast<size_t>(size.asNumber()));  // 전부 Nil로 채워짐.
@@ -430,7 +430,7 @@ void Executor::visit(InstanceOfExpression& node) {
     }
     auto classValue = environment_.lookup(node.className.origin);
     if (!classValue || !classValue->isClass()) {
-        throw ExecutorError("'{}'은(는) 클래스가 아닙니다.", node.className.origin);
+        throw ExecutorError("[line {}] '{}' is not a class.", node.getLine(), node.className.origin);
     }
     // 자기 자신뿐 아니라 superclass 체인 어딘가와 일치해도 true.
     for (const ClassDeclareStatement* k = object.asInstance()->klass; k != nullptr; k = resolveSuperclass(k)) {
@@ -442,24 +442,24 @@ void Executor::visit(InstanceOfExpression& node) {
     lastValue_ = Value(false);
 }
 
-void Executor::visit(ThisExpression&) {
+void Executor::visit(ThisExpression& node) {
     // This는 항상 "this"라는 고정 이름으로 동적 조회한다 - 메서드 호출
     // 스코프 최상단에 있어서 조회 비용이 낮고, depth 캐싱의 이점이 작다.
     auto value = environment_.lookup("this");
     if (!value) {
-        throw ExecutorError("클래스 외부에서 This를 사용했습니다.");
+        throw ExecutorError("[line {}] cannot use 'This' outside a class method.", node.getLine());
     }
     lastValue_ = *value;
 }
 
-void Executor::visit(SuperExpression&) {
+void Executor::visit(SuperExpression& node) {
     // Super.field는 This.field와 완전히 동일하게 동작한다 - 필드 저장소가
     // 클래스 계층과 무관하게 인스턴스당 하나(instance->fields)이기 때문이다.
     // Super.method(...) 호출은 이 방문을 타지 않고 callMethod가 먼저
     // 가로챈다(메서드 탐색 시작점을 superclass로 옮겨야 하므로).
     auto value = environment_.lookup("this");
     if (!value) {
-        throw ExecutorError("클래스 외부에서 Super를 사용했습니다.");
+        throw ExecutorError("[line {}] cannot use 'Super' outside a class method.", node.getLine());
     }
     lastValue_ = *value;
 }
@@ -467,8 +467,8 @@ void Executor::visit(SuperExpression&) {
 Value Executor::invoke(const Token& name, const std::vector<Token>& params, const std::vector<Statement*>& body,
     const std::vector<Value>& args, std::optional<Value> boundThis) {
     if (args.size() != params.size()) {
-        throw ExecutorError("'{}' 호출에는 인자 {}개가 필요합니다 (전달된 인자: {}개)",
-            name.origin, params.size(), args.size());
+        throw ExecutorError("[line {}] '{}' expects {} argument(s) but got {}.",
+            name.line, name.origin, params.size(), args.size());
     }
 
     // ScopeGuard가 소멸자에서 popScope()를 보장하므로, body 실행 중 던져진
@@ -536,7 +536,7 @@ const ClassDeclareStatement* Executor::resolveSuperclass(const ClassDeclareState
     // 스코프를 훑는 동적 조회(lookup)만 사용한다(InstanceOfExpression과 동일한 이유).
     auto value = environment_.lookup(superclass->name);
     if (!value || !value->isClass()) {
-        throw ExecutorError("'{}'은(는) 클래스가 아닙니다.", superclass->name);
+        throw ExecutorError("[line {}] '{}' is not a class.", superclass->getLine(), superclass->name);
     }
     return value->asClass();
 }
@@ -547,12 +547,12 @@ Value Executor::callMethod(FieldAccessExpression* fieldAccess, const std::vector
         // this가 속한 클래스가 아니라 superclass로 강제 이동한다.
         auto thisValue = environment_.lookup("this");
         if (!thisValue || !thisValue->isInstance()) {
-            throw ExecutorError("클래스 외부에서 Super를 사용했습니다.");
+            throw ExecutorError("[line {}] cannot use 'Super' outside a class method.", fieldAccess->getLine());
         }
         const ClassDeclareStatement* startClass = resolveSuperclass(thisValue->asInstance()->klass);
         MethodDeclareStatement* method = startClass ? findMethod(startClass, fieldAccess->name.origin) : nullptr;
         if (!method) {
-            throw ExecutorError("'{}' 메서드가 부모 클래스에 존재하지 않습니다.", fieldAccess->name.origin);
+            throw ExecutorError("[line {}] method '{}' does not exist in superclass.", fieldAccess->getLine(), fieldAccess->name.origin);
         }
         std::vector<Value> args;
         args.reserve(argExprs.size());
@@ -568,7 +568,7 @@ Value Executor::callMethod(FieldAccessExpression* fieldAccess, const std::vector
         // alias.add(...): 모듈 스코프에서 이름을 찾아 함수처럼 호출한다.
         auto member = object.asModule()->get(fieldAccess->name.origin);
         if (!member || !member->isFunction()) {
-            throw ExecutorError("모듈에 '{}' 함수가 없습니다.", fieldAccess->name.origin);
+            throw ExecutorError("[line {}] '{}' is not a function in module.", fieldAccess->getLine(), fieldAccess->name.origin);
         }
         std::vector<Value> moduleArgs;
         moduleArgs.reserve(argExprs.size());
@@ -579,12 +579,12 @@ Value Executor::callMethod(FieldAccessExpression* fieldAccess, const std::vector
     }
 
     if (!object.isInstance()) {
-        throw ExecutorError("인스턴스가 아닌 대상의 메서드를 호출했습니다.");
+        throw ExecutorError("[line {}] cannot call method on a non-instance.", fieldAccess->getLine());
     }
     auto& instance = object.asInstance();
     MethodDeclareStatement* method = findMethod(instance->klass, fieldAccess->name.origin);
     if (!method) {
-        throw ExecutorError("'{}' 메서드가 존재하지 않습니다.", fieldAccess->name.origin);
+        throw ExecutorError("[line {}] method '{}' does not exist.", fieldAccess->getLine(), fieldAccess->name.origin);
     }
     std::vector<Value> args;
     args.reserve(argExprs.size());
@@ -597,16 +597,16 @@ Value Executor::callMethod(FieldAccessExpression* fieldAccess, const std::vector
 std::pair<std::shared_ptr<ArrayValue>, size_t> Executor::resolveArrayIndex(Expression* collectionExpr, Expression* indexExpr) {
     Value collection = evaluate(collectionExpr);
     if (!collection.isArray()) {
-        throw ExecutorError("index 접근은 오직 배열만 지원합니다.");
+        throw ExecutorError("[line {}] index access is only supported on arrays.", collectionExpr->getLine());
     }
     Value indexValue = evaluate(indexExpr);
     if (!indexValue.isNumber()) {
-        throw ExecutorError("인덱스는 반드시 숫자여야 합니다.");
+        throw ExecutorError("[line {}] array index must be a number.", collectionExpr->getLine());
     }
     auto array = collection.asArray();
     auto i = static_cast<size_t>(indexValue.asNumber());
     if (i >= array->items.size()) {
-        throw ExecutorError("배열 인덱스 범위를 벗어났습니다.");
+        throw ExecutorError("[line {}] array index out of bounds.", collectionExpr->getLine());
     }
     return { array, i };
 }

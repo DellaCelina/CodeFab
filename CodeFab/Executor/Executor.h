@@ -100,7 +100,7 @@ public:
     void visit(ImportStatement& node) override;
 
 private:
-    void requireNumberOperands(const Value& left, const Value& right, const char* op) const;
+    void requireNumberOperands(const Value& left, const Value& right, const char* op, int line) const;
 
     // 함수/메서드 호출의 공용 절차: 새 스코프를 push하고 (this가 있으면 먼저
     // bind한 뒤) 파라미터를 bind, body를 실행, ReturnStatement가 던지는
