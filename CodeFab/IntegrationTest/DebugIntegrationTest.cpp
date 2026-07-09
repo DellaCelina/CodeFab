@@ -903,3 +903,77 @@ TEST_F(RunPromptShellIntegrationTest, Import_DuplicateAliasInSameScope_ReportsCh
                                   HasSubstr("'sum'에러: 이미 해당 이름은 현재 스코프에서 사용중입니다."),
                                   EndsWith(">>> ")));
 }
+
+// --- 9. 상속 (Inheritance) - 아직 미구현, DISABLED_ ---
+// Assembler는 상속 문법(Class B : A, Super.move(...))을 파싱할 수 있지만
+// (ImplementTodo.md §2), Checker/Executor는 아직 superclass/SuperExpression을
+// 처리하는 분기가 없다(ImplementTodo.md §3/§4 - 다른 담당자 작업 예정).
+// 지금 이 테스트들을 그대로 켜면 실패하므로 GTest의 DISABLED_ 접두사로 꺼둔다 -
+// Checker::checkClass/checkSuper, Executor::findMethod/resolveSuperclass가
+// 구현되면 접두사만 지우고 그대로 통과해야 한다(메시지는 ImplementTodo.md §3
+// 예시 코드의 문구를 그대로 따른다).
+
+TEST_F(RunPromptShellIntegrationTest, DISABLED_SuperCallInvokesParentMethod_PrintsBothMessages) {
+    std::ostringstream out;
+    run("Class Robot { move(dist) { print \"move\"; } }\n"
+        "Class SpeedRobot : Robot { move(dist) { Super.move(dist); print \"Speeeed!\"; } }\n"
+        "SpeedRobot().move(3);\n", out);
+
+    EXPECT_EQ(programOutput.str(), "move\nSpeeeed!\n");
+    EXPECT_EQ(out.str(), ">>> >>> >>> >>> ");
+}
+
+TEST_F(RunPromptShellIntegrationTest, DISABLED_MethodOverriding_ChildMethodTakesPrecedence) {
+    std::ostringstream out;
+    run("Class Robot { move(dist) { print \"robot move\"; } }\n"
+        "Class SpeedRobot : Robot { move(dist) { print \"speed move\"; } }\n"
+        "SpeedRobot().move(3);\n", out);
+
+    EXPECT_EQ(programOutput.str(), "speed move\n");
+    EXPECT_EQ(out.str(), ">>> >>> >>> >>> ");
+}
+
+TEST_F(RunPromptShellIntegrationTest, DISABLED_InstanceOf_ParentClass_PrintsTrueForChildInstance) {
+    std::ostringstream out;
+    run("Class Robot { init(name) { This.name = name; } }\n"
+        "Class SpeedRobot : Robot { init(name) { Super.init(name); } }\n"
+        "var w = SpeedRobot(\"Sam\");\n"
+        "print (w instanceof SpeedRobot);\n"
+        "print (w instanceof Robot);\n", out);
+
+    // 자기 자신 클래스뿐 아니라 부모 클래스를 대상으로 한 instanceof도 true여야 한다.
+    EXPECT_EQ(programOutput.str(), "true\ntrue\n");
+    EXPECT_EQ(out.str(), ">>> >>> >>> >>> >>> >>> ");
+}
+
+TEST_F(RunPromptShellIntegrationTest, DISABLED_SelfInheritance_ReportsCheckError) {
+    std::ostringstream out;
+    run("Class Robot : Robot { }\n", out);
+
+    EXPECT_EQ(programOutput.str(), "");
+    EXPECT_EQ(out.str(), ">>> [1번째 줄] 'Robot' 클래스는 자기 자신을 상속할 수 없습니다.\n>>> ");
+}
+
+TEST_F(RunPromptShellIntegrationTest, DISABLED_InheritingNonClassTarget_ReportsCheckError) {
+    std::ostringstream out;
+    run("var x = 10;\nClass Robot : x { }\n", out);
+
+    EXPECT_EQ(programOutput.str(), "");
+    EXPECT_EQ(out.str(), ">>> >>> [1번째 줄] 'x'은(는) 클래스가 아니므로 상속할 수 없습니다.\n>>> ");
+}
+
+TEST_F(RunPromptShellIntegrationTest, DISABLED_SuperOutsideClassMethod_ReportsCheckError) {
+    std::ostringstream out;
+    run("Super.move();\n", out);
+
+    EXPECT_EQ(programOutput.str(), "");
+    EXPECT_EQ(out.str(), ">>> [1번째 줄] 클래스 메서드 밖에서 Super를 사용할 수 없습니다.\n>>> ");
+}
+
+TEST_F(RunPromptShellIntegrationTest, DISABLED_SuperInClassWithoutSuperclass_ReportsCheckError) {
+    std::ostringstream out;
+    run("Class Robot { move() { Super.move(); } }\n", out);
+
+    EXPECT_EQ(programOutput.str(), "");
+    EXPECT_EQ(out.str(), ">>> [1번째 줄] 부모 클래스가 없는 클래스에서 Super를 사용할 수 없습니다.\n>>> ");
+}
