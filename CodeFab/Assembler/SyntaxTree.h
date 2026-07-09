@@ -7,6 +7,99 @@
 
 #include "../Tokenizer/Token.h"
 
+// 전방 선언(TODO.md #11 Visitor 패턴). SyntaxNodeVisitor가 각 구체 노드 타입을
+// 참조하려면 정의보다 먼저 선언이 필요하다.
+struct IdentifierExpression;
+struct PrintStatement;
+struct ExpressionStatement;
+struct DeclareStatement;
+struct BlockStatement;
+struct IfStatement;
+struct ForStatement;
+struct NumberExpression;
+struct StringExpression;
+struct BooleanExpression;
+struct AddExpression;
+struct MultExpression;
+struct SubExpression;
+struct DivideExpression;
+struct ModExpression;
+struct AndExpression;
+struct OrExpression;
+struct EqualExpression;
+struct NotEqualExpression;
+struct LessExpression;
+struct LessEqualExpression;
+struct GreaterExpression;
+struct GreaterEqualExpression;
+struct AssignExpression;
+struct NegativeExpression;
+struct NotExpression;
+struct CallExpression;
+struct FieldAccessExpression;
+struct ThisExpression;
+struct SuperExpression;
+struct ArrayExpression;
+struct IndexExpression;
+struct InstanceOfExpression;
+struct FunctionDeclareStatement;
+struct MethodDeclareStatement;
+struct ReturnStatement;
+struct ClassDeclareStatement;
+struct ImportStatement;
+
+// TODO.md #11: RTTI(dynamic_cast/typeid) 기반 분기 대신 Visitor 패턴을 적용하기로
+// 팀에서 결정했다. 이 인터페이스는 계약(선언)이며, 실제로 이걸 구현해 노드별 동작을
+// 채우는 것은 각 담당자(Executor가 우선 전환, Checker는 이후)의 몫이다 - ImplementTodo.md
+// 참고. visit()가 값을 반환하지 않는 이유: Statement/Expression이 요구하는 반환
+// 타입이 다르고(Statement는 없음, Expression은 실행 결과 Value), 이 파일(Assembler
+// 소유)이 Executor/Value.h에 의존하게 만들 수는 없기 때문이다(계층 의존 방향 위반).
+// 대신 방문자가 필요한 값을 자기 내부 상태(예: Executor::lastValue_)에 채워 넣고,
+// accept() 호출부가 그 값을 꺼내 쓰는 방식을 권장한다.
+class SyntaxNodeVisitor {
+public:
+    virtual ~SyntaxNodeVisitor() = default;
+
+    virtual void visit(IdentifierExpression& node) = 0;
+    virtual void visit(PrintStatement& node) = 0;
+    virtual void visit(ExpressionStatement& node) = 0;
+    virtual void visit(DeclareStatement& node) = 0;
+    virtual void visit(BlockStatement& node) = 0;
+    virtual void visit(IfStatement& node) = 0;
+    virtual void visit(ForStatement& node) = 0;
+    virtual void visit(NumberExpression& node) = 0;
+    virtual void visit(StringExpression& node) = 0;
+    virtual void visit(BooleanExpression& node) = 0;
+    virtual void visit(AddExpression& node) = 0;
+    virtual void visit(MultExpression& node) = 0;
+    virtual void visit(SubExpression& node) = 0;
+    virtual void visit(DivideExpression& node) = 0;
+    virtual void visit(ModExpression& node) = 0;
+    virtual void visit(AndExpression& node) = 0;
+    virtual void visit(OrExpression& node) = 0;
+    virtual void visit(EqualExpression& node) = 0;
+    virtual void visit(NotEqualExpression& node) = 0;
+    virtual void visit(LessExpression& node) = 0;
+    virtual void visit(LessEqualExpression& node) = 0;
+    virtual void visit(GreaterExpression& node) = 0;
+    virtual void visit(GreaterEqualExpression& node) = 0;
+    virtual void visit(AssignExpression& node) = 0;
+    virtual void visit(NegativeExpression& node) = 0;
+    virtual void visit(NotExpression& node) = 0;
+    virtual void visit(CallExpression& node) = 0;
+    virtual void visit(FieldAccessExpression& node) = 0;
+    virtual void visit(ThisExpression& node) = 0;
+    virtual void visit(SuperExpression& node) = 0;
+    virtual void visit(ArrayExpression& node) = 0;
+    virtual void visit(IndexExpression& node) = 0;
+    virtual void visit(InstanceOfExpression& node) = 0;
+    virtual void visit(FunctionDeclareStatement& node) = 0;
+    virtual void visit(MethodDeclareStatement& node) = 0;
+    virtual void visit(ReturnStatement& node) = 0;
+    virtual void visit(ClassDeclareStatement& node) = 0;
+    virtual void visit(ImportStatement& node) = 0;
+};
+
 // Syntax tree
 class SyntaxNode {
 public:
@@ -14,6 +107,11 @@ public:
     virtual ~SyntaxNode() = default;
 
     virtual bool operator==(const SyntaxNode& op) const = 0;
+
+    // TODO.md #11: Visitor 패턴 진입점. Statement/Expression 중간 타입은 이 메서드를
+    // 구현하지 않으므로 계속 추상 클래스로 남고(의도된 동작 - 직접 인스턴스화되지
+    // 않아야 함), 각 리프(leaf) 구체 노드만 accept()를 구현한다.
+    virtual void accept(SyntaxNodeVisitor& visitor) = 0;
 
     // checker 등에서 에러 메시지에 줄 번호를 표기하기 위해 추가.
     int getLine() const {
@@ -78,6 +176,8 @@ struct IdentifierExpression : public Expression {
 
     IdentifierExpression(const std::vector<Token>& tokens, const std::string& name) : Expression(tokens), name(name) {}
 
+    void accept(SyntaxNodeVisitor& visitor) override { visitor.visit(*this); }
+
     bool operator==(const SyntaxNode& op) const override {
         auto node = dynamic_cast<const IdentifierExpression*>(&op);
         if (!node)
@@ -91,6 +191,8 @@ struct PrintStatement : public Statement {
 
     PrintStatement(const std::vector<Token>& tokens, Expression* expr) : Statement(tokens), expr(expr) {}
 
+    void accept(SyntaxNodeVisitor& visitor) override { visitor.visit(*this); }
+
     bool operator==(const SyntaxNode& op) const override {
         auto node = dynamic_cast<const PrintStatement*>(&op);
         if (!node)
@@ -103,6 +205,8 @@ struct ExpressionStatement : public Statement {
     Expression* const expr;
 
     ExpressionStatement(const std::vector<Token>& tokens, Expression* expr) : Statement(tokens), expr(expr) {}
+
+    void accept(SyntaxNodeVisitor& visitor) override { visitor.visit(*this); }
 
     bool operator==(const SyntaxNode& op) const override {
         auto node = dynamic_cast<const ExpressionStatement*>(&op);
@@ -119,6 +223,8 @@ struct DeclareStatement : public Statement {
     DeclareStatement(const std::vector<Token>& tokens, IdentifierExpression* identifier, Expression* expr)
         : Statement(tokens), identifier(identifier), expr(expr) {}
 
+    void accept(SyntaxNodeVisitor& visitor) override { visitor.visit(*this); }
+
     bool operator==(const SyntaxNode& op) const override {
         auto node = dynamic_cast<const DeclareStatement*>(&op);
         if (!node)
@@ -132,6 +238,8 @@ struct BlockStatement : public Statement {
 
     BlockStatement(const std::vector<Token>& tokens, const std::vector<Statement*>& statements)
         : Statement(tokens), statements(statements) {}
+
+    void accept(SyntaxNodeVisitor& visitor) override { visitor.visit(*this); }
 
     bool operator==(const SyntaxNode& op) const override {
         auto node = dynamic_cast<const BlockStatement*>(&op);
@@ -155,6 +263,8 @@ struct IfStatement : public Statement {
     IfStatement(const std::vector<Token>& tokens, Expression* expr, Statement* thenBranch, Statement* elseBranch = nullptr)
         : Statement(tokens), expr(expr), thenBranch(thenBranch), elseBranch(elseBranch) {}
 
+    void accept(SyntaxNodeVisitor& visitor) override { visitor.visit(*this); }
+
     bool operator==(const SyntaxNode& op) const override {
         auto node = dynamic_cast<const IfStatement*>(&op);
         if (!node)
@@ -176,6 +286,8 @@ struct ForStatement : public Statement {
     ForStatement(const std::vector<Token>& tokens, Statement* init, Expression* compare, Expression* next, Statement* loop)
         : Statement(tokens), init(init), compare(compare), next(next), loop(loop) {}
 
+    void accept(SyntaxNodeVisitor& visitor) override { visitor.visit(*this); }
+
     bool operator==(const SyntaxNode& op) const override {
         auto node = dynamic_cast<const ForStatement*>(&op);
         if (!node)
@@ -190,6 +302,8 @@ struct NumberExpression : public Expression {
 
     NumberExpression(const std::vector<Token>& tokens, double value) : Expression(tokens), value(value) {}
 
+    void accept(SyntaxNodeVisitor& visitor) override { visitor.visit(*this); }
+
     bool operator==(const SyntaxNode& op) const override {
         auto node = dynamic_cast<const NumberExpression*>(&op);
         if (!node)
@@ -202,6 +316,8 @@ struct StringExpression : public Expression {
     const std::string value;
 
     StringExpression(const std::vector<Token>& tokens, const std::string& value) : Expression(tokens), value(value) {}
+
+    void accept(SyntaxNodeVisitor& visitor) override { visitor.visit(*this); }
 
     bool operator==(const SyntaxNode& op) const override {
         auto node = dynamic_cast<const StringExpression*>(&op);
@@ -216,6 +332,8 @@ struct BooleanExpression : public Expression {
 
     BooleanExpression(const std::vector<Token>& tokens, bool value) : Expression(tokens), value(value) {}
 
+    void accept(SyntaxNodeVisitor& visitor) override { visitor.visit(*this); }
+
     bool operator==(const SyntaxNode& op) const override {
         auto node = dynamic_cast<const BooleanExpression*>(&op);
         if (!node)
@@ -224,9 +342,13 @@ struct BooleanExpression : public Expression {
     }
 };
 
+// TODO.md #10 (Checker/Optimizer 분리) 결정에 따라, Optimizer가 상수 폴딩 결과로
+// 이 필드들을 새 리터럴 노드로 덮어쓸 수 있어야 한다 - Architecture.md §6.2
+// "노드 불변성 완화" 참고. operator==(구문적 동일성 비교)는 이 완화의 영향을 받지
+// 않는다(여전히 포인터가 가리키는 내용만 비교).
 struct BinaryExpression : public Expression {
-    Expression* const left;
-    Expression* const right;
+    Expression* left;
+    Expression* right;
 
     BinaryExpression(const std::vector<Token>& tokens, Expression* left, Expression* right)
         : Expression(tokens), left(left), right(right) {}
@@ -243,6 +365,8 @@ struct AddExpression : public BinaryExpression {
     AddExpression(const std::vector<Token>& tokens, Expression* left, Expression* right)
         : BinaryExpression(tokens, left, right) {}
 
+    void accept(SyntaxNodeVisitor& visitor) override { visitor.visit(*this); }
+
     bool operator==(const SyntaxNode& op) const override {
         auto node = dynamic_cast<const AddExpression*>(&op);
         if (!node)
@@ -254,6 +378,8 @@ struct AddExpression : public BinaryExpression {
 struct MultExpression : public BinaryExpression {
     MultExpression(const std::vector<Token>& tokens, Expression* left, Expression* right)
         : BinaryExpression(tokens, left, right) {}
+
+    void accept(SyntaxNodeVisitor& visitor) override { visitor.visit(*this); }
 
     bool operator==(const SyntaxNode& op) const override {
         auto node = dynamic_cast<const MultExpression*>(&op);
@@ -267,6 +393,8 @@ struct SubExpression : public BinaryExpression {
     SubExpression(const std::vector<Token>& tokens, Expression* left, Expression* right)
         : BinaryExpression(tokens, left, right) {}
 
+    void accept(SyntaxNodeVisitor& visitor) override { visitor.visit(*this); }
+
     bool operator==(const SyntaxNode& op) const override {
         auto node = dynamic_cast<const SubExpression*>(&op);
         if (!node)
@@ -278,6 +406,8 @@ struct SubExpression : public BinaryExpression {
 struct DivideExpression : public BinaryExpression {
     DivideExpression(const std::vector<Token>& tokens, Expression* left, Expression* right)
         : BinaryExpression(tokens, left, right) {}
+
+    void accept(SyntaxNodeVisitor& visitor) override { visitor.visit(*this); }
 
     bool operator==(const SyntaxNode& op) const override {
         auto node = dynamic_cast<const DivideExpression*>(&op);
@@ -291,6 +421,8 @@ struct ModExpression : public BinaryExpression {
     ModExpression(const std::vector<Token>& tokens, Expression* left, Expression* right)
         : BinaryExpression(tokens, left, right) {}
 
+    void accept(SyntaxNodeVisitor& visitor) override { visitor.visit(*this); }
+
     bool operator==(const SyntaxNode& op) const override {
         auto node = dynamic_cast<const ModExpression*>(&op);
         if (!node)
@@ -302,6 +434,8 @@ struct ModExpression : public BinaryExpression {
 struct AndExpression : public BinaryExpression {
     AndExpression(const std::vector<Token>& tokens, Expression* left, Expression* right)
         : BinaryExpression(tokens, left, right) {}
+
+    void accept(SyntaxNodeVisitor& visitor) override { visitor.visit(*this); }
 
     bool operator==(const SyntaxNode& op) const override {
         auto node = dynamic_cast<const AndExpression*>(&op);
@@ -315,6 +449,8 @@ struct OrExpression : public BinaryExpression {
     OrExpression(const std::vector<Token>& tokens, Expression* left, Expression* right)
         : BinaryExpression(tokens, left, right) {}
 
+    void accept(SyntaxNodeVisitor& visitor) override { visitor.visit(*this); }
+
     bool operator==(const SyntaxNode& op) const override {
         auto node = dynamic_cast<const OrExpression*>(&op);
         if (!node)
@@ -326,6 +462,8 @@ struct OrExpression : public BinaryExpression {
 struct EqualExpression : public BinaryExpression {
     EqualExpression(const std::vector<Token>& tokens, Expression* left, Expression* right)
         : BinaryExpression(tokens, left, right) {}
+
+    void accept(SyntaxNodeVisitor& visitor) override { visitor.visit(*this); }
 
     bool operator==(const SyntaxNode& op) const override {
         auto node = dynamic_cast<const EqualExpression*>(&op);
@@ -339,6 +477,8 @@ struct NotEqualExpression : public BinaryExpression {
     NotEqualExpression(const std::vector<Token>& tokens, Expression* left, Expression* right)
         : BinaryExpression(tokens, left, right) {}
 
+    void accept(SyntaxNodeVisitor& visitor) override { visitor.visit(*this); }
+
     bool operator==(const SyntaxNode& op) const override {
         auto node = dynamic_cast<const NotEqualExpression*>(&op);
         if (!node)
@@ -350,6 +490,8 @@ struct NotEqualExpression : public BinaryExpression {
 struct LessExpression : public BinaryExpression {
     LessExpression(const std::vector<Token>& tokens, Expression* left, Expression* right)
         : BinaryExpression(tokens, left, right) {}
+
+    void accept(SyntaxNodeVisitor& visitor) override { visitor.visit(*this); }
 
     bool operator==(const SyntaxNode& op) const override {
         auto node = dynamic_cast<const LessExpression*>(&op);
@@ -363,6 +505,8 @@ struct LessEqualExpression : public BinaryExpression {
     LessEqualExpression(const std::vector<Token>& tokens, Expression* left, Expression* right)
         : BinaryExpression(tokens, left, right) {}
 
+    void accept(SyntaxNodeVisitor& visitor) override { visitor.visit(*this); }
+
     bool operator==(const SyntaxNode& op) const override {
         auto node = dynamic_cast<const LessEqualExpression*>(&op);
         if (!node)
@@ -375,6 +519,8 @@ struct GreaterExpression : public BinaryExpression {
     GreaterExpression(const std::vector<Token>& tokens, Expression* left, Expression* right)
         : BinaryExpression(tokens, left, right) {}
 
+    void accept(SyntaxNodeVisitor& visitor) override { visitor.visit(*this); }
+
     bool operator==(const SyntaxNode& op) const override {
         auto node = dynamic_cast<const GreaterExpression*>(&op);
         if (!node)
@@ -386,6 +532,8 @@ struct GreaterExpression : public BinaryExpression {
 struct GreaterEqualExpression : public BinaryExpression {
     GreaterEqualExpression(const std::vector<Token>& tokens, Expression* left, Expression* right)
         : BinaryExpression(tokens, left, right) {}
+
+    void accept(SyntaxNodeVisitor& visitor) override { visitor.visit(*this); }
 
     bool operator==(const SyntaxNode& op) const override {
         auto node = dynamic_cast<const GreaterEqualExpression*>(&op);
@@ -407,6 +555,8 @@ struct AssignExpression : public Expression {
     AssignExpression(const std::vector<Token>& tokens, Expression* target, Expression* value)
         : Expression(tokens), target(target), value(value) {}
 
+    void accept(SyntaxNodeVisitor& visitor) override { visitor.visit(*this); }
+
     bool operator==(const SyntaxNode& op) const override {
         auto node = dynamic_cast<const AssignExpression*>(&op);
         if (!node)
@@ -415,8 +565,9 @@ struct AssignExpression : public Expression {
     }
 };
 
+// BinaryExpression과 동일한 이유로 완화(TODO.md #10, Architecture.md §6.2 참고).
 struct UnaryExpression : public Expression {
-    Expression* const operand;
+    Expression* operand;
 
     UnaryExpression(const std::vector<Token>& tokens, Expression* operand) : Expression(tokens), operand(operand) {}
 
@@ -431,6 +582,8 @@ struct UnaryExpression : public Expression {
 struct NegativeExpression : public UnaryExpression {
     NegativeExpression(const std::vector<Token>& tokens, Expression* operand) : UnaryExpression(tokens, operand) {}
 
+    void accept(SyntaxNodeVisitor& visitor) override { visitor.visit(*this); }
+
     bool operator==(const SyntaxNode& op) const override {
         auto node = dynamic_cast<const NegativeExpression*>(&op);
         if (!node)
@@ -441,6 +594,8 @@ struct NegativeExpression : public UnaryExpression {
 
 struct NotExpression : public UnaryExpression {
     NotExpression(const std::vector<Token>& tokens, Expression* operand) : UnaryExpression(tokens, operand) {}
+
+    void accept(SyntaxNodeVisitor& visitor) override { visitor.visit(*this); }
 
     bool operator==(const SyntaxNode& op) const override {
         auto node = dynamic_cast<const NotExpression*>(&op);
@@ -470,6 +625,8 @@ struct CallExpression : public Expression {
     CallExpression(const std::vector<Token>& tokens, Expression* callee, const std::vector<Expression*>& arguments)
         : Expression(tokens), callee(callee), arguments(arguments) {}
 
+    void accept(SyntaxNodeVisitor& visitor) override { visitor.visit(*this); }
+
     bool operator==(const SyntaxNode& op) const override {
         auto node = dynamic_cast<const CallExpression*>(&op);
         if (!node)
@@ -495,6 +652,8 @@ struct FieldAccessExpression : public Expression {
     FieldAccessExpression(const std::vector<Token>& tokens, Expression* object, const Token& name)
         : Expression(tokens), object(object), name(name) {}
 
+    void accept(SyntaxNodeVisitor& visitor) override { visitor.visit(*this); }
+
     bool operator==(const SyntaxNode& op) const override {
         auto node = dynamic_cast<const FieldAccessExpression*>(&op);
         if (!node)
@@ -508,6 +667,8 @@ struct FieldAccessExpression : public Expression {
 // 최적화도 그대로 적용받을 수 있다 - Architecture.md §4.3 참고.
 struct ThisExpression : public Expression {
     using Expression::Expression;
+
+    void accept(SyntaxNodeVisitor& visitor) override { visitor.visit(*this); }
 
     bool operator==(const SyntaxNode& op) const override {
         return dynamic_cast<const ThisExpression*>(&op) != nullptr && SyntaxNode::operator==(op);
@@ -525,6 +686,8 @@ struct ThisExpression : public Expression {
 struct SuperExpression : public Expression {
     using Expression::Expression;
 
+    void accept(SyntaxNodeVisitor& visitor) override { visitor.visit(*this); }
+
     bool operator==(const SyntaxNode& op) const override {
         return dynamic_cast<const SuperExpression*>(&op) != nullptr && SyntaxNode::operator==(op);
     }
@@ -536,6 +699,8 @@ struct ArrayExpression : public Expression {
     Expression* const sizeExpr;
 
     ArrayExpression(const std::vector<Token>& tokens, Expression* sizeExpr) : Expression(tokens), sizeExpr(sizeExpr) {}
+
+    void accept(SyntaxNodeVisitor& visitor) override { visitor.visit(*this); }
 
     bool operator==(const SyntaxNode& op) const override {
         auto node = dynamic_cast<const ArrayExpression*>(&op);
@@ -554,6 +719,8 @@ struct IndexExpression : public Expression {
     IndexExpression(const std::vector<Token>& tokens, Expression* collection, Expression* index)
         : Expression(tokens), collection(collection), index(index) {}
 
+    void accept(SyntaxNodeVisitor& visitor) override { visitor.visit(*this); }
+
     bool operator==(const SyntaxNode& op) const override {
         auto node = dynamic_cast<const IndexExpression*>(&op);
         if (!node)
@@ -570,6 +737,8 @@ struct InstanceOfExpression : public Expression {
 
     InstanceOfExpression(const std::vector<Token>& tokens, Expression* object, const Token& className)
         : Expression(tokens), object(object), className(className) {}
+
+    void accept(SyntaxNodeVisitor& visitor) override { visitor.visit(*this); }
 
     bool operator==(const SyntaxNode& op) const override {
         auto node = dynamic_cast<const InstanceOfExpression*>(&op);
@@ -589,6 +758,8 @@ struct FunctionDeclareStatement : public Statement {
     FunctionDeclareStatement(const std::vector<Token>& tokens, const Token& name, const std::vector<Token>& params,
         const std::vector<Statement*>& body)
         : Statement(tokens), name(name), params(params), body(body) {}
+
+    void accept(SyntaxNodeVisitor& visitor) override { visitor.visit(*this); }
 
     bool operator==(const SyntaxNode& op) const override {
         auto node = dynamic_cast<const FunctionDeclareStatement*>(&op);
@@ -621,6 +792,8 @@ struct MethodDeclareStatement : public Statement {
         const std::vector<Statement*>& body)
         : Statement(tokens), name(name), params(params), body(body) {}
 
+    void accept(SyntaxNodeVisitor& visitor) override { visitor.visit(*this); }
+
     bool operator==(const SyntaxNode& op) const override {
         auto node = dynamic_cast<const MethodDeclareStatement*>(&op);
         if (!node)
@@ -642,6 +815,8 @@ struct ReturnStatement : public Statement {
     Expression* const value;
 
     ReturnStatement(const std::vector<Token>& tokens, Expression* value = nullptr) : Statement(tokens), value(value) {}
+
+    void accept(SyntaxNodeVisitor& visitor) override { visitor.visit(*this); }
 
     bool operator==(const SyntaxNode& op) const override {
         auto node = dynamic_cast<const ReturnStatement*>(&op);
@@ -668,6 +843,8 @@ struct ClassDeclareStatement : public Statement {
     ClassDeclareStatement(const std::vector<Token>& tokens, const Token& name, const std::vector<MethodDeclareStatement*>& methods,
         IdentifierExpression* superclass = nullptr)
         : Statement(tokens), name(name), methods(methods), superclass(superclass) {}
+
+    void accept(SyntaxNodeVisitor& visitor) override { visitor.visit(*this); }
 
     bool operator==(const SyntaxNode& op) const override {
         auto node = dynamic_cast<const ClassDeclareStatement*>(&op);
@@ -698,6 +875,8 @@ struct ImportStatement : public Statement {
 
     ImportStatement(const std::vector<Token>& tokens, const Token& alias, const std::vector<Statement*>& declarations)
         : Statement(tokens), alias(alias), declarations(declarations) {}
+
+    void accept(SyntaxNodeVisitor& visitor) override { visitor.visit(*this); }
 
     bool operator==(const SyntaxNode& op) const override {
         auto node = dynamic_cast<const ImportStatement*>(&op);

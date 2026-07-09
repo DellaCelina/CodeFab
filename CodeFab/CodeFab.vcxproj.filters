@@ -146,6 +146,9 @@
     <ClInclude Include="Checker\CheckerInterface.h">
       <Filter>Checker</Filter>
     </ClInclude>
+    <ClInclude Include="Checker\OptimizerInterface.h">
+      <Filter>Checker</Filter>
+    </ClInclude>
     <ClInclude Include="Checker\Checker.h">
       <Filter>Checker</Filter>
     </ClInclude>
