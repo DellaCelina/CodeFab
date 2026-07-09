@@ -18,6 +18,7 @@ static const std::unordered_map<std::string, TokenType> KEYWORDS = {
     { "import",     TokenType::IMPORT     },
     { "alias",      TokenType::ALIAS      },
     { "instanceof", TokenType::INSTANCEOF },
+    { "Super",      TokenType::SUPER      },
     { "and",        TokenType::AND        },
     { "or",         TokenType::OR         },
 };
@@ -97,6 +98,7 @@ void Tokenizer::scanToken() {
         case '[': addToken(TokenType::LEFT_BRACKET);  break;
         case ']': addToken(TokenType::RIGHT_BRACKET); break;
         case ',': addToken(TokenType::COMMA);         break;
+        case ':': addToken(TokenType::COLON);         break;
         case '+': addToken(TokenType::PLUS);        break;
         case '-': addToken(TokenType::MINUS);       break;
         case '*': addToken(TokenType::STAR);        break;
