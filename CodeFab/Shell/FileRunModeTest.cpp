@@ -1,4 +1,4 @@
-﻿#include "FileRunMode.h"
+#include "FileRunMode.h"
 
 #include <filesystem>
 #include <fstream>
@@ -46,7 +46,7 @@ public:
 
 class MockChecker : public CheckerInterface {
 public:
-    MOCK_METHOD(void, check, (SyntaxTree & tree), (override));
+    MOCK_METHOD(bool, check, (SyntaxTree & tree), (override));
 };
 
 class MockExecutor : public ExecuteInterface {
@@ -102,14 +102,14 @@ TEST_F(FileRunModeTest, PathIsDirectory_ReportsErrorWithoutTokenizingAndReturnsF
     bool result = mode.run(std::filesystem::temp_directory_path().string(), out);
 
     EXPECT_FALSE(result);
-    EXPECT_THAT(out.str(), HasSubstr("파일 1개"));
+    EXPECT_THAT(out.str(), HasSubstr("Error: path must be a single file:"));
 }
 
 TEST_F(FileRunModeTest, ValidFile_CallsPipelineInOrderAndReturnsTrue) {
     InSequence seq;
     EXPECT_CALL(tokenizer, tokenize(_)).WillOnce(Return(std::vector<Token>{}));
     EXPECT_CALL(assembler, assemble(_)).WillOnce(Return(ByMove(SyntaxTree())));
-    EXPECT_CALL(checker, check(_));
+    EXPECT_CALL(checker, check(_)).WillOnce(Return(true));
     EXPECT_CALL(executor, execute(_));
 
     std::ostringstream out;
@@ -121,7 +121,7 @@ TEST_F(FileRunModeTest, ValidFile_CallsPipelineInOrderAndReturnsTrue) {
 
 TEST_F(FileRunModeTest, TokenizerThrows_ReportsMessageAndReturnsFalse) {
     EXPECT_CALL(tokenizer, tokenize(_))
-        .WillOnce(Throw(AssemblyError("[1번째 줄] 인식할 수 없는 문자입니다.")));
+        .WillOnce(Throw(AssemblyError("[line 1] unknown character: '@'")));
     EXPECT_CALL(assembler, assemble(_)).Times(0);
     EXPECT_CALL(checker, check(_)).Times(0);
     EXPECT_CALL(executor, execute(_)).Times(0);
@@ -130,7 +130,7 @@ TEST_F(FileRunModeTest, TokenizerThrows_ReportsMessageAndReturnsFalse) {
     bool result = mode.run(tempPath.string(), out);
 
     EXPECT_FALSE(result);
-    EXPECT_EQ(out.str(), "[1번째 줄] 인식할 수 없는 문자입니다.\n");
+    EXPECT_EQ(out.str(), "[line 1] unknown character: '@'\n");
 }
 
 TEST_F(FileRunModeTest, AssemblerThrows_ReportsMessageAndReturnsFalse) {
@@ -147,24 +147,25 @@ TEST_F(FileRunModeTest, AssemblerThrows_ReportsMessageAndReturnsFalse) {
     EXPECT_EQ(out.str(), "'+' 다음에 피연산자가 필요합니다.\n");
 }
 
+
 TEST_F(FileRunModeTest, CheckerThrows_ReportsMessageAndReturnsFalse) {
     EXPECT_CALL(tokenizer, tokenize(_)).WillOnce(Return(std::vector<Token>{}));
     EXPECT_CALL(assembler, assemble(_)).WillOnce(Return(ByMove(SyntaxTree())));
     EXPECT_CALL(checker, check(_))
-        .WillOnce(Throw(CheckerError("[2번째 줄] 'a'에러: 이미 해당 변수는 현재 스코프에서 사용중입니다.")));
+        .WillOnce(Throw(CheckerError("[line 2] 'a' is already declared in this scope.")));
     EXPECT_CALL(executor, execute(_)).Times(0);
 
     std::ostringstream out;
     bool result = mode.run(tempPath.string(), out);
 
     EXPECT_FALSE(result);
-    EXPECT_EQ(out.str(), "[2번째 줄] 'a'에러: 이미 해당 변수는 현재 스코프에서 사용중입니다.\n");
+    EXPECT_EQ(out.str(), "[line 2] 'a' is already declared in this scope.\n");
 }
 
 TEST_F(FileRunModeTest, ExecutorThrows_ReportsMessageAndReturnsFalse) {
     EXPECT_CALL(tokenizer, tokenize(_)).WillOnce(Return(std::vector<Token>{}));
     EXPECT_CALL(assembler, assemble(_)).WillOnce(Return(ByMove(SyntaxTree())));
-    EXPECT_CALL(checker, check(_));
+    EXPECT_CALL(checker, check(_)).WillOnce(Return(true));
     EXPECT_CALL(executor, execute(_)).WillOnce(Throw(ExecutorError("0으로 나눈 오류")));
 
     std::ostringstream out;
@@ -188,7 +189,7 @@ protected:
     Assembler assembler{ sourceReader };
     std::ostringstream programOutput;  // Executor가 print 결과를 쓰는 곳 (out과는 별개)
     Executor executor{ programOutput };
-    Checker checker;
+    Checker checker{ executor };
 
     FileRunMode mode{ tokenizer, assembler, checker, executor };
 
@@ -271,5 +272,5 @@ TEST_F(FileRunModeIntegrationTest, PathIsDirectory_ReportsErrorAndReturnsFalse) 
 
     EXPECT_FALSE(result);
     EXPECT_EQ(programOutput.str(), "");
-    EXPECT_THAT(out.str(), HasSubstr("파일 1개"));
+    EXPECT_THAT(out.str(), HasSubstr("Error: path must be a single file:"));
 }

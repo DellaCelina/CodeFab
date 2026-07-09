@@ -13,7 +13,7 @@ void Debugger::onStatement(Statement* stmt, int depth) {
         return;
     }
     int line = stmt->getLine();
-    out_ << "[DEBUG] " << line << "번째 줄에서 정지";
+    out_ << "[DEBUG] paused at line " << line;
     printCurrentSourceLine(line);
     out_ << "\n";
     printWatches();
@@ -56,7 +56,7 @@ void Debugger::printWatches() const {
 
 void Debugger::printBreakpoints() const {
     if (breakpoints_.empty()) {
-        out_ << "[BREAK] 설정된 브레이크포인트가 없습니다.\n";
+        out_ << "[BREAK] no breakpoints set.\n";
         return;
     }
     out_ << "[BREAK] ";
@@ -77,28 +77,28 @@ void Debugger::printInspect() const {
     // 로컬 변수를 먼저 보여준 뒤, 전역 변수를 따로 묶어서 보여준다.
     const auto& scopes = executor_.environment().scopes();
 
-    out_ << "--- 현재 스코프 변수 ---\n";
+    out_ << "--- current scope variables ---\n";
 
     bool anyLocal = false;
     for (auto it = scopes.rbegin(); it != scopes.rend() - 1; ++it) {
         for (const auto& [name, value] : it->variables()) {
-            out_ << "[로컬] " << name << " = " << value.toString() << " (" << value.typeName()
+            out_ << "[LOCAL] " << name << " = " << value.toString() << " (" << value.typeName()
                  << ")\n";
             anyLocal = true;
         }
     }
     if (!anyLocal) {
-        out_ << "[로컬]\n";
+        out_ << "[LOCAL]\n";
     }
 
     bool anyGlobal = false;
     for (const auto& [name, value] : scopes.front().variables()) {
-        out_ << "[전역] " << name << " = " << value.toString() << " (" << value.typeName()
+        out_ << "[GLOBAL] " << name << " = " << value.toString() << " (" << value.typeName()
              << ")\n";
         anyGlobal = true;
     }
     if (!anyGlobal) {
-        out_ << "[전역]\n";
+        out_ << "[GLOBAL]\n";
     }
 }
 
@@ -133,7 +133,7 @@ void Debugger::promptAndHandleCommand(Statement* stmt, int depth) {
             int lineNumber;
             if (cmd >> lineNumber) {
                 breakpoints_.insert(lineNumber);
-                out_ << "[BREAK] " << lineNumber << "번째 줄에 브레이크포인트를 설정했습니다.\n";
+                out_ << "[BREAK] breakpoint set at line " << lineNumber << ".\n";
             }
             continue;
         }
@@ -141,7 +141,7 @@ void Debugger::promptAndHandleCommand(Statement* stmt, int depth) {
             int lineNumber;
             if (cmd >> lineNumber) {
                 breakpoints_.erase(lineNumber);
-                out_ << "[BREAK] " << lineNumber << "번째 줄의 브레이크포인트를 제거했습니다.\n";
+                out_ << "[BREAK] breakpoint removed at line " << lineNumber << ".\n";
             }
             continue;
         }
@@ -178,6 +178,6 @@ void Debugger::promptAndHandleCommand(Statement* stmt, int depth) {
             continue;
         }
 
-        out_ << "[DEBUG] 알 수 없는 명령입니다: '" << keyword << "'\n";
+        out_ << "[DEBUG] unknown command: '" << keyword << "'\n";
     }
 }

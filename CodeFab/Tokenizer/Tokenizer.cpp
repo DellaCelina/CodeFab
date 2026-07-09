@@ -110,7 +110,7 @@ void Tokenizer::scanString() {
         advance();
     }
     if (isAtEnd())
-        throw AssemblyError("[{}번째 줄] 문자열이 종결되지 않았습니다.", line);
+        throw AssemblyError("[line {}] unterminated string literal.", line);
 
     advance(); // 닫는 '"' 소비
     addToken(TokenType::STRING, source.substr(start + 1, current - start - 2));
@@ -119,7 +119,7 @@ void Tokenizer::scanString() {
 void Tokenizer::scanDefault(char c) {
     if (isDigit(c))      scanNumber();
     else if (isAlpha(c)) scanIdentifier();
-    else throw AssemblyError("[{}번째 줄] 알 수 없는 문자: '{}'", line, c);
+    else throw AssemblyError("[line {}] unknown character: '{}'", line, c);
 }
 
 void Tokenizer::scanNumber() {

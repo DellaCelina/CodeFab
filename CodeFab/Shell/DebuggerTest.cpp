@@ -66,7 +66,7 @@ TEST_F(DebuggerTest, StepMode_StopsOnFirstStatementAndPrintsLine) {
 
     debugger.onStatement(block->statements[0], /*depth=*/1);
 
-    EXPECT_EQ(debugOutput.str(), "[DEBUG] 1번째 줄에서 정지\n> ");
+    EXPECT_EQ(debugOutput.str(), "[DEBUG] paused at line 1\n> ");
 }
 
 TEST_F(DebuggerTest, SourceLinesProvided_ShowsArrowMarkedSourceLineAfterStopMessage) {
@@ -81,11 +81,11 @@ TEST_F(DebuggerTest, SourceLinesProvided_ShowsArrowMarkedSourceLineAfterStopMess
     Debugger debugger(executor, commandInput, debugOutput, { "print 1;", "print 2;" });
 
     debugger.onStatement(block->statements[0], /*depth=*/1);
-    EXPECT_EQ(debugOutput.str(), "[DEBUG] 1번째 줄에서 정지 -> print 1;\n> ");
+    EXPECT_EQ(debugOutput.str(), "[DEBUG] paused at line 1 -> print 1;\n> ");
     debugOutput.str("");
 
     debugger.onStatement(block->statements[1], /*depth=*/1);
-    EXPECT_EQ(debugOutput.str(), "[DEBUG] 2번째 줄에서 정지 -> print 2;\n> ");
+    EXPECT_EQ(debugOutput.str(), "[DEBUG] paused at line 2 -> print 2;\n> ");
 }
 
 TEST_F(DebuggerTest, SourceLinesNotProvided_OmitsArrowLine) {
@@ -99,7 +99,7 @@ TEST_F(DebuggerTest, SourceLinesNotProvided_OmitsArrowLine) {
     Debugger debugger(executor, commandInput, debugOutput);
     debugger.onStatement(stmt, 1);
 
-    EXPECT_EQ(debugOutput.str(), "[DEBUG] 1번째 줄에서 정지\n> ");
+    EXPECT_EQ(debugOutput.str(), "[DEBUG] paused at line 1\n> ");
 }
 
 TEST_F(DebuggerTest, ContinueCommand_SwitchesToContinueModeAndStopsOnlyAtBreakpoints) {
@@ -118,7 +118,7 @@ TEST_F(DebuggerTest, ContinueCommand_SwitchesToContinueModeAndStopsOnlyAtBreakpo
     EXPECT_EQ(debugOutput.str(), "");
 
     debugger.onStatement(block->statements[2], 1);  // line 3, breakpoint -> 멈춤
-    EXPECT_EQ(debugOutput.str(), "[DEBUG] 3번째 줄에서 정지\n> ");
+    EXPECT_EQ(debugOutput.str(), "[DEBUG] paused at line 3\n> ");
 }
 
 TEST_F(DebuggerTest, NextCommand_SkipsDeeperDepthAndStopsAtSameOrShallowerDepth) {
@@ -136,7 +136,7 @@ TEST_F(DebuggerTest, NextCommand_SkipsDeeperDepthAndStopsAtSameOrShallowerDepth)
     EXPECT_EQ(debugOutput.str(), "");
 
     debugger.onStatement(stmt, /*depth=*/1);  // 같은 depth로 복귀 -> 멈춤
-    EXPECT_EQ(debugOutput.str(), "[DEBUG] 1번째 줄에서 정지\n> ");
+    EXPECT_EQ(debugOutput.str(), "[DEBUG] paused at line 1\n> ");
 }
 
 TEST_F(DebuggerTest, WatchCommand_PrintsValueImmediatelyAndOnEachSubsequentStop) {
@@ -152,14 +152,14 @@ TEST_F(DebuggerTest, WatchCommand_PrintsValueImmediatelyAndOnEachSubsequentStop)
 
     // "watch a"는 등록하는 즉시 현재 값을 보여준다 - 다음 정지까지 기다리지 않는다.
     EXPECT_EQ(debugOutput.str(),
-              "[DEBUG] 1번째 줄에서 정지\n"
+              "[DEBUG] paused at line 1\n"
               "> [WATCH] a = 3\n"
               "> ");
     debugOutput.str("");
 
     // step 모드라 다시 멈추고, 이번엔 자동으로(printWatches) 같은 값을 보여준다.
     debugger.onStatement(stmt, 1);
-    EXPECT_EQ(debugOutput.str(), "[DEBUG] 1번째 줄에서 정지\n[WATCH] a = 3\n> ");
+    EXPECT_EQ(debugOutput.str(), "[DEBUG] paused at line 1\n[WATCH] a = 3\n> ");
 }
 
 TEST_F(DebuggerTest, UnwatchCommand_RemovesVariableFromWatchList) {
@@ -177,14 +177,14 @@ TEST_F(DebuggerTest, UnwatchCommand_RemovesVariableFromWatchList) {
     // 찍힌다. 그 다음 "unwatch a"로 제거하고 "step"으로 세 번째 정지를 유도한다.
     setCommands("unwatch a\nstep\n");
     debugger.onStatement(stmt, 1);
-    EXPECT_EQ(debugOutput.str(), "[DEBUG] 1번째 줄에서 정지\n[WATCH] a = 3\n> > ");
+    EXPECT_EQ(debugOutput.str(), "[DEBUG] paused at line 1\n[WATCH] a = 3\n> > ");
     debugOutput.str("");
 
     // 세 번째 정지: 이제 watches_가 비어 있으므로 [WATCH] 줄이 없어야 한다 -
     // 이게 실제로 "제거됐다"는 것을 보여주는 검증이다.
     setCommands("continue\n");
     debugger.onStatement(stmt, 1);
-    EXPECT_EQ(debugOutput.str(), "[DEBUG] 1번째 줄에서 정지\n> ");
+    EXPECT_EQ(debugOutput.str(), "[DEBUG] paused at line 1\n> ");
 }
 
 TEST_F(DebuggerTest, WatchesCommand_ListsCurrentlyWatchedNames) {
@@ -198,7 +198,7 @@ TEST_F(DebuggerTest, WatchesCommand_ListsCurrentlyWatchedNames) {
     debugger.onStatement(stmt, 1);
 
     EXPECT_EQ(debugOutput.str(),
-              "[DEBUG] 1번째 줄에서 정지\n"
+              "[DEBUG] paused at line 1\n"
               "> [WATCH] a = undefined\n"
               "> [WATCH] b = undefined\n"
               "> [WATCH] a = undefined\n"
@@ -218,11 +218,11 @@ TEST_F(DebuggerTest, BreakpointsCommand_ListsAndRemoveDeletesBreakpoint) {
     // 그 결과를 출력한 "다음" 반복에서 새로 "> "를 찍고서야 그 다음 명령을
     // 읽으므로, 각 결과 줄 앞에 "> "가 하나씩 붙는다.
     EXPECT_EQ(debugOutput.str(),
-              "[DEBUG] 1번째 줄에서 정지\n"
-              "> [BREAK] 5번째 줄에 브레이크포인트를 설정했습니다.\n"
-              "> [BREAK] 10번째 줄에 브레이크포인트를 설정했습니다.\n"
+              "[DEBUG] paused at line 1\n"
+              "> [BREAK] breakpoint set at line 5.\n"
+              "> [BREAK] breakpoint set at line 10.\n"
               "> [BREAK] 5, 10\n"
-              "> [BREAK] 5번째 줄의 브레이크포인트를 제거했습니다.\n"
+              "> [BREAK] breakpoint removed at line 5.\n"
               "> [BREAK] 10\n"
               "> ");
 }
@@ -241,10 +241,10 @@ TEST_F(DebuggerTest, InspectCommand_ShowsHeaderAndSeparatesLocalFromGlobalVariab
     debugger.onStatement(stmt, 1);
 
     std::string out = debugOutput.str();
-    EXPECT_NE(out.find("--- 현재 스코프 변수 ---\n"), std::string::npos);
-    // unordered_map 순회 순서는 보장되지 않으므로, a/b가 [전역] 표시 뒤에
+    EXPECT_NE(out.find("--- current scope variables ---\n"), std::string::npos);
+    // unordered_map 순회 순서는 보장되지 않으므로, a/b가 [GLOBAL] 표시 뒤에
     // 나오는지만 위치로 확인한다.
-    size_t globalPos = out.find("[전역]");
+    size_t globalPos = out.find("[GLOBAL]");
     ASSERT_NE(globalPos, std::string::npos);
     EXPECT_GT(out.find("a = 3"), globalPos);
     EXPECT_GT(out.find("b = hi"), globalPos);
@@ -271,12 +271,12 @@ TEST_F(DebuggerTest, InspectCommand_ListsLocalVariableUnderLocalAndGlobalUnderGl
 
     EXPECT_EQ(programOutput.str(), "2\n");
     EXPECT_EQ(debugOutput.str(),
-              "[DEBUG] 1번째 줄에서 정지\n"
-              "> [DEBUG] 1번째 줄에서 정지\n"
-              "> [DEBUG] 2번째 줄에서 정지\n"
-              "> --- 현재 스코프 변수 ---\n"
-              "[로컬] l = 2 (number)\n"
-              "[전역] g = 1 (number)\n"
+              "[DEBUG] paused at line 1\n"
+              "> [DEBUG] paused at line 1\n"
+              "> [DEBUG] paused at line 2\n"
+              "> --- current scope variables ---\n"
+              "[LOCAL] l = 2 (number)\n"
+              "[GLOBAL] g = 1 (number)\n"
               "> ");
 }
 
@@ -289,8 +289,8 @@ TEST_F(DebuggerTest, UnknownCommand_PrintsErrorAndKeepsPrompting) {
     debugger.onStatement(stmt, 1);
 
     EXPECT_EQ(debugOutput.str(),
-              "[DEBUG] 1번째 줄에서 정지\n"
-              "> [DEBUG] 알 수 없는 명령입니다: 'frobnicate'\n"
+              "[DEBUG] paused at line 1\n"
+              "> [DEBUG] unknown command: 'frobnicate'\n"
               "> ");
 }
 

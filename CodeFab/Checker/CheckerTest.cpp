@@ -77,8 +77,8 @@ TEST_F(CheckerTest, DuplicateDeclarationInSameScopeReportsError) {
     } catch (const CheckerError& e) {
         // CheckerError는 줄 번호를 따로 들고 있지 않고 메시지에 직접 담는다
         // (CheckerInterface.h/checker.cpp의 reportError() 참고).
-        EXPECT_THAT(std::string(e.what()), testing::HasSubstr("3번째 줄"));
-        EXPECT_THAT(std::string(e.what()), testing::HasSubstr("이미 해당 변수는 현재 스코프에서 사용중입니다"));
+        EXPECT_THAT(std::string(e.what()), testing::HasSubstr("[line 3]"));
+        EXPECT_THAT(std::string(e.what()), testing::HasSubstr("is already declared in this scope."));
     }
 }
 
@@ -107,8 +107,8 @@ TEST_F(CheckerTest, SelfReferenceInInitializerReportsError) {
         checker.check(tree);
         FAIL() << "CheckerError가 발생해야 합니다.";
     } catch (const CheckerError& e) {
-        EXPECT_THAT(std::string(e.what()), testing::HasSubstr("2번째 줄"));
-        EXPECT_THAT(std::string(e.what()), testing::HasSubstr("자신의 초기화식에서 지역변수를 읽을 수 없습니다"));
+        EXPECT_THAT(std::string(e.what()), testing::HasSubstr("[line 2]"));
+        EXPECT_THAT(std::string(e.what()), testing::HasSubstr("cannot read local variable in its own initializer."));
     }
 }
 
@@ -152,7 +152,7 @@ TEST_F(CheckerTest, UndefinedVariableAcrossCallsStillReportsError) {
         checker.check(tree);
         FAIL() << "CheckerError가 발생해야 합니다.";
     } catch (const CheckerError& e) {
-        EXPECT_THAT(std::string(e.what()), testing::HasSubstr("'notDefined'에러: 선언되지 않은 변수입니다"));
+        EXPECT_THAT(std::string(e.what()), testing::HasSubstr("'notDefined' is not declared."));
     }
 }
 
@@ -189,8 +189,8 @@ TEST_F(CheckerTest, DuplicateDeclarationInsideIfBlockReportsError) {
         checker.check(tree);
         FAIL() << "CheckerError가 발생해야 합니다.";
     } catch (const CheckerError& e) {
-        EXPECT_THAT(std::string(e.what()), testing::HasSubstr("3번째 줄"));
-        EXPECT_THAT(std::string(e.what()), testing::HasSubstr("이미 해당 변수는 현재 스코프에서 사용중입니다"));
+        EXPECT_THAT(std::string(e.what()), testing::HasSubstr("[line 3]"));
+        EXPECT_THAT(std::string(e.what()), testing::HasSubstr("is already declared in this scope."));
     }
 }
 
@@ -224,8 +224,8 @@ TEST_F(CheckerTest, SelfReferenceInsideIfBlockReportsError) {
         checker.check(tree);
         FAIL() << "CheckerError가 발생해야 합니다.";
     } catch (const CheckerError& e) {
-        EXPECT_THAT(std::string(e.what()), testing::HasSubstr("2번째 줄"));
-        EXPECT_THAT(std::string(e.what()), testing::HasSubstr("자신의 초기화식에서 지역변수를 읽을 수 없습니다"));
+        EXPECT_THAT(std::string(e.what()), testing::HasSubstr("[line 2]"));
+        EXPECT_THAT(std::string(e.what()), testing::HasSubstr("cannot read local variable in its own initializer."));
     }
 }
 
@@ -272,8 +272,8 @@ TEST_F(CheckerTest, DuplicateDeclarationInsideForBlockReportsError) {
         checker.check(tree);
         FAIL() << "CheckerError가 발생해야 합니다.";
     } catch (const CheckerError& e) {
-        EXPECT_THAT(std::string(e.what()), testing::HasSubstr("3번째 줄"));
-        EXPECT_THAT(std::string(e.what()), testing::HasSubstr("이미 해당 변수는 현재 스코프에서 사용중입니다"));
+        EXPECT_THAT(std::string(e.what()), testing::HasSubstr("[line 3]"));
+        EXPECT_THAT(std::string(e.what()), testing::HasSubstr("is already declared in this scope."));
     }
 }
 
@@ -316,8 +316,8 @@ TEST_F(CheckerTest, SelfReferenceInsideForBlockReportsError) {
         checker.check(tree);
         FAIL() << "CheckerError가 발생해야 합니다.";
     } catch (const CheckerError& e) {
-        EXPECT_THAT(std::string(e.what()), testing::HasSubstr("2번째 줄"));
-        EXPECT_THAT(std::string(e.what()), testing::HasSubstr("자신의 초기화식에서 지역변수를 읽을 수 없습니다"));
+        EXPECT_THAT(std::string(e.what()), testing::HasSubstr("[line 2]"));
+        EXPECT_THAT(std::string(e.what()), testing::HasSubstr("cannot read local variable in its own initializer."));
     }
 }
 
@@ -382,7 +382,7 @@ TEST_F(CheckerTest, ReturnOutsideFunctionReportsError) {
         checker.check(tree);
         FAIL() << "CheckerError가 발생해야 합니다.";
     } catch (const CheckerError& e) {
-        EXPECT_THAT(std::string(e.what()), testing::HasSubstr("함수(메서드) 밖에서 return"));
+        EXPECT_THAT(std::string(e.what()), testing::HasSubstr("cannot use 'return' outside a function."));
     }
 }
 
@@ -403,7 +403,7 @@ TEST_F(CheckerTest, DuplicateParameterNameReportsError) {
         checker.check(tree);
         FAIL() << "CheckerError가 발생해야 합니다.";
     } catch (const CheckerError& e) {
-        EXPECT_THAT(std::string(e.what()), testing::HasSubstr("파라미터 이름 'a'"));
+        EXPECT_THAT(std::string(e.what()), testing::HasSubstr("duplicate parameter name 'a'"));
     }
 }
 
@@ -452,7 +452,7 @@ TEST_F(CheckerTest, ThisOutsideClassReportsError) {
         checker.check(tree);
         FAIL() << "CheckerError가 발생해야 합니다.";
     } catch (const CheckerError& e) {
-        EXPECT_THAT(std::string(e.what()), testing::HasSubstr("클래스 메서드 밖에서 This"));
+        EXPECT_THAT(std::string(e.what()), testing::HasSubstr("cannot use 'This' outside a class method."));
     }
 }
 
@@ -503,7 +503,7 @@ TEST_F(CheckerTest, InitMethodWithReturnValueReportsError) {
         checker.check(tree);
         FAIL() << "CheckerError가 발생해야 합니다.";
     } catch (const CheckerError& e) {
-        EXPECT_THAT(std::string(e.what()), testing::HasSubstr("init 메서드는 값을 반환할 수 없습니다"));
+        EXPECT_THAT(std::string(e.what()), testing::HasSubstr("'init' method cannot return a value."));
     }
 }
 
@@ -562,7 +562,7 @@ TEST_F(CheckerTest, ImportInsideForBlockReportsError) {
         checker.check(tree);
         FAIL() << "CheckerError가 발생해야 합니다.";
     } catch (const CheckerError& e) {
-        EXPECT_THAT(std::string(e.what()), testing::HasSubstr("반복문(for) 안에서는 import를 사용할 수 없습니다"));
+        EXPECT_THAT(std::string(e.what()), testing::HasSubstr("cannot use 'import' inside a for loop."));
     }
 }
 
@@ -589,7 +589,7 @@ TEST_F(CheckerTest, DuplicateImportAliasInSameScopeReportsError) {
         checker.check(tree);
         FAIL() << "CheckerError가 발생해야 합니다.";
     } catch (const CheckerError& e) {
-        EXPECT_THAT(std::string(e.what()), testing::HasSubstr("'m'에러: 이미 해당 이름은 현재 스코프에서 사용중입니다"));
+        EXPECT_THAT(std::string(e.what()), testing::HasSubstr("'m' is already declared in this scope."));
     }
 }
 
@@ -620,7 +620,7 @@ TEST_F(CheckerTest, ImportInNestedScopeWhenAlreadyImportedInOuterScopeReportsErr
         checker.check(tree);
         FAIL() << "CheckerError가 발생해야 합니다.";
     } catch (const CheckerError& e) {
-        EXPECT_THAT(std::string(e.what()), testing::HasSubstr("'sum'에러: 상위 스코프에서 이미 사용중인 이름입니다"));
+        EXPECT_THAT(std::string(e.what()), testing::HasSubstr("'sum' is already declared in an upper scope."));
     }
 }
 
@@ -704,7 +704,7 @@ TEST_F(CheckerTest, ImportAliasConflictsWithExistingVariableReportsError) {
         checker.check(tree);
         FAIL() << "CheckerError가 발생해야 합니다.";
     } catch (const CheckerError& e) {
-        EXPECT_THAT(std::string(e.what()), testing::HasSubstr("'sum'에러: 이미 해당 이름은 현재 스코프에서 사용중입니다"));
+        EXPECT_THAT(std::string(e.what()), testing::HasSubstr("'sum' is already declared in this scope."));
     }
 }
 
@@ -808,7 +808,7 @@ TEST_F(CheckerTest, ImportInternalDeclarationDoesNotLeakIntoEnclosingScope) {
         checker.check(tree);
         FAIL() << "CheckerError가 발생해야 합니다.";
     } catch (const CheckerError& e) {
-        EXPECT_THAT(std::string(e.what()), testing::HasSubstr("'inner'에러: 선언되지 않은 변수입니다"));
+        EXPECT_THAT(std::string(e.what()), testing::HasSubstr("'inner' is not declared."));
     }
 }
 
@@ -832,7 +832,7 @@ TEST_F(CheckerTest, ClassInheritingFromItselfReportsError) {
         checker.check(tree);
         FAIL() << "CheckerError가 발생해야 합니다.";
     } catch (const CheckerError& e) {
-        EXPECT_THAT(std::string(e.what()), testing::HasSubstr("자기 자신을 상속할 수 없습니다"));
+        EXPECT_THAT(std::string(e.what()), testing::HasSubstr("cannot inherit from itself."));
     }
 }
 
@@ -863,7 +863,7 @@ TEST_F(CheckerTest, ClassInheritingFromNonClassReportsError) {
         checker.check(tree);
         FAIL() << "CheckerError가 발생해야 합니다.";
     } catch (const CheckerError& e) {
-        EXPECT_THAT(std::string(e.what()), testing::HasSubstr("'x'은(는) 클래스가 아니므로 상속할 수 없습니다"));
+        EXPECT_THAT(std::string(e.what()), testing::HasSubstr("'x' is not a class and cannot be used as a superclass."));
     }
 }
 
@@ -904,7 +904,7 @@ TEST_F(CheckerTest, SuperOutsideClassReportsError) {
         checker.check(tree);
         FAIL() << "CheckerError가 발생해야 합니다.";
     } catch (const CheckerError& e) {
-        EXPECT_THAT(std::string(e.what()), testing::HasSubstr("클래스 메서드 밖에서 Super"));
+        EXPECT_THAT(std::string(e.what()), testing::HasSubstr("cannot use 'Super' outside a class method."));
     }
 }
 
@@ -932,7 +932,7 @@ TEST_F(CheckerTest, SuperInsideMethodWithoutSuperclassReportsError) {
         checker.check(tree);
         FAIL() << "CheckerError가 발생해야 합니다.";
     } catch (const CheckerError& e) {
-        EXPECT_THAT(std::string(e.what()), testing::HasSubstr("부모 클래스가 없는 클래스에서 Super"));
+        EXPECT_THAT(std::string(e.what()), testing::HasSubstr("cannot use 'Super' in a class with no superclass."));
     }
 }
 

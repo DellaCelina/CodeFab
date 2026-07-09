@@ -1,4 +1,4 @@
-﻿#include "DebugMode.h"
+#include "DebugMode.h"
 
 #include <filesystem>
 #include <fstream>
@@ -49,7 +49,7 @@ public:
 
 class MockChecker : public CheckerInterface {
 public:
-    MOCK_METHOD(void, check, (SyntaxTree & tree), (override));
+    MOCK_METHOD(bool, check, (SyntaxTree & tree), (override));
 };
 
 class DebugModeTest : public ::testing::Test {
@@ -96,12 +96,12 @@ TEST_F(DebugModeTest, PathIsDirectory_ReportsErrorWithoutTokenizingAndReturnsFal
     bool result = mode.run(std::filesystem::temp_directory_path().string(), in, out);
 
     EXPECT_FALSE(result);
-    EXPECT_THAT(out.str(), HasSubstr("파일 1개"));
+    EXPECT_THAT(out.str(), HasSubstr("Error: path must be a single file:"));
 }
 
 TEST_F(DebugModeTest, TokenizerThrows_ReportsMessageAndReturnsFalse) {
     EXPECT_CALL(tokenizer, tokenize(_))
-        .WillOnce(Throw(AssemblyError("[1번째 줄] 인식할 수 없는 문자입니다.")));
+        .WillOnce(Throw(AssemblyError("[line 1] unknown character: '@'")));
     EXPECT_CALL(assembler, assemble(_)).Times(0);
     EXPECT_CALL(checker, check(_)).Times(0);
 
@@ -110,7 +110,7 @@ TEST_F(DebugModeTest, TokenizerThrows_ReportsMessageAndReturnsFalse) {
     bool result = mode.run(tempPath.string(), in, out);
 
     EXPECT_FALSE(result);
-    EXPECT_EQ(out.str(), "[1번째 줄] 인식할 수 없는 문자입니다.\n");
+    EXPECT_EQ(out.str(), "[line 1] unknown character: '@'\n");
 }
 
 TEST_F(DebugModeTest, AssemblerThrows_ReportsMessageAndReturnsFalse) {
@@ -127,18 +127,19 @@ TEST_F(DebugModeTest, AssemblerThrows_ReportsMessageAndReturnsFalse) {
     EXPECT_EQ(out.str(), "'+' 다음에 피연산자가 필요합니다.\n");
 }
 
+
 TEST_F(DebugModeTest, CheckerThrows_ReportsMessageAndReturnsFalse) {
     EXPECT_CALL(tokenizer, tokenize(_)).WillOnce(Return(std::vector<Token>{}));
     EXPECT_CALL(assembler, assemble(_)).WillOnce(Return(ByMove(SyntaxTree())));
     EXPECT_CALL(checker, check(_))
-        .WillOnce(Throw(CheckerError("[2번째 줄] 'a'에러: 이미 해당 변수는 현재 스코프에서 사용중입니다.")));
+        .WillOnce(Throw(CheckerError("[line 2] 'a' is already declared in this scope.")));
 
     std::istringstream in;
     std::ostringstream out;
     bool result = mode.run(tempPath.string(), in, out);
 
     EXPECT_FALSE(result);
-    EXPECT_EQ(out.str(), "[2번째 줄] 'a'에러: 이미 해당 변수는 현재 스코프에서 사용중입니다.\n");
+    EXPECT_EQ(out.str(), "[line 2] 'a' is already declared in this scope.\n");
 }
 
 // ============================================================================
@@ -155,7 +156,7 @@ protected:
     Assembler assembler{ sourceReader };
     std::ostringstream programOutput;
     Executor executor{ programOutput };
-    Checker checker;
+    Checker checker{ executor };
 
     DebugMode mode{ tokenizer, assembler, checker, executor };
 
@@ -183,7 +184,7 @@ TEST_F(DebugModeIntegrationTest, ContinueImmediately_RunsWholeScriptAndReturnsTr
 
     EXPECT_TRUE(result);
     EXPECT_EQ(programOutput.str(), "3\n");
-    EXPECT_EQ(out.str(), "[DEBUG] 1번째 줄에서 정지 -> print 1 + 2;\n> ");
+    EXPECT_EQ(out.str(), "[DEBUG] paused at line 1 -> print 1 + 2;\n> ");
 }
 
 TEST_F(DebugModeIntegrationTest, Breakpoint_StopsAtTargetLineThenFinishesOnContinue) {
@@ -196,9 +197,9 @@ TEST_F(DebugModeIntegrationTest, Breakpoint_StopsAtTargetLineThenFinishesOnConti
     EXPECT_TRUE(result);
     EXPECT_EQ(programOutput.str(), "1\n2\n3\n");
     EXPECT_EQ(out.str(),
-              "[DEBUG] 1번째 줄에서 정지 -> print 1;\n"
-              "> [BREAK] 3번째 줄에 브레이크포인트를 설정했습니다.\n"
-              "> [DEBUG] 3번째 줄에서 정지 -> print 3;\n"
+              "[DEBUG] paused at line 1 -> print 1;\n"
+              "> [BREAK] breakpoint set at line 3.\n"
+              "> [DEBUG] paused at line 3 -> print 3;\n"
               "> ");
 }
 
@@ -218,10 +219,10 @@ TEST_F(DebugModeIntegrationTest, WatchAcrossSteps_ShowsUndefinedBeforeDeclaratio
     // 멈추지 않는다(아래 MultiStatementWithNestedIfBlock_... 테스트가 이
     // 회귀를 더 명확하게 검증한다).
     EXPECT_EQ(out.str(),
-              "[DEBUG] 1번째 줄에서 정지 -> var a = 3;\n"
+              "[DEBUG] paused at line 1 -> var a = 3;\n"
               "> [WATCH] a = undefined\n"
               "> "
-              "[DEBUG] 2번째 줄에서 정지 -> print a;\n"
+              "[DEBUG] paused at line 2 -> print a;\n"
               "[WATCH] a = 3\n"
               "> ");
 }
@@ -243,12 +244,12 @@ TEST_F(DebugModeIntegrationTest, MultiStatementWithNestedIfBlock_StepsThroughEac
     EXPECT_TRUE(result);
     EXPECT_EQ(programOutput.str(), "1\n1\n");
     EXPECT_EQ(out.str(),
-              "[DEBUG] 1번째 줄에서 정지 -> var g = 1;\n"
-              "> [DEBUG] 2번째 줄에서 정지 -> if (true)\n"
-              "> [DEBUG] 3번째 줄에서 정지 -> {\n"  // 중첩 블록 자체 - 실제 소스에 있는 블록
-              "> [DEBUG] 4번째 줄에서 정지 -> \tvar a = 1;\n"
-              "> [DEBUG] 5번째 줄에서 정지 -> \tprint a;\n"
-              "> [DEBUG] 7번째 줄에서 정지 -> print g;\n"
+              "[DEBUG] paused at line 1 -> var g = 1;\n"
+              "> [DEBUG] paused at line 2 -> if (true)\n"
+              "> [DEBUG] paused at line 3 -> {\n"  // 중첩 블록 자체 - 실제 소스에 있는 블록
+              "> [DEBUG] paused at line 4 -> \tvar a = 1;\n"
+              "> [DEBUG] paused at line 5 -> \tprint a;\n"
+              "> [DEBUG] paused at line 7 -> print g;\n"
               "> ");
 }
 
@@ -266,9 +267,9 @@ TEST_F(DebugModeIntegrationTest, NextOverIfStatement_SkipsNestedBlockAndStopsAtN
     // print(3~5번째 줄, depth 2~3)는 전부 건너뛰고 실제로 실행만 되며, 다음
     // 최상위 문장(7번째 줄)에서 멈춘다.
     EXPECT_EQ(out.str(),
-              "[DEBUG] 1번째 줄에서 정지 -> var g = 1;\n"
-              "> [DEBUG] 2번째 줄에서 정지 -> if (true)\n"
-              "> [DEBUG] 7번째 줄에서 정지 -> print g;\n"
+              "[DEBUG] paused at line 1 -> var g = 1;\n"
+              "> [DEBUG] paused at line 2 -> if (true)\n"
+              "> [DEBUG] paused at line 7 -> print g;\n"
               "> ");
 }
 
