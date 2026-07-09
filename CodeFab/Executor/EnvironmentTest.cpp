@@ -1,3 +1,5 @@
+#include <stdexcept>
+
 #include "gmock/gmock.h"
 #include "Environment.h"
 
@@ -66,4 +68,39 @@ TEST(EnvironmentTest, Assign_WalksUpToOuterScope) {
 
     EXPECT_TRUE(assigned);
     EXPECT_EQ(env.lookup("x")->asNumber(), 5.0);
+}
+
+TEST(EnvironmentTest, LookupAt_ValidDistance_ReturnsValueFromThatScope) {
+    Environment env;
+    env.define("x", Value(1.0));
+    env.pushScope();
+    env.define("x", Value(2.0));
+
+    EXPECT_EQ(env.lookupAt(0, "x")->asNumber(), 2.0);
+    EXPECT_EQ(env.lookupAt(1, "x")->asNumber(), 1.0);
+}
+
+TEST(EnvironmentTest, LookupAt_DistanceOutOfRange_ThrowsOutOfRange) {
+    Environment env;  // global scope 하나뿐 (size == 1)
+
+    EXPECT_THROW(env.lookupAt(1, "x"), std::out_of_range);
+}
+
+TEST(EnvironmentTest, AssignAt_ValidDistance_UpdatesThatScope) {
+    Environment env;
+    env.define("x", Value(1.0));
+    env.pushScope();
+    env.define("x", Value(2.0));
+
+    bool assigned = env.assignAt(1, "x", Value(9.0));
+    env.popScope();
+
+    EXPECT_TRUE(assigned);
+    EXPECT_EQ(env.lookup("x")->asNumber(), 9.0);
+}
+
+TEST(EnvironmentTest, AssignAt_DistanceOutOfRange_ThrowsOutOfRange) {
+    Environment env;  // global scope 하나뿐 (size == 1)
+
+    EXPECT_THROW(env.assignAt(1, "x", Value(1.0)), std::out_of_range);
 }

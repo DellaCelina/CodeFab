@@ -13,6 +13,19 @@ ExecutorError undefinedVariableError(const std::string& name) {
     return ExecutorError("'{}' 변수가 정의되지 않았습니다.", name);
 }
 
+// Environment::lookupAt/assignAt은 depth가 스코프 범위를 벗어나면
+// std::out_of_range를 던진다 - 사용자 코드 문제가 아니라 Resolver가 계산한
+// depth가 잘못됐다는, 우리 프로그램 자체의 버그 신호다. 그래도 Executor 밖으로는
+// ExecutorError만 노출한다는 규칙(README)을 지키기 위해 여기서 다시 감싼다.
+template <typename Func>
+auto guardScopeAccess(Func&& func) {
+    try {
+        return func();
+    } catch (const std::out_of_range& e) {
+        throw ExecutorError("내부 오류: {}", e.what());
+    }
+}
+
 // return 문이 함수/메서드 호출 스택을 즉시 빠져나가기 위해 던지는 내부 전용
 // 제어 흐름 신호. Executor 밖으로 노출하지 않는다(공개 헤더에 없음) - 일반
 // ExecutorError와 섞이지 않도록 별도 타입으로 둔다.
@@ -181,7 +194,7 @@ void Executor::visit(IdentifierExpression& node) {
     // 아직 아무도 depth를 채우지 않는 동안에는(Resolver 미구현) 항상
     // nullopt라서 기존과 동일하게 동적 조회로 동작한다.
     auto value = node.depth
-        ? environment_.lookupAt(*node.depth, node.name)
+        ? guardScopeAccess([&] { return environment_.lookupAt(*node.depth, node.name); })
         : environment_.lookup(node.name);
     if (!value) {
         throw undefinedVariableError(node.name);
@@ -215,7 +228,7 @@ void Executor::visit(AssignExpression& node) {
     }
     Value value = evaluate(node.value);
     bool assigned = identifier->depth
-        ? environment_.assignAt(*identifier->depth, identifier->name, value)
+        ? guardScopeAccess([&] { return environment_.assignAt(*identifier->depth, identifier->name, value); })
         : environment_.assign(identifier->name, value);
     if (!assigned) {
         throw undefinedVariableError(identifier->name);

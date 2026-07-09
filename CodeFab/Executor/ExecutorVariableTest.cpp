@@ -116,6 +116,27 @@ TEST(ExecutorVariableTest, InnerBlockCanModifyOuterVariable) {
     EXPECT_EQ(out.str(), "1\n");
 }
 
+TEST(ExecutorVariableTest, IdentifierExpression_DepthOutOfRange_ThrowsExecutorErrorNotOutOfRange) {
+    // Resolver가 계산했어야 할 depth가 잘못돼 스코프 범위를 벗어나는 경우.
+    // Environment::lookupAt이 던지는 std::out_of_range가 그대로 새면 안 되고
+    // ExecutorError로 감싸져야 한다.
+    Executor executor;
+    IdentifierExpression ident({}, "x");
+    ident.depth = 5;  // global scope 하나뿐인 상태에서는 범위 밖.
+
+    EXPECT_THROW(executor.evaluate(&ident), ExecutorError);
+}
+
+TEST(ExecutorVariableTest, AssignExpression_DepthOutOfRange_ThrowsExecutorErrorNotOutOfRange) {
+    Executor executor;
+    IdentifierExpression target({}, "x");
+    target.depth = 5;  // global scope 하나뿐인 상태에서는 범위 밖.
+    NumberExpression value({}, 1);
+    AssignExpression assign({}, &target, &value);
+
+    EXPECT_THROW(executor.evaluate(&assign), ExecutorError);
+}
+
 TEST(ExecutorVariableTest, NestedBlocks_ResolveVariablesFromAnyEnclosingScope) {
     // var outer = "A"; { var inner = "B"; { print outer + inner; } }
     // expect: AB
