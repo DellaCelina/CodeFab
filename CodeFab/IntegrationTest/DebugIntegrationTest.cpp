@@ -1,7 +1,10 @@
 ﻿#include "../Shell/RunPromptShell.h"
 
+#include <filesystem>
+#include <fstream>
 #include <sstream>
 #include <string>
+#include <vector>
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
@@ -61,9 +64,29 @@ protected:
 
     RunPromptShell shell{tokenizer, assembler, checker, executor};
 
+    // import 통합 테스트용: FileSourceReader가 실제 파일 시스템을 읽으므로,
+    // 임시 디렉터리에 라이브러리 파일을 써두고 테스트가 끝나면 지운다
+    // (FileRunModeTest.cpp의 임시 파일 패턴과 동일).
+    std::vector<std::filesystem::path> tempFiles_;
+
     void run(const std::string& input, std::ostringstream& out) {
         std::istringstream in(input);
         shell.run(in, out);
+    }
+
+    std::string writeTempFile(const std::string& filename, const std::string& content) {
+        std::filesystem::path path = std::filesystem::temp_directory_path() / filename;
+        std::ofstream file(path);
+        file << content;
+        file.close();
+        tempFiles_.push_back(path);
+        return path.string();
+    }
+
+    void TearDown() override {
+        for (const auto& path : tempFiles_) {
+            std::filesystem::remove(path);
+        }
     }
 };
 
@@ -639,6 +662,16 @@ TEST_F(RunPromptShellIntegrationTest, IndexOutOfRange_ReportsRuntimeError) {
     EXPECT_EQ(out.str(), ">>> >>> 배열 인덱스 범위를 벗어났습니다.\n>>> ");
 }
 
+// 1일차/3일차 슬라이드의 정적 배열 예시(var i = 2; arr[i - 1] = 7;)처럼, 인덱스
+// 자리에 리터럴이 아닌 계산식(변수 - 리터럴)이 와도 정상 동작하는지 확인한다.
+TEST_F(RunPromptShellIntegrationTest, IndexWriteWithComputedExpression_WritesAndReadsCorrectSlot) {
+    std::ostringstream out;
+    run("var arr = Array(3);\nvar i = 2;\narr[i - 1] = 7;\nprint arr[1];\n", out);
+
+    EXPECT_EQ(programOutput.str(), "7\n");
+    EXPECT_EQ(out.str(), ">>> >>> >>> >>> >>> ");
+}
+
 TEST_F(RunPromptShellIntegrationTest, DeclareAndCall_ReturnsSum) {
     std::ostringstream out;
     run("Func add(a, b) { return a + b; }\nprint add(3, 5);\n", out);
@@ -679,6 +712,34 @@ TEST_F(RunPromptShellIntegrationTest, CallWithoutReturn_YieldsNil) {
     EXPECT_EQ(out.str(), ">>> >>> >>> ");
 }
 
+// 슬라이드의 "return 처리" 예시: return; (인자 없음)은 nil을 반환한다.
+// CallWithoutReturn_YieldsNil은 return문 자체가 없는 경우이고, 이 테스트는
+// 명시적으로 값 없이 return; 을 작성한 경우를 구분해서 검증한다.
+TEST_F(RunPromptShellIntegrationTest, ExplicitReturnWithoutValue_YieldsNil) {
+    std::ostringstream out;
+    run("Func noop() { return; }\nprint noop();\n", out);
+
+    EXPECT_EQ(programOutput.str(), "nil\n");
+    EXPECT_EQ(out.str(), ">>> >>> >>> ");
+}
+
+// 함수/메서드 관련 오류 검사: 함수 외부에서 return 사용, 파라미터 이름 중복.
+TEST_F(RunPromptShellIntegrationTest, ReturnOutsideFunction_ReportsCheckError) {
+    std::ostringstream out;
+    run("return 5;\n", out);
+
+    EXPECT_EQ(programOutput.str(), "");
+    EXPECT_EQ(out.str(), ">>> [1번째 줄] 함수(메서드) 밖에서 return을 사용할 수 없습니다.\n>>> ");
+}
+
+TEST_F(RunPromptShellIntegrationTest, DuplicateParameterName_ReportsCheckError) {
+    std::ostringstream out;
+    run("Func foo(a, a) { }\n", out);
+
+    EXPECT_EQ(programOutput.str(), "");
+    EXPECT_EQ(out.str(), ">>> [1번째 줄] 'foo'의 파라미터 이름 'a'이(가) 중복됩니다.\n>>> ");
+}
+
 TEST_F(RunPromptShellIntegrationTest, InitSetsField_GetterMethodReturnsIt) {
     std::ostringstream out;
     run("Class Robot { init(name) { This.name = name; } getName() { return This.name; } }\n"
@@ -716,6 +777,47 @@ TEST_F(RunPromptShellIntegrationTest, CallingNonexistentMethod_ReportsRuntimeErr
     EXPECT_EQ(out.str(), ">>> >>> >>> 'missing' 메서드가 존재하지 않습니다.\n>>> ");
 }
 
+// 슬라이드의 "필드(Property) 읽기/쓰기" 예시: init 없이도 필드를 동적으로
+// 새로 만들고(r.speed = 10), 기존 값을 읽어 갱신할 수 있는지(r.speed = r.speed + 5) 확인한다.
+TEST_F(RunPromptShellIntegrationTest, FieldWriteReadAndUpdate_PrintsUpdatedValue) {
+    std::ostringstream out;
+    run("Class Robot { }\nvar r = Robot();\nr.speed = 10;\nr.speed = r.speed + 5;\nprint r.speed;\n", out);
+
+    EXPECT_EQ(programOutput.str(), "15\n");
+    EXPECT_EQ(out.str(), ">>> >>> >>> >>> >>> >>> ");
+}
+
+// 슬라이드의 "메서드와 this" 예시: 한 메서드(move)가 This로 필드를 갱신하고,
+// 다른 메서드(report) 호출로 그 갱신된 값을 읽어오는지 확인한다.
+TEST_F(RunPromptShellIntegrationTest, MethodUpdatesFieldViaThis_AnotherMethodReadsUpdatedValue) {
+    std::ostringstream out;
+    run("Class Robot { move(dist) { This.position = This.position + dist; } "
+        "report() { print This.position; } }\n"
+        "var r = Robot();\nr.position = 0;\nr.move(5);\nr.report();\n", out);
+
+    EXPECT_EQ(programOutput.str(), "5\n");
+    EXPECT_EQ(out.str(), ">>> >>> >>> >>> >>> >>> ");
+}
+
+// 슬라이드의 클래스 관련 오류 검사: init 메서드는 항상 인스턴스를 반환해야 하므로
+// return 값을 갖는 return문은 허용되지 않는다.
+TEST_F(RunPromptShellIntegrationTest, InitWithReturnValue_ReportsCheckError) {
+    std::ostringstream out;
+    run("Class Robot { init() { return 5; } }\n", out);
+
+    EXPECT_EQ(programOutput.str(), "");
+    EXPECT_EQ(out.str(), ">>> [1번째 줄] init 메서드는 값을 반환할 수 없습니다.\n>>> ");
+}
+
+// 슬라이드의 클래스 관련 오류 검사: 인스턴스가 아닌 대상에 필드를 대입하려는 경우.
+TEST_F(RunPromptShellIntegrationTest, FieldAssignmentOnNonInstance_ReportsRuntimeError) {
+    std::ostringstream out;
+    run("var x = \"hello\";\nx.field = 1;\n", out);
+
+    EXPECT_EQ(programOutput.str(), "");
+    EXPECT_EQ(out.str(), ">>> >>> 인스턴스가 아닌 대상에 필드를 대입했습니다.\n>>> ");
+}
+
 // 참고: This를 클래스 메서드 밖에서 사용하는 것은 Checker::checkThis가 정적으로
 // 막는다 (CheckerTest.cpp의 ThisOutsideClassReportsError 참고) - Executor까지
 // 도달하지 않으므로 CheckerError의 "[N번째 줄]" 접두사와 메시지가 그대로 노출된다.
@@ -749,4 +851,55 @@ TEST_F(RunPromptShellIntegrationTest, InstanceOf_NonInstanceOperand_PrintsFalse)
 
     EXPECT_EQ(programOutput.str(), "false\n");
     EXPECT_EQ(out.str(), ">>> >>> >>> ");
+}
+
+// --- 8. Library import ---
+// AssemblerImportTest.cpp/ExecutorImportTest.cpp는 각각 단일 Unit만 검증하므로,
+// 여기서는 실제 파일 시스템(FileSourceReader)까지 포함한 4-Unit 전체 파이프라인으로
+// 슬라이드의 import 예시/오류 케이스를 재현한다.
+
+TEST_F(RunPromptShellIntegrationTest, Import_LibraryFunctionAccessibleThroughAlias_PrintsSum) {
+    std::string path = writeTempFile("codefab_import_sum.cf", "Func add(a, b) {\n    return a + b;\n}\n");
+
+    std::ostringstream out;
+    run("import \"" + path + "\" alias sum;\nprint sum.add(1, 2);\n", out);
+
+    EXPECT_EQ(programOutput.str(), "3\n");
+    EXPECT_EQ(out.str(), ">>> >>> >>> ");
+}
+
+TEST_F(RunPromptShellIntegrationTest, Import_FileNotFound_ReportsAssemblerError) {
+    std::ostringstream out;
+    run("import \"이런_파일은_없습니다.cf\" alias x;\n", out);
+
+    EXPECT_EQ(programOutput.str(), "");
+    EXPECT_THAT(out.str(), AllOf(StartsWith(">>> "),
+                                  HasSubstr("import 대상 파일을 열 수 없습니다"),
+                                  EndsWith(">>> ")));
+}
+
+// 세부 규칙: import문은 반복문(for) 안에서는 사용할 수 없다.
+TEST_F(RunPromptShellIntegrationTest, Import_InsideForLoop_ReportsCheckError) {
+    std::string path = writeTempFile("codefab_import_loop.cf", "Func add(a, b) {\n    return a + b;\n}\n");
+
+    std::ostringstream out;
+    run("for (var i = 0; i < 1; i = i + 1) { import \"" + path + "\" alias sum; }\n", out);
+
+    EXPECT_EQ(programOutput.str(), "");
+    EXPECT_THAT(out.str(), AllOf(StartsWith(">>> "),
+                                  HasSubstr("반복문(for) 안에서는 import를 사용할 수 없습니다."),
+                                  EndsWith(">>> ")));
+}
+
+// 세부 규칙: 같은 scope에서는 같은 alias로 import를 두 번 할 수 없다.
+TEST_F(RunPromptShellIntegrationTest, Import_DuplicateAliasInSameScope_ReportsCheckError) {
+    std::string path = writeTempFile("codefab_import_dup.cf", "Func add(a, b) {\n    return a + b;\n}\n");
+
+    std::ostringstream out;
+    run("import \"" + path + "\" alias sum;\nimport \"" + path + "\" alias sum;\n", out);
+
+    EXPECT_EQ(programOutput.str(), "");
+    EXPECT_THAT(out.str(), AllOf(StartsWith(">>> >>> "),
+                                  HasSubstr("'sum'에러: 이미 해당 이름은 현재 스코프에서 사용중입니다."),
+                                  EndsWith(">>> ")));
 }
