@@ -490,6 +490,56 @@ TEST_F(RunPromptShellIntegrationTest, ModByZero_ReportsRuntimeError) {
     EXPECT_EQ(out.str(), ">>> 0으로 나눌 수 없습니다\n>>> ");
 }
 
+// TODO.md #8 잔여 갭: ExecutorTest.cpp는 단위 테스트 수준에서 short-circuit을
+// 확인하지만, end-to-end로 우항이 실제로 평가되지 않는지(부작용이 남지 않는지)
+// 확인하는 통합 테스트는 없었다. bump()가 호출되면 c가 증가하므로, 좌항이 false인
+// and는 우항을 평가하지 않아 c가 그대로 0으로 남아야 한다.
+TEST_F(RunPromptShellIntegrationTest, LogicalAnd_ShortCircuit_DoesNotEvaluateRightOperand) {
+    std::ostringstream out;
+    run("var c = 0;\n"
+        "Func bump() { c = c + 1; return true; }\n"
+        "var x = false and bump();\n"
+        "print c;\n", out);
+
+    EXPECT_EQ(programOutput.str(), "0\n");
+    EXPECT_EQ(out.str(), ">>> >>> >>> >>> >>> ");
+}
+
+// 대칭 시나리오: or의 좌항이 true면 우항을 평가하지 않는다.
+TEST_F(RunPromptShellIntegrationTest, LogicalOr_ShortCircuit_DoesNotEvaluateRightOperand) {
+    std::ostringstream out;
+    run("var c = 0;\n"
+        "Func bump() { c = c + 1; return true; }\n"
+        "var x = true or bump();\n"
+        "print c;\n", out);
+
+    EXPECT_EQ(programOutput.str(), "0\n");
+    EXPECT_EQ(out.str(), ">>> >>> >>> >>> >>> ");
+}
+
+// TODO.md #8 잔여 갭: %가 */와 같은 우선순위·좌결합으로 파싱/실행되는지 복합식으로
+// 확인한다(Assembler.cpp의 kDefaultOperatorPriority가 PERCENT를 STAR/SLASH와 같은
+// 그룹에 두고 있음 - AssemblerTest.cpp에 파싱 단위 테스트는 있지만 end-to-end 값
+// 확인은 없었다). 2 * 3 % 4는 좌결합이면 (2 * 3) % 4 = 6 % 4 = 2.
+TEST_F(RunPromptShellIntegrationTest, ModMixedWithMultiplication_LeftAssociative_PrintsTwo) {
+    std::ostringstream out;
+    run("print 2 * 3 % 4;\n", out);
+
+    EXPECT_EQ(programOutput.str(), "2\n");
+    EXPECT_EQ(out.str(), ">>> >>> ");
+}
+
+// %가 연속으로 두 번 적용되는 경우: (1 - 2*3*4*5/6 + 7 + 8 + 9) % 1000 % 30.
+// 안쪽은 */가 좌결합이므로 2*3*4*5/6 = 20 -> 1 - 20 + 7 + 8 + 9 = 5,
+// 이어서 5 % 1000 % 30도 좌결합이므로 (5 % 1000) % 30 = 5.
+TEST_F(RunPromptShellIntegrationTest, ChainedModExpression_PrintsFive) {
+    std::ostringstream out;
+    run("print (1 - 2 * 3 * 4 * 5 / 6 + 7 + 8 + 9) % 1000 % 30;\n", out);
+
+    EXPECT_EQ(programOutput.str(), "5\n");
+    EXPECT_EQ(out.str(), ">>> >>> ");
+}
+
 // --- 5-2. 비교 연산자 확장(==, !=, <=, >=) 및 논리 부정(!) ---
 // ExecutorTest.cpp가 evaluate() 단위로 검증하는 EqualExpression/NotEqualExpression/
 // LessEqualExpression/GreaterEqualExpression/NotExpression을 실제 파이프라인으로
@@ -932,6 +982,68 @@ TEST_F(RunPromptShellIntegrationTest, Import_DuplicateAliasInSameScope_ReportsCh
     EXPECT_THAT(out.str(), AllOf(StartsWith(">>> >>> "),
                                   HasSubstr("'sum'에러: 이미 해당 이름은 현재 스코프에서 사용중입니다."),
                                   EndsWith(">>> ")));
+}
+
+// TODO.md #13 잔여 갭: 지금까지는 함수 접근(sum.add(...))만 검증했다 - var로 export된
+// 변수 접근(math.pi)도 동일하게 동작하는지 확인한다.
+TEST_F(RunPromptShellIntegrationTest, Import_LibraryVariableAccessibleThroughAlias_PrintsPi) {
+    std::string path = writeTempFile("codefab_import_pi.cf", "var pi = 3;\n");
+
+    std::ostringstream out;
+    run("import \"" + path + "\" alias math;\nprint math.pi;\n", out);
+
+    EXPECT_EQ(programOutput.str(), "3\n");
+    EXPECT_EQ(out.str(), ">>> >>> >>> ");
+}
+
+// TODO.md #13 잔여 갭: 서로 다른 블록 스코프에서 같은 파일을 같은 alias로 각각
+// import해도 서로 간섭하지 않아야 하고(각 블록 안에서 독립적으로 정상 동작),
+// 블록을 벗어나면 그 alias는 더 이상 보이지 않아야 한다(선언되지 않은 변수 오류).
+TEST_F(RunPromptShellIntegrationTest, Import_SameModuleInSeparateBlockScopes_DoesNotInterfereAndAliasDoesNotLeak) {
+    std::string path = writeTempFile("codefab_import_scoped.cf", "Func add(a, b) {\n    return a + b;\n}\n");
+
+    std::ostringstream out;
+    run("{ import \"" + path + "\" alias sum; print sum.add(1, 2); }\n"
+        "{ import \"" + path + "\" alias sum; print sum.add(3, 4); }\n"
+        "print sum.add(1, 1);\n", out);
+
+    EXPECT_EQ(programOutput.str(), "3\n7\n");
+    EXPECT_THAT(out.str(), AllOf(StartsWith(">>> >>> >>> "),
+                                  HasSubstr("'sum'에러: 선언되지 않은 변수입니다."),
+                                  EndsWith(">>> ")));
+}
+
+// TODO.md #13 잔여 갭: if절 내부에서 import가 실행되면(조건이 true이므로) 그 블록
+// 안에서는 정상 동작하고, 블록을 벗어나면 다른 블록 스코프와 마찬가지로 alias가
+// 보이지 않아야 한다.
+TEST_F(RunPromptShellIntegrationTest, Import_InsideIfBlock_AliasOnlyExistsWithinThatBlock) {
+    std::string path = writeTempFile("codefab_import_if.cf", "Func add(a, b) {\n    return a + b;\n}\n");
+
+    std::ostringstream out;
+    run("if (true) { import \"" + path + "\" alias sum; print sum.add(1, 2); }\n"
+        "print sum.add(1, 1);\n", out);
+
+    EXPECT_EQ(programOutput.str(), "3\n");
+    EXPECT_THAT(out.str(), AllOf(StartsWith(">>> >>> "),
+                                  HasSubstr("'sum'에러: 선언되지 않은 변수입니다."),
+                                  EndsWith(">>> ")));
+}
+
+// TODO.md #13 잔여 갭: 2개 이상의 module을 동시에 import했을 때, 서로 다른
+// module에 동일한 이름(var value)이 있어도 각각 다른 alias로 접근하면 값이
+// 서로 섞이지 않아야 한다.
+TEST_F(RunPromptShellIntegrationTest, Import_TwoModulesWithSameMemberName_CrossAliasAccessDoesNotCollide) {
+    std::string pathA = writeTempFile("codefab_import_a.cf", "var value = 1;\n");
+    std::string pathB = writeTempFile("codefab_import_b.cf", "var value = 2;\n");
+
+    std::ostringstream out;
+    run("import \"" + pathA + "\" alias a;\n"
+        "import \"" + pathB + "\" alias b;\n"
+        "print a.value;\n"
+        "print b.value;\n", out);
+
+    EXPECT_EQ(programOutput.str(), "1\n2\n");
+    EXPECT_EQ(out.str(), ">>> >>> >>> >>> >>> ");
 }
 
 // --- 9. 상속 (Inheritance) ---

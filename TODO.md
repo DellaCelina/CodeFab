@@ -55,40 +55,27 @@
 둘 다 통과한다 - 메서드 재귀 경로(`findMethod` + 매 호출마다 `this` 재바인딩)에
 별도 버그는 없었다.
 
-## 13. Executor/Import: module에 대한 integration test 없음
+## 13. (대부분 해결됨) Executor/Import: module에 대한 integration test 없음
 
-**증상**: `IntegrationTest/DebugIntegrationTest.cpp`에는 import/module 관련 테스트가
-전혀 없다("import"/"module" 문자열 자체가 등장하지 않음). Import 실행 경로 자체는
-고쳐져 있고(위 "# TODO"의 1번 항목 참고) `FieldAccessExpression`/`CallExpression`의
-module 분기도 구현되어 있으므로, 이제는 end-to-end로 검증할 차례다.
+**현재 상태**: `IntegrationTest/DebugIntegrationTest.cpp`의 "8. Library import" 절에
+아래 시나리오를 추가해 end-to-end로 검증한다(전부 `writeTempFile` 헬퍼로 임시 파일을
+만드는, 기존 import 테스트와 동일한 패턴):
 
-**의존성**: 테스트용 module 파일에 `Class` 선언까지 넣으려면, `Assembler.cpp`의
-`parseImport`가 현재 `DeclareStatement`/`FunctionDeclareStatement`만 허용하고
-`ClassDeclareStatement`가 섞이면 `AssemblerError`를 던지는 제약과 부딪힌다(위
-"# TODO"의 9번 항목 참고). 클래스 import를 지원하기로 결정하기 전까지는, module
-테스트 파일에 `Class` 선언을 넣어 두더라도 그 파일을 실제로 import하는 테스트는
-9번 항목의 "클래스 import 허용" 결정이 먼저 나야 통과할 수 있다는 점을 감안해서
-작성 순서를 잡는다(예: `Func`/`var`만 있는 module로 우선 import 시나리오를
-완성하고, `Class`가 섞인 module은 9번 항목 결정 이후로 미룬다).
+- `Import_LibraryVariableAccessibleThroughAlias_PrintsPi` - `var`로 export된 값
+  접근(`math.pi`)도 함수 접근(`sum.add(...)`)과 동일하게 동작.
+- `Import_SameModuleInSeparateBlockScopes_DoesNotInterfereAndAliasDoesNotLeak` -
+  서로 다른 블록에서 같은 파일을 같은 alias로 각각 import해도 간섭하지 않고, 블록을
+  벗어나면 alias가 사라짐(`선언되지 않은 변수` 오류로 확인).
+- `Import_InsideIfBlock_AliasOnlyExistsWithinThatBlock` - `if` 블록 안에서 import가
+  정상 동작하고, 블록을 벗어나면 마찬가지로 alias가 보이지 않음.
+- `Import_TwoModulesWithSameMemberName_CrossAliasAccessDoesNotCollide` - 서로 다른
+  module에 동일한 이름(`var value`)이 있어도 각각 다른 alias로 접근하면 값이
+  섞이지 않음.
 
-**해야 할 일**:
-- [ ] `IntegrationTest` 폴더 아래에 테스트 전용 module 파일을 2개 이상 작성한다.
-      각 파일에는 `Func`, `Class`, `var` 선언이 모두 들어 있어야 한다(단, 실제로
-      import해서 통과시키는 테스트는 위 의존성 문단대로 `Class`를 뺀 하위 집합부터
-      단계적으로 추가).
-- [ ] 기본 module import 시나리오 테스트: 함수/변수 접근(`sum.add(1, 2)`,
-      `math.pi`)이 정상 동작하는지 확인
-- [ ] scope 변화에 따른 module import 테스트: 서로 다른 블록 스코프에서 같은
-      module을 각각 import했을 때 서로 간섭하지 않는지, 블록을 벗어나면 alias가
-      더 이상 보이지 않는지 확인
-- [ ] `if`절 등 조건문/블록 내부에서의 module import 테스트: 조건이 참일 때만
-      import가 실행되고 그 alias가 해당 블록 스코프에만 존재하는지 확인
-- [ ] 2개 이상의 module을 동시에 import했을 때 생길 수 있는 문제를 테스트로
-      확인: 서로 다른 module에 동일한 이름(`Func`/`var` 이름)이 있어도 각각 다른
-      alias로 접근하면 충돌하지 않는지, 두 module을 같은 스코프에서 import한 뒤
-      각 alias로 교차 접근했을 때 값이 서로 섞이지 않는지
-- [ ] 위 "# TODO" 1번(문서 갱신)·9번(클래스 import 결정) 항목의 진행 상황에 맞춰
-      이 테스트 목록을 갱신
+**남은 갭(우선순위 낮음)**: 9번 항목(클래스 import)이 이제 허용으로 결정·구현됐으므로,
+`Class` 선언이 섞인 module을 실제로 import하는 integration test는 아직 추가하지
+않았다(단위 테스트 수준에서는 `AssemblerImportTest.ClassDeclarationInsideImportDoesNotThrowTest`가
+이미 있음) - 필요해지면 위 목록에 추가.
 
 ## 3. Assembler: import + alias 접근을 이어붙인 통합 테스트 없음
 
@@ -468,19 +455,21 @@ Shell의 File/Debug 모드가 구현되면, 기존 REPL 통합 테스트와 별�
   `LogicalOr_PrintsFalseWhenBothOperandsAreFalse`, `ModExpression_PrintsRemainder`,
   `ModByZero_ReportsRuntimeError`.
 
-**아직 남아있는 갭** (아래만 추가로 필요):
+**아직 남아있는 갭**:
 
-- **short-circuit을 integration 레벨에서 부작용으로 확인하는 테스트 없음**:
-  `ExecutorTest.cpp`는 단위 테스트 수준에서 short-circuit을 확인하지만,
-  `DebugIntegrationTest.cpp`에는 카운터를 증가시키는 함수를 우항에 두고 실제로
-  호출되지 않는지 end-to-end로 확인하는 테스트가 없다
-  (`Func bump() { c = c + 1; return true; } var c = 0; var x = false and bump();
-  print c;` → `0`, 우항이 평가됐다면 `1`이 나올 것).
-- **`%`가 다른 연산자와 섞인 복합식 회귀 테스트 없음**: `print 2 * 3 % 4;`(우선순위가
-  `*`/`/`와 같은 레벨인지, 좌결합인지)와 `print (1 - 2 * 3 * 4 * 5 / 6 + 7 + 8 + 9) %
-  1000 % 30;`(`%`가 두 번 연속 적용되는 경우) 같은 복합식이 최적화(상수 폴딩) 켜기
-  전/후로 동일한 값을 내는지 확인하는 테스트가 아직 없다(§6 실행전 최적화 회귀
-  시나리오와 연결).
+- (해결됨) **short-circuit을 integration 레벨에서 부작용으로 확인하는 테스트**:
+  `LogicalAnd_ShortCircuit_DoesNotEvaluateRightOperand`/
+  `LogicalOr_ShortCircuit_DoesNotEvaluateRightOperand`를 추가했다 - 정확히 이
+  항목이 제시한 예시(`bump()` 카운터)대로 작성.
+- (부분 해결) **`%`가 다른 연산자와 섞인 복합식 회귀 테스트**:
+  `ModMixedWithMultiplication_LeftAssociative_PrintsTwo`(`2 * 3 % 4` → `2`)와
+  `ChainedModExpression_PrintsFive`(`(1 - 2*3*4*5/6+7+8+9) % 1000 % 30` → `5`)를
+  추가해 실제 실행 경로에서 값이 맞는지는 확인했다. 다만 "최적화 켜기 전/후
+  동일한 값"이라는 원래 취지는 아직 검증하지 못했다 - `Optimizer`가 `main.cpp`/
+  `RunPromptShell`/`FileRunMode`/`DebugMode` 어느 파이프라인에도 아직 배선되어
+  있지 않아서(§10 참고), 지금은 "최적화 없이 실행한 결과가 맞는지"만 확인한
+  것이다. Optimizer가 실제로 배선되면 이 두 식을 `OptimizerTest.cpp`에도
+  추가해 폴딩 결과가 같은 값인지 별도로 검증해야 한다.
 - **에러 정책 미결정**: `Checker.cpp`는 `and`/`or` 피연산자가 Boolean인지 검사하지
   않고, `Executor.cpp`도 `isTruthy()` 기반으로 그냥 평가한다(즉 현재 동작은
   "truthy 기반 통과"). `print 1 and 2;`처럼 Boolean이 아닌 피연산자에 타입 오류를
