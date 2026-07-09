@@ -1,0 +1,176 @@
+<mxfile host="Electron" version="24.0.0">
+  <diagram name="Shell" id="shell-module">
+    <mxGraphModel dx="1400" dy="900" grid="1" gridSize="10" guides="1" tooltips="1" connectable="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1500" pageHeight="1000" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <!-- main -->
+        <mxCell id="C_Main" value="main" style="swimlane;fontStyle=1;align=center;verticalAlign=middle;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=0;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" vertex="1" parent="1">
+          <mxGeometry x="40" y="40" width="280" height="46" as="geometry"/>
+        </mxCell>
+        <mxCell id="C_Main_r1" value="+ main(argc: int, argv: char**): int" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="C_Main">
+          <mxGeometry y="26" width="280" height="20" as="geometry"/>
+        </mxCell>
+
+        <!-- note near main -->
+        <mxCell id="N_Debug" value="ShellMode::Debug is parsed but not yet implemented (prints 'not implemented')" style="text;html=1;fontColor=#999999;fontStyle=2;whiteSpace=wrap;" vertex="1" parent="1">
+          <mxGeometry x="40" y="110" width="280" height="40" as="geometry"/>
+        </mxCell>
+
+        <!-- CommandLineArgs -->
+        <mxCell id="C_CommandLineArgs" value="CommandLineArgs" style="swimlane;fontStyle=1;align=center;verticalAlign=middle;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=0;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="400" y="40" width="280" height="106" as="geometry"/>
+        </mxCell>
+        <mxCell id="C_CommandLineArgs_r1" value="+ mode: ShellMode = Repl" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="C_CommandLineArgs">
+          <mxGeometry y="26" width="280" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="C_CommandLineArgs_r2" value="+ path: string" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="C_CommandLineArgs">
+          <mxGeometry y="46" width="280" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="C_CommandLineArgs_r3" value="+ parse(argc: int, argv: char**): CommandLineArgs {static}" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="C_CommandLineArgs">
+          <mxGeometry y="66" width="280" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="C_CommandLineArgs_r4" value="+ usageText(): string {static}" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="C_CommandLineArgs">
+          <mxGeometry y="86" width="280" height="20" as="geometry"/>
+        </mxCell>
+
+        <!-- ShellMode enum -->
+        <mxCell id="C_ShellMode" value="&#171;enumeration&#187;&#10;ShellMode" style="swimlane;fontStyle=1;align=center;verticalAlign=middle;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=0;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;" vertex="1" parent="1">
+          <mxGeometry x="760" y="40" width="280" height="46" as="geometry"/>
+        </mxCell>
+        <mxCell id="C_ShellMode_r1" value="Repl, Run, Debug, Help" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="C_ShellMode">
+          <mxGeometry y="26" width="280" height="20" as="geometry"/>
+        </mxCell>
+
+        <!-- RunPromptShell -->
+        <mxCell id="C_RunPromptShell" value="RunPromptShell" style="swimlane;fontStyle=1;align=center;verticalAlign=middle;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=0;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" vertex="1" parent="1">
+          <mxGeometry x="40" y="280" width="280" height="146" as="geometry"/>
+        </mxCell>
+        <mxCell id="C_RunPromptShell_r1" value="- tokenizer_: TokenizeInterface&amp;" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="C_RunPromptShell">
+          <mxGeometry y="26" width="280" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="C_RunPromptShell_r2" value="- assembler_: AssemblerInterface&amp;" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="C_RunPromptShell">
+          <mxGeometry y="46" width="280" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="C_RunPromptShell_r3" value="- checker_: CheckerInterface&amp;" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="C_RunPromptShell">
+          <mxGeometry y="66" width="280" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="C_RunPromptShell_r4" value="- executor_: ExecuteInterface&amp;" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="C_RunPromptShell">
+          <mxGeometry y="86" width="280" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="C_RunPromptShell_r5" value="+ RunPromptShell(tokenizer&amp;, assembler&amp;, checker&amp;, executor&amp;)" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="C_RunPromptShell">
+          <mxGeometry y="106" width="280" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="C_RunPromptShell_r6" value="+ run(in: istream&amp;, out: ostream&amp;): void" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="C_RunPromptShell">
+          <mxGeometry y="126" width="280" height="20" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="N_RunPromptShell" value="REPL loop; reads lines (supports \ continuation); keeps vector&lt;SyntaxTree&gt; sessionTrees alive for the whole session so Func/Class decl nodes referenced by Value stay valid" style="text;html=1;fontColor=#999999;fontStyle=2;whiteSpace=wrap;" vertex="1" parent="1">
+          <mxGeometry x="40" y="440" width="280" height="70" as="geometry"/>
+        </mxCell>
+
+        <!-- FileRunMode -->
+        <mxCell id="C_FileRunMode" value="FileRunMode" style="swimlane;fontStyle=1;align=center;verticalAlign=middle;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=0;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" vertex="1" parent="1">
+          <mxGeometry x="400" y="280" width="280" height="146" as="geometry"/>
+        </mxCell>
+        <mxCell id="C_FileRunMode_r1" value="- tokenizer_: TokenizeInterface&amp;" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="C_FileRunMode">
+          <mxGeometry y="26" width="280" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="C_FileRunMode_r2" value="- assembler_: AssemblerInterface&amp;" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="C_FileRunMode">
+          <mxGeometry y="46" width="280" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="C_FileRunMode_r3" value="- checker_: CheckerInterface&amp;" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="C_FileRunMode">
+          <mxGeometry y="66" width="280" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="C_FileRunMode_r4" value="- executor_: ExecuteInterface&amp;" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="C_FileRunMode">
+          <mxGeometry y="86" width="280" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="C_FileRunMode_r5" value="+ FileRunMode(tokenizer&amp;, assembler&amp;, checker&amp;, executor&amp;)" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="C_FileRunMode">
+          <mxGeometry y="106" width="280" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="C_FileRunMode_r6" value="+ run(filePath: string, out: ostream&amp;): bool" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="C_FileRunMode">
+          <mxGeometry y="126" width="280" height="20" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="N_FileRunMode" value="Reads whole file, wraps source in { ... } as one block, runs pipeline once, validates path is a regular file first" style="text;html=1;fontColor=#999999;fontStyle=2;whiteSpace=wrap;" vertex="1" parent="1">
+          <mxGeometry x="400" y="440" width="280" height="70" as="geometry"/>
+        </mxCell>
+
+        <!-- External interfaces -->
+        <mxCell id="C_TokenizeInterface" value="&#171;interface&#187;&#10;TokenizeInterface&#10;&#171;from Tokenizer&#187;" style="swimlane;fontStyle=1;align=center;verticalAlign=middle;childLayout=stackLayout;horizontal=1;startSize=42;horizontalStack=0;resizeParent=0;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;dashed=1;" vertex="1" parent="1">
+          <mxGeometry x="40" y="640" width="280" height="62" as="geometry"/>
+        </mxCell>
+        <mxCell id="C_TokenizeInterface_r1" value="+ tokenize(source): vector&lt;Token&gt;" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="C_TokenizeInterface">
+          <mxGeometry y="42" width="280" height="20" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="C_AssemblerInterface" value="&#171;interface&#187;&#10;AssemblerInterface&#10;&#171;from Assembler&#187;" style="swimlane;fontStyle=1;align=center;verticalAlign=middle;childLayout=stackLayout;horizontal=1;startSize=42;horizontalStack=0;resizeParent=0;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;dashed=1;" vertex="1" parent="1">
+          <mxGeometry x="400" y="640" width="280" height="62" as="geometry"/>
+        </mxCell>
+        <mxCell id="C_AssemblerInterface_r1" value="+ assemble(tokens): SyntaxTree" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="C_AssemblerInterface">
+          <mxGeometry y="42" width="280" height="20" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="C_CheckerInterface" value="&#171;interface&#187;&#10;CheckerInterface&#10;&#171;from Checker&#187;" style="swimlane;fontStyle=1;align=center;verticalAlign=middle;childLayout=stackLayout;horizontal=1;startSize=42;horizontalStack=0;resizeParent=0;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;dashed=1;" vertex="1" parent="1">
+          <mxGeometry x="760" y="640" width="280" height="62" as="geometry"/>
+        </mxCell>
+        <mxCell id="C_CheckerInterface_r1" value="+ check(tree): bool" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="C_CheckerInterface">
+          <mxGeometry y="42" width="280" height="20" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="C_ExecuteInterface" value="&#171;interface&#187;&#10;ExecuteInterface&#10;&#171;from Executor&#187;" style="swimlane;fontStyle=1;align=center;verticalAlign=middle;childLayout=stackLayout;horizontal=1;startSize=42;horizontalStack=0;resizeParent=0;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;dashed=1;" vertex="1" parent="1">
+          <mxGeometry x="1120" y="640" width="280" height="62" as="geometry"/>
+        </mxCell>
+        <mxCell id="C_ExecuteInterface_r1" value="+ execute(tree) / evaluate(expr) / environment()" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="C_ExecuteInterface">
+          <mxGeometry y="42" width="280" height="20" as="geometry"/>
+        </mxCell>
+
+        <!-- Edges: main creates/parses -->
+        <mxCell id="E_Main_CLA" value="parse()" style="endArrow=open;endFill=0;html=1;edgeStyle=orthogonalEdgeStyle;rounded=0;" edge="1" parent="1" source="C_Main" target="C_CommandLineArgs">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="E_Main_RunPromptShell" value="creates, if mode=Repl" style="endArrow=open;endFill=0;html=1;edgeStyle=orthogonalEdgeStyle;rounded=0;" edge="1" parent="1" source="C_Main" target="C_RunPromptShell">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="E_Main_FileRunMode" value="creates, if mode=Run" style="endArrow=open;endFill=0;html=1;edgeStyle=orthogonalEdgeStyle;rounded=0;" edge="1" parent="1" source="C_Main" target="C_FileRunMode">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <!-- Edge: CommandLineArgs has-a ShellMode -->
+        <mxCell id="E_CLA_ShellMode" value="has-a" style="endArrow=open;endFill=0;html=1;edgeStyle=orthogonalEdgeStyle;rounded=0;" edge="1" parent="1" source="C_CommandLineArgs" target="C_ShellMode">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <!-- Edges: RunPromptShell uses interfaces -->
+        <mxCell id="E_RPS_Tokenize" value="uses" style="dashed=1;endArrow=open;endFill=0;html=1;edgeStyle=orthogonalEdgeStyle;rounded=0;exitX=0.1;exitY=1;exitDx=0;exitDy=0;entryX=0.25;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="C_RunPromptShell" target="C_TokenizeInterface">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="E_RPS_Assembler" value="uses" style="dashed=1;endArrow=open;endFill=0;html=1;edgeStyle=orthogonalEdgeStyle;rounded=0;exitX=0.35;exitY=1;exitDx=0;exitDy=0;entryX=0.15;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="C_RunPromptShell" target="C_AssemblerInterface">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="E_RPS_Checker" value="uses" style="dashed=1;endArrow=open;endFill=0;html=1;edgeStyle=orthogonalEdgeStyle;rounded=0;exitX=0.65;exitY=1;exitDx=0;exitDy=0;entryX=0.1;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="C_RunPromptShell" target="C_CheckerInterface">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="E_RPS_Executor" value="uses" style="dashed=1;endArrow=open;endFill=0;html=1;edgeStyle=orthogonalEdgeStyle;rounded=0;exitX=0.9;exitY=1;exitDx=0;exitDy=0;entryX=0.05;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="C_RunPromptShell" target="C_ExecuteInterface">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <!-- Edges: FileRunMode uses interfaces -->
+        <mxCell id="E_FRM_Tokenize" value="uses" style="dashed=1;endArrow=open;endFill=0;html=1;edgeStyle=orthogonalEdgeStyle;rounded=0;exitX=0.15;exitY=1;exitDx=0;exitDy=0;entryX=0.75;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="C_FileRunMode" target="C_TokenizeInterface">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="E_FRM_Assembler" value="uses" style="dashed=1;endArrow=open;endFill=0;html=1;edgeStyle=orthogonalEdgeStyle;rounded=0;exitX=0.4;exitY=1;exitDx=0;exitDy=0;entryX=0.65;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="C_FileRunMode" target="C_AssemblerInterface">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="E_FRM_Checker" value="uses" style="dashed=1;endArrow=open;endFill=0;html=1;edgeStyle=orthogonalEdgeStyle;rounded=0;exitX=0.6;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="C_FileRunMode" target="C_CheckerInterface">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="E_FRM_Executor" value="uses" style="dashed=1;endArrow=open;endFill=0;html=1;edgeStyle=orthogonalEdgeStyle;rounded=0;exitX=0.85;exitY=1;exitDx=0;exitDy=0;entryX=0.3;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="C_FileRunMode" target="C_ExecuteInterface">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

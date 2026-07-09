@@ -1,0 +1,265 @@
+<mxfile host="Electron" version="24.0.0">
+  <diagram name="Architecture" id="arch-overview">
+    <mxGraphModel dx="1600" dy="900" grid="1" gridSize="10" guides="1" tooltips="1" connectable="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1800" pageHeight="1300" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <!-- ===================== SHELL (orchestrator) row ===================== -->
+        <mxCell id="C_Main" value="main.cpp" style="swimlane;fontStyle=1;align=center;verticalAlign=middle;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=0;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" vertex="1" parent="1">
+          <mxGeometry x="40" y="40" width="240" height="46" as="geometry"/>
+        </mxCell>
+        <mxCell id="C_Main_f1" value="+ main(argc: int, argv: char**): int" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="C_Main">
+          <mxGeometry y="26" width="240" height="20" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="C_CommandLineArgs" value="CommandLineArgs" style="swimlane;fontStyle=1;align=center;verticalAlign=middle;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=0;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" vertex="1" parent="1">
+          <mxGeometry x="380" y="40" width="240" height="86" as="geometry"/>
+        </mxCell>
+        <mxCell id="C_CommandLineArgs_f1" value="+ mode: ShellMode" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="C_CommandLineArgs">
+          <mxGeometry y="26" width="240" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="C_CommandLineArgs_f2" value="+ path: string" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="C_CommandLineArgs">
+          <mxGeometry y="46" width="240" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="C_CommandLineArgs_f3" value="+ parse(argc, argv): CommandLineArgs {static}" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="C_CommandLineArgs">
+          <mxGeometry y="66" width="240" height="20" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="C_RunPromptShell" value="RunPromptShell" style="swimlane;fontStyle=1;align=center;verticalAlign=middle;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=0;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" vertex="1" parent="1">
+          <mxGeometry x="760" y="40" width="280" height="66" as="geometry"/>
+        </mxCell>
+        <mxCell id="C_RunPromptShell_f1" value="+ RunPromptShell(tokenizer&amp;, assembler&amp;, checker&amp;, executor&amp;)" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="C_RunPromptShell">
+          <mxGeometry y="26" width="280" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="C_RunPromptShell_f2" value="+ run(in, out)" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="C_RunPromptShell">
+          <mxGeometry y="46" width="280" height="20" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="C_FileRunMode" value="FileRunMode" style="swimlane;fontStyle=1;align=center;verticalAlign=middle;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=0;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" vertex="1" parent="1">
+          <mxGeometry x="1120" y="40" width="280" height="66" as="geometry"/>
+        </mxCell>
+        <mxCell id="C_FileRunMode_f1" value="+ FileRunMode(tokenizer&amp;, assembler&amp;, checker&amp;, executor&amp;)" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="C_FileRunMode">
+          <mxGeometry y="26" width="280" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="C_FileRunMode_f2" value="+ run(filePath, out): bool" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="C_FileRunMode">
+          <mxGeometry y="46" width="280" height="20" as="geometry"/>
+        </mxCell>
+
+        <!-- ===================== INTERFACE row ===================== -->
+        <mxCell id="C_TokenizeInterface" value="&#171;interface&#187;&#10;TokenizeInterface" style="swimlane;fontStyle=1;align=center;verticalAlign=middle;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=0;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="40" y="280" width="240" height="46" as="geometry"/>
+        </mxCell>
+        <mxCell id="C_TokenizeInterface_f1" value="+ tokenize(source: string): vector&lt;Token&gt;" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="C_TokenizeInterface">
+          <mxGeometry y="26" width="240" height="20" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="C_SourceReaderInterface" value="&#171;interface&#187;&#10;SourceReaderInterface" style="swimlane;fontStyle=1;align=center;verticalAlign=middle;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=0;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="360" y="280" width="240" height="46" as="geometry"/>
+        </mxCell>
+        <mxCell id="C_SourceReaderInterface_f1" value="+ read(path: string): vector&lt;Token&gt;" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="C_SourceReaderInterface">
+          <mxGeometry y="26" width="240" height="20" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="C_AssemblerInterface" value="&#171;interface&#187;&#10;AssemblerInterface" style="swimlane;fontStyle=1;align=center;verticalAlign=middle;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=0;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="680" y="280" width="240" height="46" as="geometry"/>
+        </mxCell>
+        <mxCell id="C_AssemblerInterface_f1" value="+ assemble(tokens: vector&lt;Token&gt;): SyntaxTree" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="C_AssemblerInterface">
+          <mxGeometry y="26" width="240" height="20" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="C_CheckerInterface" value="&#171;interface&#187;&#10;CheckerInterface" style="swimlane;fontStyle=1;align=center;verticalAlign=middle;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=0;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="1000" y="280" width="240" height="46" as="geometry"/>
+        </mxCell>
+        <mxCell id="C_CheckerInterface_f1" value="+ check(tree: SyntaxTree&amp;): bool" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="C_CheckerInterface">
+          <mxGeometry y="26" width="240" height="20" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="C_OptimizerInterface" value="&#171;interface&#187;&#10;OptimizerInterface" style="swimlane;fontStyle=1;align=center;verticalAlign=middle;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=0;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="1320" y="280" width="240" height="46" as="geometry"/>
+        </mxCell>
+        <mxCell id="C_OptimizerInterface_f1" value="+ optimize(tree: SyntaxTree&amp;): void" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="C_OptimizerInterface">
+          <mxGeometry y="26" width="240" height="20" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="C_ExecuteInterface" value="&#171;interface&#187;&#10;ExecuteInterface" style="swimlane;fontStyle=1;align=center;verticalAlign=middle;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=0;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="1640" y="280" width="260" height="86" as="geometry"/>
+        </mxCell>
+        <mxCell id="C_ExecuteInterface_f1" value="+ execute(tree: SyntaxTree&amp;): void" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="C_ExecuteInterface">
+          <mxGeometry y="26" width="260" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="C_ExecuteInterface_f2" value="+ evaluate(expr: Expression*): Value" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="C_ExecuteInterface">
+          <mxGeometry y="46" width="260" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="C_ExecuteInterface_f3" value="+ environment(): const Environment&amp;" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="C_ExecuteInterface">
+          <mxGeometry y="66" width="260" height="20" as="geometry"/>
+        </mxCell>
+
+        <!-- ===================== CONCRETE IMPLEMENTER row ===================== -->
+        <mxCell id="C_Tokenizer" value="Tokenizer" style="swimlane;fontStyle=1;align=center;verticalAlign=middle;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=0;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="40" y="520" width="240" height="46" as="geometry"/>
+        </mxCell>
+        <mxCell id="C_Tokenizer_f1" value="+ tokenize(source: string): vector&lt;Token&gt;" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="C_Tokenizer">
+          <mxGeometry y="26" width="240" height="20" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="C_FileSourceReader" value="FileSourceReader" style="swimlane;fontStyle=1;align=center;verticalAlign=middle;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=0;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="360" y="520" width="240" height="66" as="geometry"/>
+        </mxCell>
+        <mxCell id="C_FileSourceReader_f1" value="+ FileSourceReader(tokenizer: TokenizeInterface&amp;)" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="C_FileSourceReader">
+          <mxGeometry y="26" width="240" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="C_FileSourceReader_f2" value="+ read(path): vector&lt;Token&gt;" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="C_FileSourceReader">
+          <mxGeometry y="46" width="240" height="20" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="C_Assembler" value="Assembler" style="swimlane;fontStyle=1;align=center;verticalAlign=middle;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=0;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="680" y="520" width="240" height="66" as="geometry"/>
+        </mxCell>
+        <mxCell id="C_Assembler_f1" value="+ Assembler(sourceReader: SourceReaderInterface&amp;)" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="C_Assembler">
+          <mxGeometry y="26" width="240" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="C_Assembler_f2" value="+ assemble(tokens): SyntaxTree" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="C_Assembler">
+          <mxGeometry y="46" width="240" height="20" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="C_Checker" value="Checker" style="swimlane;fontStyle=1;align=center;verticalAlign=middle;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=0;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="1000" y="520" width="240" height="66" as="geometry"/>
+        </mxCell>
+        <mxCell id="C_Checker_f1" value="+ Checker(executor: ExecuteInterface&amp;)" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="C_Checker">
+          <mxGeometry y="26" width="240" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="C_Checker_f2" value="+ check(tree): bool" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="C_Checker">
+          <mxGeometry y="46" width="240" height="20" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="C_Optimizer" value="Optimizer" style="swimlane;fontStyle=1;align=center;verticalAlign=middle;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=0;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="1320" y="520" width="240" height="66" as="geometry"/>
+        </mxCell>
+        <mxCell id="C_Optimizer_f1" value="+ Optimizer(executor: ExecuteInterface&amp;)" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="C_Optimizer">
+          <mxGeometry y="26" width="240" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="C_Optimizer_f2" value="+ optimize(tree): void" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="C_Optimizer">
+          <mxGeometry y="46" width="240" height="20" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="C_Executor" value="Executor" style="swimlane;fontStyle=1;align=center;verticalAlign=middle;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=0;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="1640" y="520" width="260" height="106" as="geometry"/>
+        </mxCell>
+        <mxCell id="C_Executor_f1" value="+ Executor(out: ostream&amp;)" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="C_Executor">
+          <mxGeometry y="26" width="260" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="C_Executor_f2" value="+ execute(tree: SyntaxTree&amp;): void" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="C_Executor">
+          <mxGeometry y="46" width="260" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="C_Executor_f3" value="+ evaluate(expr: Expression*): Value" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="C_Executor">
+          <mxGeometry y="66" width="260" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="C_Executor_f4" value="+ environment(): const Environment&amp;" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="C_Executor">
+          <mxGeometry y="86" width="260" height="20" as="geometry"/>
+        </mxCell>
+
+        <!-- Terminal side-effects box for the pipeline flow chain -->
+        <mxCell id="C_SideEffects" value="Side Effects&#10;(stdout / Environment)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontStyle=2;" vertex="1" parent="1">
+          <mxGeometry x="1690" y="720" width="220" height="60" as="geometry"/>
+        </mxCell>
+
+        <!-- Notes -->
+        <mxCell id="N_OptimizerNote" value="Optimizer not yet wired into Shell pipeline" style="text;html=1;fontColor=#999999;fontStyle=2;" vertex="1" parent="1">
+          <mxGeometry x="1000" y="605" width="560" height="30" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="N_ImportNote" value="Assembler also depends on SourceReaderInterface to resolve `import` statements recursively without depending on Tokenizer/filesystem directly." style="text;html=1;fontColor=#999999;fontStyle=2;" vertex="1" parent="1">
+          <mxGeometry x="40" y="900" width="1000" height="30" as="geometry"/>
+        </mxCell>
+
+        <!-- ===================== SHELL: creates edges ===================== -->
+        <mxCell id="E_main_cla" value="creates" style="edgeStyle=orthogonalEdgeStyle;rounded=0;endArrow=block;endFill=1;html=1;" edge="1" parent="1" source="C_Main" target="C_CommandLineArgs">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="E_main_rps" value="creates" style="edgeStyle=orthogonalEdgeStyle;rounded=0;endArrow=block;endFill=1;html=1;" edge="1" parent="1" source="C_Main" target="C_RunPromptShell">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="E_main_frm" value="creates" style="edgeStyle=orthogonalEdgeStyle;rounded=0;endArrow=block;endFill=1;html=1;" edge="1" parent="1" source="C_Main" target="C_FileRunMode">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <!-- ===================== SHELL: uses edges to interfaces ===================== -->
+        <mxCell id="E_rps_tok" value="uses" style="edgeStyle=orthogonalEdgeStyle;rounded=0;dashed=1;endArrow=open;endFill=0;html=1;" edge="1" parent="1" source="C_RunPromptShell" target="C_TokenizeInterface">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="E_rps_asm" value="uses" style="edgeStyle=orthogonalEdgeStyle;rounded=0;dashed=1;endArrow=open;endFill=0;html=1;" edge="1" parent="1" source="C_RunPromptShell" target="C_AssemblerInterface">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="E_rps_chk" value="uses" style="edgeStyle=orthogonalEdgeStyle;rounded=0;dashed=1;endArrow=open;endFill=0;html=1;" edge="1" parent="1" source="C_RunPromptShell" target="C_CheckerInterface">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="E_rps_exe" value="uses" style="edgeStyle=orthogonalEdgeStyle;rounded=0;dashed=1;endArrow=open;endFill=0;html=1;" edge="1" parent="1" source="C_RunPromptShell" target="C_ExecuteInterface">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="E_frm_tok" value="uses" style="edgeStyle=orthogonalEdgeStyle;rounded=0;dashed=1;endArrow=open;endFill=0;html=1;" edge="1" parent="1" source="C_FileRunMode" target="C_TokenizeInterface">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="E_frm_asm" value="uses" style="edgeStyle=orthogonalEdgeStyle;rounded=0;dashed=1;endArrow=open;endFill=0;html=1;" edge="1" parent="1" source="C_FileRunMode" target="C_AssemblerInterface">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="E_frm_chk" value="uses" style="edgeStyle=orthogonalEdgeStyle;rounded=0;dashed=1;endArrow=open;endFill=0;html=1;" edge="1" parent="1" source="C_FileRunMode" target="C_CheckerInterface">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="E_frm_exe" value="uses" style="edgeStyle=orthogonalEdgeStyle;rounded=0;dashed=1;endArrow=open;endFill=0;html=1;" edge="1" parent="1" source="C_FileRunMode" target="C_ExecuteInterface">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <!-- ===================== Realization edges (concrete implements interface) ===================== -->
+        <mxCell id="E_real_tok" style="edgeStyle=orthogonalEdgeStyle;rounded=0;dashed=1;endArrow=block;endFill=0;html=1;" edge="1" parent="1" source="C_Tokenizer" target="C_TokenizeInterface">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="E_real_fsr" style="edgeStyle=orthogonalEdgeStyle;rounded=0;dashed=1;endArrow=block;endFill=0;html=1;" edge="1" parent="1" source="C_FileSourceReader" target="C_SourceReaderInterface">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="E_real_asm" style="edgeStyle=orthogonalEdgeStyle;rounded=0;dashed=1;endArrow=block;endFill=0;html=1;" edge="1" parent="1" source="C_Assembler" target="C_AssemblerInterface">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="E_real_chk" style="edgeStyle=orthogonalEdgeStyle;rounded=0;dashed=1;endArrow=block;endFill=0;html=1;" edge="1" parent="1" source="C_Checker" target="C_CheckerInterface">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="E_real_opt" style="edgeStyle=orthogonalEdgeStyle;rounded=0;dashed=1;endArrow=block;endFill=0;html=1;" edge="1" parent="1" source="C_Optimizer" target="C_OptimizerInterface">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="E_real_exe" style="edgeStyle=orthogonalEdgeStyle;rounded=0;dashed=1;endArrow=block;endFill=0;html=1;" edge="1" parent="1" source="C_Executor" target="C_ExecuteInterface">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <!-- ===================== Dependency (uses) edges among concrete/interfaces ===================== -->
+        <mxCell id="E_dep_fsr_tok" value="uses" style="edgeStyle=orthogonalEdgeStyle;rounded=0;dashed=1;endArrow=open;endFill=0;html=1;" edge="1" parent="1" source="C_FileSourceReader" target="C_TokenizeInterface">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="E_dep_asm_sr" value="uses (import)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;dashed=1;endArrow=open;endFill=0;html=1;" edge="1" parent="1" source="C_Assembler" target="C_SourceReaderInterface">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="E_dep_chk_exe" value="uses (calls evaluate())" style="edgeStyle=orthogonalEdgeStyle;rounded=0;dashed=1;endArrow=open;endFill=0;html=1;" edge="1" parent="1" source="C_Checker" target="C_ExecuteInterface">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="E_dep_opt_exe" value="uses (calls evaluate())" style="edgeStyle=orthogonalEdgeStyle;rounded=0;dashed=1;endArrow=open;endFill=0;html=1;" edge="1" parent="1" source="C_Optimizer" target="C_ExecuteInterface">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <!-- ===================== Pipeline data-flow chain (concrete classes, distinct color) ===================== -->
+        <mxCell id="E_flow_tok_asm" value="vector&lt;Token&gt;" style="edgeStyle=orthogonalEdgeStyle;rounded=0;endArrow=block;endFill=1;html=1;strokeColor=#b85450;fontColor=#b85450;strokeWidth=2;" edge="1" parent="1" source="C_Tokenizer" target="C_Assembler">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="E_flow_asm_chk" value="SyntaxTree" style="edgeStyle=orthogonalEdgeStyle;rounded=0;endArrow=block;endFill=1;html=1;strokeColor=#b85450;fontColor=#b85450;strokeWidth=2;" edge="1" parent="1" source="C_Assembler" target="C_Checker">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="E_flow_chk_exe" value="bool" style="edgeStyle=orthogonalEdgeStyle;rounded=0;endArrow=block;endFill=1;html=1;strokeColor=#b85450;fontColor=#b85450;strokeWidth=2;" edge="1" parent="1" source="C_Checker" target="C_Executor">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="E_flow_exe_side" value="void / Value" style="edgeStyle=orthogonalEdgeStyle;rounded=0;endArrow=block;endFill=1;html=1;strokeColor=#b85450;fontColor=#b85450;strokeWidth=2;" edge="1" parent="1" source="C_Executor" target="C_SideEffects">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

@@ -1,0 +1,161 @@
+<mxfile host="Electron" version="24.0.0">
+  <diagram name="Tokenizer" id="tokenizer-module">
+    <mxGraphModel dx="1400" dy="800" grid="1" gridSize="10" guides="1" tooltips="1" connectable="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1400" pageHeight="900" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <!-- TokenizeInterface -->
+        <mxCell id="C_ITokenize" value="&#171;interface&#187;&#10;TokenizeInterface" style="swimlane;fontStyle=1;align=center;verticalAlign=middle;childLayout=stackLayout;horizontal=1;startSize=36;horizontalStack=0;resizeParent=0;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="80" y="60" width="300" height="66" as="geometry"/>
+        </mxCell>
+        <mxCell id="C_ITokenize_r1" value="+ tokenize(source: string): vector&lt;Token&gt;" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="C_ITokenize">
+          <mxGeometry y="36" width="300" height="30" as="geometry"/>
+        </mxCell>
+
+        <!-- Tokenizer -->
+        <mxCell id="C_Tokenizer" value="Tokenizer" style="swimlane;fontStyle=1;align=center;verticalAlign=middle;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=0;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="80" y="340" width="300" height="422" as="geometry"/>
+        </mxCell>
+        <mxCell id="C_Tokenizer_f1" value="- source: string" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="C_Tokenizer">
+          <mxGeometry y="26" width="300" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="C_Tokenizer_f2" value="- start, current, line: int" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="C_Tokenizer">
+          <mxGeometry y="46" width="300" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="C_Tokenizer_f3" value="- tokens: vector&lt;Token&gt;" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="C_Tokenizer">
+          <mxGeometry y="66" width="300" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="C_Tokenizer_sep" value="" style="line;strokeWidth=1;fillColor=none;html=1;" vertex="1" parent="C_Tokenizer">
+          <mxGeometry y="86" width="300" height="8" as="geometry"/>
+        </mxCell>
+        <mxCell id="C_Tokenizer_m1" value="+ tokenize(source): vector&lt;Token&gt;" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="C_Tokenizer">
+          <mxGeometry y="94" width="300" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="C_Tokenizer_m2" value="- reset()" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="C_Tokenizer">
+          <mxGeometry y="114" width="300" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="C_Tokenizer_m3" value="- isAtEnd(): bool" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="C_Tokenizer">
+          <mxGeometry y="134" width="300" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="C_Tokenizer_m4" value="- advance(): char" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="C_Tokenizer">
+          <mxGeometry y="154" width="300" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="C_Tokenizer_m5" value="- match(c): bool" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="C_Tokenizer">
+          <mxGeometry y="174" width="300" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="C_Tokenizer_m6" value="- peek(): char" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="C_Tokenizer">
+          <mxGeometry y="194" width="300" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="C_Tokenizer_m7" value="- peekNext(): char" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="C_Tokenizer">
+          <mxGeometry y="214" width="300" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="C_Tokenizer_m8" value="- addToken(type)" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="C_Tokenizer">
+          <mxGeometry y="234" width="300" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="C_Tokenizer_m9" value="- scanToken()" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="C_Tokenizer">
+          <mxGeometry y="254" width="300" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="C_Tokenizer_m10" value="- scanString()" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="C_Tokenizer">
+          <mxGeometry y="274" width="300" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="C_Tokenizer_m11" value="- scanNumber()" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="C_Tokenizer">
+          <mxGeometry y="294" width="300" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="C_Tokenizer_m12" value="- scanIdentifier()" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="C_Tokenizer">
+          <mxGeometry y="314" width="300" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="C_Tokenizer_m13" value="- scanDefault()" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="C_Tokenizer">
+          <mxGeometry y="334" width="300" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="C_Tokenizer_m14" value="+ isDigit(c): bool {static}" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="C_Tokenizer">
+          <mxGeometry y="354" width="300" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="C_Tokenizer_m15" value="+ isAlpha(c): bool {static}" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="C_Tokenizer">
+          <mxGeometry y="374" width="300" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="C_Tokenizer_m16" value="+ isAlphaNumeric(c): bool {static}" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="C_Tokenizer">
+          <mxGeometry y="394" width="300" height="20" as="geometry"/>
+        </mxCell>
+
+        <!-- Token -->
+        <mxCell id="C_Token" value="Token" style="swimlane;fontStyle=1;align=center;verticalAlign=middle;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=0;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="620" y="60" width="260" height="134" as="geometry"/>
+        </mxCell>
+        <mxCell id="C_Token_f1" value="+ type: TokenType" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="C_Token">
+          <mxGeometry y="26" width="260" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="C_Token_f2" value="+ origin: string" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="C_Token">
+          <mxGeometry y="46" width="260" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="C_Token_f3" value="+ line: int" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="C_Token">
+          <mxGeometry y="66" width="260" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="C_Token_sep" value="" style="line;strokeWidth=1;fillColor=none;html=1;" vertex="1" parent="C_Token">
+          <mxGeometry y="86" width="260" height="8" as="geometry"/>
+        </mxCell>
+        <mxCell id="C_Token_m1" value="+ operator==(other): bool" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="C_Token">
+          <mxGeometry y="94" width="260" height="20" as="geometry"/>
+        </mxCell>
+
+        <!-- TokenType enum -->
+        <mxCell id="C_TokenType" value="&#171;enumeration&#187;&#10;TokenType" style="swimlane;fontStyle=1;align=center;verticalAlign=middle;childLayout=stackLayout;horizontal=1;startSize=36;horizontalStack=0;resizeParent=0;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;" vertex="1" parent="1">
+          <mxGeometry x="620" y="340" width="440" height="136" as="geometry"/>
+        </mxCell>
+        <mxCell id="C_TokenType_r1" value="Literals: NUMBER, STRING, TRUE, FALSE" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="C_TokenType">
+          <mxGeometry y="36" width="440" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="C_TokenType_r2" value="Keywords: VAR, PRINT, IF, ELSE, FOR, FUNC, RETURN, CLASS, THIS, ARRAY, IMPORT, ALIAS, INSTANCEOF, SUPER" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="C_TokenType">
+          <mxGeometry y="56" width="440" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="C_TokenType_r3" value="IDENTIFIER" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="C_TokenType">
+          <mxGeometry y="76" width="440" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="C_TokenType_r4" value="Operators: PLUS, MINUS, STAR, SLASH, PERCENT, AND, OR, EQUAL, EQUAL_EQUAL, BANG, BANG_EQUAL, LESS, LESS_EQUAL, GREATER, GREATER_EQUAL" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="C_TokenType">
+          <mxGeometry y="96" width="440" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="C_TokenType_r5" value="Delimiters: SEMICOLON, LEFT_PAREN, RIGHT_PAREN, LEFT_BRACE, RIGHT_BRACE, DOT, LEFT_BRACKET, RIGHT_BRACKET, COMMA, COLON" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="C_TokenType">
+          <mxGeometry y="116" width="440" height="20" as="geometry"/>
+        </mxCell>
+
+        <!-- AssemblyError -->
+        <mxCell id="C_AssemblyError" value="AssemblyError" style="swimlane;fontStyle=1;align=center;verticalAlign=middle;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=0;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;" vertex="1" parent="1">
+          <mxGeometry x="80" y="860" width="300" height="66" as="geometry"/>
+        </mxCell>
+        <mxCell id="C_AssemblyError_m1" value="+ AssemblyError(fmt: string, ...)" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="C_AssemblyError">
+          <mxGeometry y="26" width="300" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="C_AssemblyError_m2" value="+ what(): const char*" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="C_AssemblyError">
+          <mxGeometry y="46" width="300" height="20" as="geometry"/>
+        </mxCell>
+
+        <!-- std::exception plain box -->
+        <mxCell id="C_StdException" value="std::exception" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;" vertex="1" parent="1">
+          <mxGeometry x="80" y="1000" width="180" height="40" as="geometry"/>
+        </mxCell>
+
+        <!-- Edges -->
+        <mxCell id="E_realize" style="dashed=1;endArrow=block;endFill=0;html=1;" edge="1" parent="1" source="C_Tokenizer" target="C_ITokenize">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="E_uses_token" value="creates" style="dashed=1;endArrow=open;endFill=0;html=1;" edge="1" parent="1" source="C_Tokenizer" target="C_Token">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="E_throws" value="throws" style="dashed=1;endArrow=open;endFill=0;html=1;" edge="1" parent="1" source="C_Tokenizer" target="C_AssemblyError">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="E_composition" style="startArrow=diamondThin;startFill=1;endArrow=none;html=1;" edge="1" parent="1" source="C_Token" target="C_TokenType">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="E_generalization" style="endArrow=block;endFill=0;html=1;" edge="1" parent="1" source="C_AssemblyError" target="C_StdException">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
