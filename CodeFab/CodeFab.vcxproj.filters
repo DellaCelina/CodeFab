@@ -57,6 +57,12 @@
     <ClCompile Include="Checker\CheckerTest.cpp">
       <Filter>Checker</Filter>
     </ClCompile>
+    <ClCompile Include="Checker\Optimizer.cpp">
+      <Filter>Checker</Filter>
+    </ClCompile>
+    <ClCompile Include="Checker\OptimizerTest.cpp">
+      <Filter>Checker</Filter>
+    </ClCompile>
     <ClCompile Include="Executor\Executor.cpp">
       <Filter>Executor</Filter>
     </ClCompile>
@@ -150,6 +156,9 @@
       <Filter>Checker</Filter>
     </ClInclude>
     <ClInclude Include="Checker\Checker.h">
+      <Filter>Checker</Filter>
+    </ClInclude>
+    <ClInclude Include="Checker\Optimizer.h">
       <Filter>Checker</Filter>
     </ClInclude>
     <ClInclude Include="Executor\ExecuteInterface.h">

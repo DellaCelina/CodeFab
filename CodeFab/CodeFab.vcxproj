@@ -149,6 +149,8 @@
     <ClCompile Include="Assembler\FileSourceReader.cpp" />
     <ClCompile Include="Checker\Checker.cpp" />
     <ClCompile Include="Checker\CheckerTest.cpp" />
+    <ClCompile Include="Checker\Optimizer.cpp" />
+    <ClCompile Include="Checker\OptimizerTest.cpp" />
     <ClCompile Include="Executor\Executor.cpp" />
     <ClCompile Include="Executor\ExecutorTest.cpp" />
     <ClCompile Include="Executor\ExecutorVariableTest.cpp" />
@@ -182,6 +184,7 @@
     <ClInclude Include="Checker\Checker.h" />
     <ClInclude Include="Checker\CheckerInterface.h" />
     <ClInclude Include="Checker\OptimizerInterface.h" />
+    <ClInclude Include="Checker\Optimizer.h" />
     <ClInclude Include="Executor\ExecuteInterface.h" />
     <ClInclude Include="Executor\Executor.h" />
     <ClInclude Include="Executor\Value.h" />
