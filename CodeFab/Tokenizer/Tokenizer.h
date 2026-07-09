@@ -24,6 +24,7 @@ private:
     char peek();
     char peekNext();
     void addToken(TokenType type);
+    void addToken(TokenType type, std::string value);
     void scanToken();
     void scanString();
     void scanNumber();
