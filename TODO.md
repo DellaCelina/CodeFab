@@ -455,34 +455,54 @@ Shell의 File/Debug 모드가 구현되면, 기존 REPL 통합 테스트와 별�
   값이 출력에 포함되는지 확인.
 - **디버그 모드 - inspect**: 현재 스코프의 모든 변수가 출력되는지 확인.
 
-## 8. 논리 연산자(`and`/`or`)와 나머지 연산자(`%`)
+## 8. 논리 연산자(`and`/`or`)와 나머지 연산자(`%`) - 기본 시나리오는 이미 구현/테스트됨
 
-**주의**: 위 "# TODO"의 7번 항목 참고 - `and`/`or`/`%`는 토큰/AST/실행 로직이
-전부 빠져있어서 지금은 파싱 단계부터 실패한다. 아래 시나리오는 그 갭이 채워진
-뒤 테스트로 옮긴다.
+**현재 상태**: 이 항목이 참조하던 "# TODO의 7번 항목"(토큰/AST/실행 로직 미구현)은
+이미 해결되어 문서에서 제거된 상태다. 실제로 `and`/`or`/`%`는 Tokenizer(`Token.h`의
+`AND`/`OR`/`PERCENT`, `Tokenizer.cpp`의 키워드/문자 처리) → Assembler
+(`SyntaxTree.h`의 `AndExpression`/`OrExpression`/`ModExpression`, `Assembler.cpp`의
+우선순위 테이블·`makeBinaryExpression`) → Executor(`Executor.cpp`의 각 핸들러,
+`and`/`or`는 short-circuit 평가, `%`는 0으로 나누면 `ExecutorError`)까지 전 구간
+구현되어 있고, 아래 나열된 기본 시나리오 대부분은 이미 실제 테스트로 존재한다:
 
-- **and - 정상**: `print true and true;` → `true`, `print true and false;` →
-  `false`, `print false and true;` → `false`, `print false and false;` → `false`.
-- **or - 정상**: `print false or true;` → `true`, `print true or false;` →
-  `true`, `print false or false;` → `false`.
-- **비교/산술 연산자와의 조합**: `print (1 < 2) and (3 > 2);` → `true`,
-  `print (1 > 2) or (3 > 2);` → `true`.
-- **short-circuit 평가**: `and`는 좌항이 false면 우항을 평가하지 않아야 하고,
-  `or`는 좌항이 true면 우항을 평가하지 않아야 한다 - 부작용이 있는 함수 호출을
-  우항에 두고(예: 카운터를 증가시키는 함수) 실제로 호출되지 않는지 확인
+- `AssemblerTest.cpp`: `%` 우선순위/좌결합 테스트, `LogicalAndExpressionTest`,
+  `LogicalOrExpressionTest`, `AndBindsTighterThanOrTest`.
+- `ExecutorTest.cpp`: `Evaluate_ModExpression_ReturnsRemainder`,
+  `Evaluate_ModExpression_ThrowsOnZero`, `Evaluate_AndExpression_*`(short-circuit
+  포함), `Evaluate_OrExpression_*`(short-circuit 포함).
+- `IntegrationTest/DebugIntegrationTest.cpp`(`RunPromptShellIntegrationTest`):
+  `LogicalAnd_PrintsFalseWhenLeftOperandIsFalse`,
+  `LogicalAnd_PrintsTrueWhenBothOperandsAreTrue`,
+  `LogicalOr_PrintsTrueWhenLeftOperandIsFalseButRightIsTrue`,
+  `LogicalOr_PrintsFalseWhenBothOperandsAreFalse`, `ModExpression_PrintsRemainder`,
+  `ModByZero_ReportsRuntimeError`.
+
+**아직 남아있는 갭** (아래만 추가로 필요):
+
+- **short-circuit을 integration 레벨에서 부작용으로 확인하는 테스트 없음**:
+  `ExecutorTest.cpp`는 단위 테스트 수준에서 short-circuit을 확인하지만,
+  `DebugIntegrationTest.cpp`에는 카운터를 증가시키는 함수를 우항에 두고 실제로
+  호출되지 않는지 end-to-end로 확인하는 테스트가 없다
   (`Func bump() { c = c + 1; return true; } var c = 0; var x = false and bump();
   print c;` → `0`, 우항이 평가됐다면 `1`이 나올 것).
-- **에러 정책 결정 필요**: `print 1 and 2;`처럼 피연산자가 Boolean이 아닐 때
-  타입 오류를 낼지, 아니면 truthy 기반으로 통과시킬지는 팀 결정 사항 - 결정된
-  정책대로 정상/에러 케이스를 확정한다.
-- **% - 정상**: `print 7 % 3;` → `1`, `print 10 % 5;` → `0`, `print 2 * 3 % 4;` →
-  `2`(우선순위가 `*`/`/`와 같은 레벨인지, 좌결합인지 확인).
-- **% - 최적화 슬라이드 예시 재현**: `print (1 - 2 * 3 * 4 * 5 / 6 + 7 + 8 + 9) %
-  1000 % 30;`처럼 여러 연산자가 섞인 식에서 `%`가 마지막에 두 번 연속 적용되는
-  경우까지 정확한 값이 나오는지 확인(§6 실행전 최적화가 이 식을 상수 폴딩할 때도
-  동일한 값을 내야 한다는 회귀 테스트와도 연결됨).
-- **에러: 0으로 나머지 연산**: `print 5 % 0;` → `DivideExpression`과 동일하게
-  런타임 오류("0으로 나눌 수 없습니다" 류).
+- **`%`가 다른 연산자와 섞인 복합식 회귀 테스트 없음**: `print 2 * 3 % 4;`(우선순위가
+  `*`/`/`와 같은 레벨인지, 좌결합인지)와 `print (1 - 2 * 3 * 4 * 5 / 6 + 7 + 8 + 9) %
+  1000 % 30;`(`%`가 두 번 연속 적용되는 경우) 같은 복합식이 최적화(상수 폴딩) 켜기
+  전/후로 동일한 값을 내는지 확인하는 테스트가 아직 없다(§6 실행전 최적화 회귀
+  시나리오와 연결).
+- **에러 정책 미결정**: `Checker.cpp`는 `and`/`or` 피연산자가 Boolean인지 검사하지
+  않고, `Executor.cpp`도 `isTruthy()` 기반으로 그냥 평가한다(즉 현재 동작은
+  "truthy 기반 통과"). `print 1 and 2;`처럼 Boolean이 아닌 피연산자에 타입 오류를
+  낼지, 지금처럼 truthy로 통과시킬지는 여전히 팀이 결정하지 않은 사항 - 결정되면
+  이 문구를 "확정된 정책: ..."으로 갱신하고, 타입 오류로 정하는 경우 Checker에
+  검사를 추가해야 한다.
+
+**해야 할 일**:
+- [ ] `DebugIntegrationTest.cpp`에 short-circuit 부작용 확인 통합 테스트 추가
+- [ ] `DebugIntegrationTest.cpp`(또는 최적화 관련 스위트)에 `%` 복합식 회귀 테스트
+      추가(최적화 켜기 전/후 값이 같은지 포함)
+- [ ] `and`/`or` 피연산자 타입 정책을 팀 결정 후 문서화하고, 필요하면 Checker에
+      반영
 
 # 코드 정리
 
