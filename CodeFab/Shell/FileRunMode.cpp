@@ -18,7 +18,7 @@ bool FileRunMode::run(const std::string& filePath, std::ostream& out) {
     // 아래 ifstream 오픈 실패로 처리한다(존재 여부와 무관하게 exists()가
     // false를 던지지 않으므로 안전).
     if (std::filesystem::exists(filePath) && !std::filesystem::is_regular_file(filePath)) {
-        out << "path는 파일 1개(단일 파일)여야 합니다: " << filePath << "\n";
+        out << "Error: path must be a single file: " << filePath << "\n";
         return false;
     }
 
@@ -26,7 +26,7 @@ bool FileRunMode::run(const std::string& filePath, std::ostream& out) {
     if (!file) {
         // FileSourceReader::read()(Assembler/FileSourceReader.cpp)와 동일한
         // 문구를 사용해 "파일을 열 수 없다"는 오류 메시지의 표현을 통일한다.
-        out << "파일을 열 수 없습니다: " << filePath << "\n";
+        out << "Error: cannot open file: " << filePath << "\n";
         return false;
     }
 

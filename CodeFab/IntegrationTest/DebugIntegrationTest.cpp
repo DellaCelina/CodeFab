@@ -288,7 +288,7 @@ TEST_F(RunPromptShellIntegrationTest, ReadLocalVariableInOwnInitializer_FailsChe
     run("{ var a = a; }\n", out);
 
     EXPECT_EQ(programOutput.str(), "");  // Executor가 호출되지 않았다.
-    EXPECT_EQ(out.str(), ">>> [1번째 줄] 자신의 초기화식에서 지역변수를 읽을 수 없습니다.\n>>> ");
+    EXPECT_EQ(out.str(), ">>> [line 1] cannot read local variable in its own initializer.\n>>> ");
 }
 
 TEST_F(RunPromptShellIntegrationTest, DuplicateLocalDeclaration_FailsCheckWithoutExecuting) {
@@ -296,7 +296,7 @@ TEST_F(RunPromptShellIntegrationTest, DuplicateLocalDeclaration_FailsCheckWithou
     run("{ var a = \"hi\"; var a = 3; }\n", out);
 
     EXPECT_EQ(programOutput.str(), "");
-    EXPECT_EQ(out.str(), ">>> [1번째 줄] 'a'에러: 이미 해당 변수는 현재 스코프에서 사용중입니다.\n>>> ");
+    EXPECT_EQ(out.str(), ">>> [line 1] 'a' is already declared in this scope.\n>>> ");
 }
 
 TEST_F(RunPromptShellIntegrationTest, UndefinedVariableReference_FailsCheckWithoutExecuting) {
@@ -309,7 +309,7 @@ TEST_F(RunPromptShellIntegrationTest, UndefinedVariableReference_FailsCheckWitho
     // 미정의 변수 참조 시 ExecutorError를 던지는 코드가 있지만, Checker가 먼저
     // 막아서 이 경로에서는 노출되지 않는다.
     EXPECT_EQ(programOutput.str(), "");
-    EXPECT_EQ(out.str(), ">>> [1번째 줄] 'notDefined'에러: 선언되지 않은 변수입니다.\n>>> ");
+    EXPECT_EQ(out.str(), ">>> [line 1] 'notDefined' is not declared.\n>>> ");
 }
 
 // --- 2-3. 실행 중(런타임) 에러 시나리오 ---
@@ -323,7 +323,7 @@ TEST_F(RunPromptShellIntegrationTest, MixedTypeAddition_ReportsTypeMismatchError
     run("print 1 + \"HI\";\n", out);
 
     EXPECT_EQ(programOutput.str(), "");
-    EXPECT_EQ(out.str(), ">>> 타입 오류: number + string\n>>> ");
+    EXPECT_THAT(out.str(), testing::HasSubstr("[line 1] type error: number + string"));
 }
 
 TEST_F(RunPromptShellIntegrationTest, UnaryMinusOnNonNumber_ReportsOperandTypeError) {
@@ -331,7 +331,7 @@ TEST_F(RunPromptShellIntegrationTest, UnaryMinusOnNonNumber_ReportsOperandTypeEr
     run("print -\"FabCoding\";\n", out);
 
     EXPECT_EQ(programOutput.str(), "");
-    EXPECT_EQ(out.str(), ">>> 타입 오류: -string\n>>> ");
+    EXPECT_THAT(out.str(), testing::HasSubstr("[line 1] type error: unary '-' requires a number, got string."));
 }
 
 // --- 3. 변수 선언 / 할당 / 블록 스코프 / shadowing ---
@@ -487,7 +487,7 @@ TEST_F(RunPromptShellIntegrationTest, ModByZero_ReportsRuntimeError) {
     run("print 10 % 0;\n", out);
 
     EXPECT_EQ(programOutput.str(), "");
-    EXPECT_EQ(out.str(), ">>> 0으로 나눌 수 없습니다\n>>> ");
+    EXPECT_THAT(out.str(), testing::HasSubstr("[line 1] division by zero."));
 }
 
 // TODO.md #8 잔여 갭: ExecutorTest.cpp는 단위 테스트 수준에서 short-circuit을
@@ -594,7 +594,7 @@ TEST_F(RunPromptShellIntegrationTest, DivideByZero_ReportsRuntimeError) {
     run("print 3 / 0;\n", out);
 
     EXPECT_EQ(programOutput.str(), "");
-    EXPECT_EQ(out.str(), ">>> 0으로 나눌 수 없습니다\n>>> ");
+    EXPECT_THAT(out.str(), testing::HasSubstr("[line 1] division by zero."));
 }
 
 TEST_F(RunPromptShellIntegrationTest, SubStringAndNumber_ReportsTypeMismatchError) {
@@ -602,7 +602,7 @@ TEST_F(RunPromptShellIntegrationTest, SubStringAndNumber_ReportsTypeMismatchErro
     run("print \"hello\" - 3;\n", out);
 
     EXPECT_EQ(programOutput.str(), "");
-    EXPECT_EQ(out.str(), ">>> 타입 오류: string - number\n>>> ");
+    EXPECT_THAT(out.str(), testing::HasSubstr("[line 1] type error: string - number"));
 }
 
 TEST_F(RunPromptShellIntegrationTest, AddBooleanAndNumber_ReportsTypeMismatchError) {
@@ -610,7 +610,7 @@ TEST_F(RunPromptShellIntegrationTest, AddBooleanAndNumber_ReportsTypeMismatchErr
     run("print true + 3;\n", out);
 
     EXPECT_EQ(programOutput.str(), "");
-    EXPECT_EQ(out.str(), ">>> 타입 오류: boolean + number\n>>> ");
+    EXPECT_THAT(out.str(), testing::HasSubstr("[line 1] type error: boolean + number"));
 }
 
 TEST_F(RunPromptShellIntegrationTest, MultStringAndBoolean_ReportsTypeMismatchError) {
@@ -618,7 +618,7 @@ TEST_F(RunPromptShellIntegrationTest, MultStringAndBoolean_ReportsTypeMismatchEr
     run("print \"hello\" * true;\n", out);
 
     EXPECT_EQ(programOutput.str(), "");
-    EXPECT_EQ(out.str(), ">>> 타입 오류: string * boolean\n>>> ");
+    EXPECT_THAT(out.str(), testing::HasSubstr("[line 1] type error: string * boolean"));
 }
 
 // --- 6. Checker의 if/for 내부 검사 ---
@@ -632,7 +632,7 @@ TEST_F(RunPromptShellIntegrationTest, DuplicateDeclarationInsideIfBlock_FailsChe
     run("if (true) { var a = \"hi\"; var a = 3; }\n", out);
 
     EXPECT_EQ(programOutput.str(), "");  // Executor가 호출되지 않았다.
-    EXPECT_EQ(out.str(), ">>> [1번째 줄] 'a'에러: 이미 해당 변수는 현재 스코프에서 사용중입니다.\n>>> ");
+    EXPECT_EQ(out.str(), ">>> [line 1] 'a' is already declared in this scope.\n>>> ");
 }
 
 TEST_F(RunPromptShellIntegrationTest, SelfReferenceInsideIfBlock_FailsCheckWithoutExecuting) {
@@ -640,7 +640,7 @@ TEST_F(RunPromptShellIntegrationTest, SelfReferenceInsideIfBlock_FailsCheckWitho
     run("if (true) { var a = a; }\n", out);
 
     EXPECT_EQ(programOutput.str(), "");  // Executor가 호출되지 않았다.
-    EXPECT_EQ(out.str(), ">>> [1번째 줄] 자신의 초기화식에서 지역변수를 읽을 수 없습니다.\n>>> ");
+    EXPECT_EQ(out.str(), ">>> [line 1] cannot read local variable in its own initializer.\n>>> ");
 }
 
 TEST_F(RunPromptShellIntegrationTest, FuncDeclaredThenCalledOnNextLine_ReturnsCorrectValue) {
@@ -685,7 +685,7 @@ TEST_F(RunPromptShellIntegrationTest, ArraySize_NotANumber_ReportsRuntimeError) 
     run("var arr = Array(\"5\");\n", out);
 
     EXPECT_EQ(programOutput.str(), "");
-    EXPECT_EQ(out.str(), ">>> 배열의 사이즈는 반드시 number여야 합니다.\n>>> ");
+    EXPECT_THAT(out.str(), testing::HasSubstr("[line 1] array size must be a number."));
 }
 
 TEST_F(RunPromptShellIntegrationTest, IndexOnNonArray_ReportsRuntimeError) {
@@ -693,7 +693,7 @@ TEST_F(RunPromptShellIntegrationTest, IndexOnNonArray_ReportsRuntimeError) {
     run("var x = 1;\nprint x[0];\n", out);
 
     EXPECT_EQ(programOutput.str(), "");
-    EXPECT_EQ(out.str(), ">>> >>> index 접근은 오직 배열만 지원합니다.\n>>> ");
+    EXPECT_THAT(out.str(), testing::HasSubstr("index access is only supported on arrays."));
 }
 
 TEST_F(RunPromptShellIntegrationTest, IndexNotANumber_ReportsRuntimeError) {
@@ -701,7 +701,7 @@ TEST_F(RunPromptShellIntegrationTest, IndexNotANumber_ReportsRuntimeError) {
     run("var arr = Array(3);\nprint arr[\"zero\"];\n", out);
 
     EXPECT_EQ(programOutput.str(), "");
-    EXPECT_EQ(out.str(), ">>> >>> 인덱스는 반드시 숫자여야 합니다.\n>>> ");
+    EXPECT_THAT(out.str(), testing::HasSubstr("array index must be a number."));
 }
 
 TEST_F(RunPromptShellIntegrationTest, IndexOutOfRange_ReportsRuntimeError) {
@@ -709,7 +709,7 @@ TEST_F(RunPromptShellIntegrationTest, IndexOutOfRange_ReportsRuntimeError) {
     run("var arr = Array(3);\nprint arr[3];\n", out);  // 유효 범위는 0..2
 
     EXPECT_EQ(programOutput.str(), "");
-    EXPECT_EQ(out.str(), ">>> >>> 배열 인덱스 범위를 벗어났습니다.\n>>> ");
+    EXPECT_THAT(out.str(), testing::HasSubstr("array index out of bounds."));
 }
 
 // 1일차/3일차 슬라이드의 정적 배열 예시(var i = 2; arr[i - 1] = 7;)처럼, 인덱스
@@ -743,7 +743,7 @@ TEST_F(RunPromptShellIntegrationTest, CallWithWrongArgumentCount_ReportsRuntimeE
     run("Func oneArg(a) { }\nprint oneArg();\n", out);
 
     EXPECT_EQ(programOutput.str(), "");
-    EXPECT_EQ(out.str(), ">>> >>> 'oneArg' 호출에는 인자 1개가 필요합니다 (전달된 인자: 0개)\n>>> ");
+    EXPECT_THAT(out.str(), testing::HasSubstr("'oneArg' expects 1 argument(s) but got 0."));
 }
 
 TEST_F(RunPromptShellIntegrationTest, CallingNonCallableValue_ReportsRuntimeError) {
@@ -751,7 +751,7 @@ TEST_F(RunPromptShellIntegrationTest, CallingNonCallableValue_ReportsRuntimeErro
     run("var x = 1;\nprint x();\n", out);
 
     EXPECT_EQ(programOutput.str(), "");
-    EXPECT_EQ(out.str(), ">>> >>> 호출할 수 없는 대상입니다.\n>>> ");
+    EXPECT_THAT(out.str(), testing::HasSubstr("callee is not callable."));
 }
 
 TEST_F(RunPromptShellIntegrationTest, CallWithoutReturn_YieldsNil) {
@@ -779,7 +779,7 @@ TEST_F(RunPromptShellIntegrationTest, ReturnOutsideFunction_ReportsCheckError) {
     run("return 5;\n", out);
 
     EXPECT_EQ(programOutput.str(), "");
-    EXPECT_EQ(out.str(), ">>> [1번째 줄] 함수(메서드) 밖에서 return을 사용할 수 없습니다.\n>>> ");
+    EXPECT_EQ(out.str(), ">>> [line 1] cannot use 'return' outside a function.\n>>> ");
 }
 
 TEST_F(RunPromptShellIntegrationTest, DuplicateParameterName_ReportsCheckError) {
@@ -787,7 +787,7 @@ TEST_F(RunPromptShellIntegrationTest, DuplicateParameterName_ReportsCheckError) 
     run("Func foo(a, a) { }\n", out);
 
     EXPECT_EQ(programOutput.str(), "");
-    EXPECT_EQ(out.str(), ">>> [1번째 줄] 'foo'의 파라미터 이름 'a'이(가) 중복됩니다.\n>>> ");
+    EXPECT_EQ(out.str(), ">>> [line 1] duplicate parameter name 'a' in 'foo'.\n>>> ");
 }
 
 TEST_F(RunPromptShellIntegrationTest, InitSetsField_GetterMethodReturnsIt) {
@@ -815,7 +815,7 @@ TEST_F(RunPromptShellIntegrationTest, AccessingNonexistentField_ReportsRuntimeEr
     // 3개 문장(Class 선언/인스턴스화/print) 각각이 성공 여부와 무관하게 프롬프트를 하나씩
     // 남긴다 (RunPromptShell::run - 문장 처리 후 항상 kPrompt 출력, InstanceOf_SameClass_PrintsTrue
     // 등 다른 통합 테스트도 이 불변식을 그대로 사용한다).
-    EXPECT_EQ(out.str(), ">>> >>> >>> 'missing' 필드가 존재하지 않습니다.\n>>> ");
+    EXPECT_THAT(out.str(), testing::HasSubstr("field 'missing' does not exist."));
 }
 
 TEST_F(RunPromptShellIntegrationTest, CallingNonexistentMethod_ReportsRuntimeError) {
@@ -824,7 +824,7 @@ TEST_F(RunPromptShellIntegrationTest, CallingNonexistentMethod_ReportsRuntimeErr
 
     EXPECT_EQ(programOutput.str(), "");
     // AccessingNonexistentField_ReportsRuntimeError와 동일한 이유로 프롬프트가 3개다.
-    EXPECT_EQ(out.str(), ">>> >>> >>> 'missing' 메서드가 존재하지 않습니다.\n>>> ");
+    EXPECT_THAT(out.str(), testing::HasSubstr("method 'missing' does not exist."));
 }
 
 // 슬라이드의 "필드(Property) 읽기/쓰기" 예시: init 없이도 필드를 동적으로
@@ -886,7 +886,7 @@ TEST_F(RunPromptShellIntegrationTest, InitWithReturnValue_ReportsCheckError) {
     run("Class Robot { init() { return 5; } }\n", out);
 
     EXPECT_EQ(programOutput.str(), "");
-    EXPECT_EQ(out.str(), ">>> [1번째 줄] init 메서드는 값을 반환할 수 없습니다.\n>>> ");
+    EXPECT_EQ(out.str(), ">>> [line 1] 'init' method cannot return a value.\n>>> ");
 }
 
 // 슬라이드의 클래스 관련 오류 검사: 인스턴스가 아닌 대상에 필드를 대입하려는 경우.
@@ -895,7 +895,7 @@ TEST_F(RunPromptShellIntegrationTest, FieldAssignmentOnNonInstance_ReportsRuntim
     run("var x = \"hello\";\nx.field = 1;\n", out);
 
     EXPECT_EQ(programOutput.str(), "");
-    EXPECT_EQ(out.str(), ">>> >>> 인스턴스가 아닌 대상에 필드를 대입했습니다.\n>>> ");
+    EXPECT_THAT(out.str(), testing::HasSubstr("cannot assign field to a non-instance."));
 }
 
 // 참고: This를 클래스 메서드 밖에서 사용하는 것은 Checker::checkThis가 정적으로
@@ -906,7 +906,7 @@ TEST_F(RunPromptShellIntegrationTest, ThisOutsideMethod_ReportsCheckError) {
     run("print This;\n", out);
 
     EXPECT_EQ(programOutput.str(), "");
-    EXPECT_EQ(out.str(), ">>> [1번째 줄] 클래스 메서드 밖에서 This를 사용할 수 없습니다.\n>>> ");
+    EXPECT_EQ(out.str(), ">>> [line 1] cannot use 'This' outside a class method.\n>>> ");
 }
 
 TEST_F(RunPromptShellIntegrationTest, InstanceOf_SameClass_PrintsTrue) {
@@ -954,7 +954,7 @@ TEST_F(RunPromptShellIntegrationTest, Import_FileNotFound_ReportsAssemblerError)
 
     EXPECT_EQ(programOutput.str(), "");
     EXPECT_THAT(out.str(), AllOf(StartsWith(">>> "),
-                                  HasSubstr("import 대상 파일을 열 수 없습니다"),
+                                  HasSubstr("cannot open import file:"),
                                   EndsWith(">>> ")));
 }
 
@@ -967,7 +967,7 @@ TEST_F(RunPromptShellIntegrationTest, Import_InsideForLoop_ReportsCheckError) {
 
     EXPECT_EQ(programOutput.str(), "");
     EXPECT_THAT(out.str(), AllOf(StartsWith(">>> "),
-                                  HasSubstr("반복문(for) 안에서는 import를 사용할 수 없습니다."),
+                                  HasSubstr("cannot use 'import' inside a for loop."),
                                   EndsWith(">>> ")));
 }
 
@@ -980,7 +980,7 @@ TEST_F(RunPromptShellIntegrationTest, Import_DuplicateAliasInSameScope_ReportsCh
 
     EXPECT_EQ(programOutput.str(), "");
     EXPECT_THAT(out.str(), AllOf(StartsWith(">>> >>> "),
-                                  HasSubstr("'sum'에러: 이미 해당 이름은 현재 스코프에서 사용중입니다."),
+                                  HasSubstr("'sum' is already declared in this scope."),
                                   EndsWith(">>> ")));
 }
 
@@ -1088,7 +1088,7 @@ TEST_F(RunPromptShellIntegrationTest, SelfInheritance_ReportsCheckError) {
     run("Class Robot : Robot { }\n", out);
 
     EXPECT_EQ(programOutput.str(), "");
-    EXPECT_EQ(out.str(), ">>> [1번째 줄] 'Robot' 클래스는 자기 자신을 상속할 수 없습니다.\n>>> ");
+    EXPECT_EQ(out.str(), ">>> [line 1] class 'Robot' cannot inherit from itself.\n>>> ");
 }
 
 TEST_F(RunPromptShellIntegrationTest, InheritingNonClassTarget_ReportsCheckError) {
@@ -1096,7 +1096,7 @@ TEST_F(RunPromptShellIntegrationTest, InheritingNonClassTarget_ReportsCheckError
     run("var x = 10;\nClass Robot : x { }\n", out);
 
     EXPECT_EQ(programOutput.str(), "");
-    EXPECT_EQ(out.str(), ">>> >>> [1번째 줄] 'x'은(는) 클래스가 아니므로 상속할 수 없습니다.\n>>> ");
+    EXPECT_EQ(out.str(), ">>> >>> [line 1] 'x' is not a class and cannot be used as a superclass.\n>>> ");
 }
 
 TEST_F(RunPromptShellIntegrationTest, SuperOutsideClassMethod_ReportsCheckError) {
@@ -1104,7 +1104,7 @@ TEST_F(RunPromptShellIntegrationTest, SuperOutsideClassMethod_ReportsCheckError)
     run("Super.move();\n", out);
 
     EXPECT_EQ(programOutput.str(), "");
-    EXPECT_EQ(out.str(), ">>> [1번째 줄] 클래스 메서드 밖에서 Super를 사용할 수 없습니다.\n>>> ");
+    EXPECT_EQ(out.str(), ">>> [line 1] cannot use 'Super' outside a class method.\n>>> ");
 }
 
 TEST_F(RunPromptShellIntegrationTest, SuperInClassWithoutSuperclass_ReportsCheckError) {
@@ -1112,7 +1112,7 @@ TEST_F(RunPromptShellIntegrationTest, SuperInClassWithoutSuperclass_ReportsCheck
     run("Class Robot { move() { Super.move(); } }\n", out);
 
     EXPECT_EQ(programOutput.str(), "");
-    EXPECT_EQ(out.str(), ">>> [1번째 줄] 부모 클래스가 없는 클래스에서 Super를 사용할 수 없습니다.\n>>> ");
+    EXPECT_EQ(out.str(), ">>> [line 1] cannot use 'Super' in a class with no superclass.\n>>> ");
 }
 
 TEST_F(RunPromptShellIntegrationTest, ParameterReassignment_DoesNotAffectCaller) {

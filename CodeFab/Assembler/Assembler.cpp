@@ -273,7 +273,7 @@ private:
         Token semicolonToken = popExpectedToken(TokenType::SEMICOLON, "Expect ';' after import statement.");
 
         if (std::find(importStack.begin(), importStack.end(), pathToken.origin) != importStack.end()) {
-            throw AssemblerError("순환 import: '{}'", pathToken.origin);
+            throw AssemblerError("[line {}] circular import: '{}'", pathToken.line, pathToken.origin);
         }
         importStack.push_back(pathToken.origin);
 
@@ -282,7 +282,7 @@ private:
             importedTokens = sourceReader.read(pathToken.origin);
         } catch (const std::exception& e) {
             importStack.pop_back();
-            throw AssemblerError("import 대상 파일을 열 수 없습니다: '{}' ({})", pathToken.origin, e.what());
+            throw AssemblerError("[line {}] cannot open import file: '{}' ({})", pathToken.line, pathToken.origin, e.what());
         }
 
         std::vector<Statement*> declarations;
@@ -291,7 +291,7 @@ private:
             for (Statement* decl : importedParser.parseProgram()) {
                 if (!dynamic_cast<DeclareStatement*>(decl) && !dynamic_cast<FunctionDeclareStatement*>(decl)
                     && !dynamic_cast<ClassDeclareStatement*>(decl)) {
-                    throw AssemblerError("import 대상 파일에는 선언 외의 내용을 허용하지 않습니다: '{}'", pathToken.origin);
+                    throw AssemblerError("[line {}] import file may only contain declarations: '{}'", pathToken.line, pathToken.origin);
                 }
                 declarations.push_back(decl);
             }
@@ -383,7 +383,7 @@ private:
     Expression* parsePrimary() {
         auto token = currentToken();
         if (!token)
-            throw AssemblerError("No more token for expression.");
+            throw AssemblerError("unexpected end of expression.");
 
         switch (token->type) {
             case TokenType::NUMBER:
@@ -439,7 +439,7 @@ private:
     // Attaches the offending token's origin/line to a parse error message, when the
     // token that caused the error is known.
     static AssemblerError makeParseError(const std::string& message, const Token& token) {
-        return AssemblerError("{} (near '{}' at line {})", message, token.origin, token.line);
+        return AssemblerError("[line {}] {} (near '{}')", token.line, message, token.origin);
     }
 
     Expression* makeBinaryExpression(const Token& opToken, Expression* left, Expression* right) {
@@ -467,7 +467,7 @@ private:
             case TokenType::PERCENT: return addNode<ModExpression>(Tokens{ opToken }, left, right);
             case TokenType::AND: return addNode<AndExpression>(Tokens{ opToken }, left, right);
             case TokenType::OR: return addNode<OrExpression>(Tokens{ opToken }, left, right);
-            default: throw AssemblerError("makeBinaryExpression: 처리되지 않은 연산자 토큰입니다.");
+            default: throw AssemblerError("unhandled binary operator token.");
         }
     }
 

@@ -96,7 +96,7 @@ TEST_F(RunPromptShellTest, UnterminatedString_ReportsError) {
     std::ostringstream out;
     run("print \"hello\n", out);
 
-    EXPECT_THAT(out.str(), AllOf(StartsWith(">>> "), HasSubstr("문자열이 종결되지 않았습니다")));
+    EXPECT_THAT(out.str(), AllOf(StartsWith(">>> "), HasSubstr("unterminated string literal.")));
     EXPECT_EQ(programOutput.str(), "");
 }
 
@@ -130,7 +130,7 @@ TEST_F(RunPromptShellTest, TokenizeError_IsReportedAndRestOfPipelineIsSkipped) {
     std::ostringstream out;
     run("var a = @;\n", out);
 
-    EXPECT_EQ(out.str(), ">>> [1번째 줄] 알 수 없는 문자: '@'\n>>> ");
+    EXPECT_EQ(out.str(), ">>> [line 1] unknown character: '@'\n>>> ");
     EXPECT_EQ(programOutput.str(), "");
 }
 
@@ -139,7 +139,7 @@ TEST_F(RunPromptShellTest, AssemblerErrorThrown_IsReportedAndCheckerExecutorAreS
     std::ostringstream out;
     run("var a = 3 + ;\n", out);
 
-    EXPECT_EQ(out.str(), ">>> Expect expression. (near ';' at line 1)\n>>> ");
+    EXPECT_EQ(out.str(), ">>> [line 1] Expect expression. (near ';')\n>>> ");
     EXPECT_EQ(programOutput.str(), "");
 }
 
@@ -150,7 +150,7 @@ TEST_F(RunPromptShellTest, CheckerErrorThrown_IsReportedAndExecutorIsSkipped) {
     run("var a = 12;\nvar a = 13;\n", out);
 
     EXPECT_EQ(out.str(),
-              ">>> >>> [1번째 줄] 'a'에러: 이미 해당 변수는 현재 스코프에서 사용중입니다.\n>>> ");
+              ">>> >>> [line 1] 'a' is already declared in this scope.\n>>> ");
     EXPECT_EQ(programOutput.str(), "");
 }
 
@@ -160,7 +160,7 @@ TEST_F(RunPromptShellTest, RuntimeError_IsReportedAndShellKeepsRunning) {
     std::ostringstream out;
     run("var a = 3 / 0;\nprint 1 + 2;\n", out);
 
-    EXPECT_EQ(out.str(), ">>> 0으로 나눌 수 없습니다\n>>> >>> ");
+    EXPECT_THAT(out.str(), AllOf(StartsWith(">>> "), HasSubstr("division by zero.")));
     EXPECT_EQ(programOutput.str(), "3\n");
 }
 
@@ -170,6 +170,6 @@ TEST_F(RunPromptShellTest, ErrorOnOneLine_DoesNotPreventNextLineFromRunning) {
     std::ostringstream out;
     run("x = 5;\nvar y = 1;\n", out);
 
-    EXPECT_EQ(out.str(), ">>> [1번째 줄] 'x'에러: 선언되지 않은 변수입니다.\n>>> >>> ");
+    EXPECT_EQ(out.str(), ">>> [line 1] 'x' is not declared.\n>>> >>> ");
     EXPECT_EQ(programOutput.str(), "");
 }

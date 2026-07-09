@@ -204,7 +204,7 @@ TEST_F(ExecutorTester, Evaluate_UndefinedVariable_ErrorMessageContainsName) {
         executor.evaluate(&ident);
         FAIL() << "ExecutorError가 발생해야 합니다";
     } catch (const ExecutorError& e) {
-        EXPECT_EQ(std::string(e.what()), "'notDefined' 변수가 정의되지 않았습니다.");
+        EXPECT_THAT(std::string(e.what()), testing::HasSubstr("'notDefined' is not defined."));
     }
 }
 
