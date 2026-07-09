@@ -152,5 +152,367 @@ Tokenizer ──▶ Assembler ──┬─▶ Checker  ──┐
 Visual Studio에서 `CodeFab.slnx`를 열고 빌드하면 `x64/Debug/CodeFab.exe`가 생성됩니다.
 
 - `_DEBUG` 빌드(Debug 구성)에서는 gtest/gmock 기반의 전체 유닛 테스트가 실행됩니다.
-- Release 구성(또는 `_DEBUG`가 정의되지 않은 빌드)에서는 Prompt Shell(REPL)이 실행되어,
-  표준 입력으로 한 줄씩 CodeFab 언어 코드를 입력하고 결과를 표준 출력으로 확인할 수 있습니다.
+- Release 구성(또는 `_DEBUG`가 정의되지 않은 빌드)에서는 아래 CLI 모드 중 하나로 동작합니다.
+
+```
+CodeFab                  프롬프트(REPL) 모드로 시작합니다.
+                          한 줄씩 입력받아 즉시 실행 결과를 보여줍니다.
+CodeFab run <path>       파일 모드. <path>의 소스 파일 전체를 한 번에 실행하고 종료합니다.
+CodeFab debug <path>     디버그 모드. (설계만 있고 아직 구현되지 않았습니다 - 실행하면
+                          "이 모드는 아직 구현되지 않았습니다"를 출력하고 종료 코드 1을 반환)
+CodeFab --help, -h       도움말을 출력합니다.
+```
+
+REPL 모드는 `>>> ` 프롬프트를 출력하고 한 줄씩 입력을 받습니다. 줄 끝을 `\`로 끝내면
+다음 줄과 이어붙여서(`... ` 프롬프트로 표시) 여러 줄짜리 문장을 입력할 수 있고, 괄호나
+문자열이 아직 닫히지 않은 경우도 자동으로 다음 줄을 이어받습니다. `exit`을 입력하면
+종료합니다. 파일 모드는 파일 전체 내용을 `{ ... }`로 감싸 하나의 블록으로 실행하므로,
+한 파일에 여러 top-level 문장을 그대로 나열해도 됩니다.
+
+## CodeFab 언어 문법
+
+아래 문법은 실제 구현(`Assembler.cpp`)을 기준으로 정리했습니다. 낮은 우선순위부터
+높은 우선순위 순서입니다.
+
+```
+statement      -> printStmt | declareStmt | blockStmt | ifStmt | forStmt
+                 | funcDeclStmt | classDeclStmt | returnStmt | importStmt | exprStmt
+printStmt      -> PRINT expression(0) ';'
+declareStmt    -> 'var' IDENTIFIER '=' expression(0) ';'
+blockStmt      -> '{' statement* '}'
+ifStmt         -> 'if' '(' expression(0) ')' statement ('else' statement)?
+forStmt        -> 'for' '(' forInit ';' expression(0) ';' expression(0) ')' statement
+forInit        -> declareStmt | expression(0) ';'
+funcDeclStmt   -> 'Func' IDENTIFIER '(' params? ')' blockStmt
+params         -> IDENTIFIER (',' IDENTIFIER)*
+classDeclStmt  -> 'Class' IDENTIFIER (':' IDENTIFIER)? '{' methodDeclStmt* '}'
+methodDeclStmt -> IDENTIFIER '(' params? ')' blockStmt        // Func 키워드 없음
+returnStmt     -> 'return' expression(0)? ';'
+importStmt     -> 'import' STRING 'alias' IDENTIFIER ';'
+exprStmt       -> expression(0) ';'
+
+expression(0)  -> assignment            // '='  (우결합, 최하위 우선순위)
+                -> logicalOr            // 'or'
+                -> logicalAnd           // 'and'
+                -> equality             // '==' '!='
+                -> comparison           // '<' '<=' '>' '>=' 'instanceof'
+                -> term                 // '+' '-'
+                -> factor               // '*' '/' '%'
+                -> unary                // '-' '!' (전위, 우결합)
+call           -> primary ( '(' arguments? ')' | '.' IDENTIFIER | '[' expression(0) ']' )*
+arguments      -> expression(0) (',' expression(0))*
+primary        -> NUMBER | STRING | 'true' | 'false' | 'This' | 'Super' | IDENTIFIER
+                 | 'Array' '(' expression(0) ')'
+                 | '(' expression(0) ')'
+```
+
+`instanceof`는 비교 연산자와 같은 우선순위 레벨에 있지만, 우변이 항상 클래스 이름
+(식별자)이어야 하므로 재귀적으로 표현식을 파싱하지 않고 그 이름을 그대로 토큰으로
+받습니다. `call`의 후위(postfix) 체인은 `add(1,2)`, `r.move(5)`, `arr[i]`, 그리고
+`r.list[0]()`처럼 이들의 조합을 모두 좌결합으로 처리합니다.
+
+### 데이터 타입
+
+| 타입 | 리터럴/생성 방법 | 비고 |
+|---|---|---|
+| `Nil` | (선언하지 않은 값의 기본값, `Func`가 `return` 없이 끝났을 때) | `print`하면 `nil` |
+| `Boolean` | `true`, `false` | |
+| `Number` | `3`, `3.14` (내부적으로 모두 `double`) | 정수처럼 보이면 소수점 없이 출력(`5.0` → `5`) |
+| `String` | `"text"` | `+`로 다른 문자열과 연결 가능 |
+| `Function` | `Func` 선언 | 값으로 취급되진 않고 이름으로 호출만 가능 |
+| `Class` | `Class` 선언 | 인스턴스 생성(`Robot()`)에 사용 |
+| `Instance` | `Robot()`처럼 클래스를 호출 | 필드는 동적으로 추가 가능 |
+| `Array` | `Array(n)` | 크기 고정, 초기값은 전부 `Nil` |
+| `Module` | `import ... alias name;` | `name.member` 형태로 접근 |
+
+### 변수와 출력
+
+```
+var a = 10;
+var b = "hello";
+print a + 5;
+a = a + 1;          // 재대입
+```
+
+`var`는 항상 초깃값과 함께 선언해야 하고, 같은 스코프에서 이름이 중복되면 오류입니다.
+초기화식에서 자기 자신(선언 중인 변수)을 참조할 수 없습니다(`var a = a;`는 오류).
+
+### 연산자
+
+| 분류 | 연산자 | 비고 |
+|---|---|---|
+| 산술 | `+` `-` `*` `/` `%` | `+`는 number+number(합) 또는 string+string(연결)만 허용, 나머지는 number만 |
+| 비교 | `<` `<=` `>` `>=` | number만 허용 |
+| 동등 | `==` `!=` | 타입/값 비교 |
+| 논리 | `and` `or` `!` | `and`/`or`는 단락(short-circuit) 평가, truthy 기준(`nil`/`false`만 falsy) |
+| 대입 | `=` | 좌변은 식별자, 필드(`r.x`), 배열 원소(`arr[i]`) 중 하나만 허용 |
+| 타입 검사 | `instanceof` | `a instanceof ClassName` |
+
+### 블록과 스코프
+
+```
+{
+    var x = "inner";
+    print x;
+}
+```
+
+`{ }`는 새 블록 스코프를 열며, 안에서 선언한 변수는 블록을 벗어나면 사라집니다(바깥
+스코프의 동일 이름 변수를 가리는 shadowing도 가능). `if`/`for` 문의 바디도 각각 자기
+스코프를 갖습니다.
+
+### 제어 흐름
+
+```
+if (조건) 문장;
+if (조건) 문장; else 문장;
+
+for (var i = 0; i < 3; i = i + 1) {
+    print i;
+}
+```
+
+`if`는 dangling-else를 가장 가까운 `if`에 결합시킵니다. `for`의 초기화절은 `var` 선언
+또는 일반 expression 문 중 하나입니다.
+
+### 함수 (Func)
+
+```
+Func add(a, b) {
+    return a + b;
+}
+print add(3, 4);        // 7
+
+Func fact(n) {
+    if (n <= 1) { return 1; }
+    return n * fact(n - 1);
+}
+print fact(5);           // 120 (재귀 지원)
+```
+
+- 파라미터는 값 전달(호출자의 변수에 영향 없음)입니다.
+- `return;`(값 없음) 또는 `return`문이 전혀 없으면 결과는 `Nil`입니다.
+- 함수 선언은 재귀 호출이 가능하도록 이름을 바디 실행 전에 먼저 등록합니다.
+- 함수 밖에서 `return` 사용, 파라미터 이름 중복, 호출 시 인자 개수 불일치, 함수가
+  아닌 값 호출은 모두 오류입니다(아래 오류 목록 참고).
+
+### 클래스 (Class)
+
+```
+Class Robot {
+    init(name) {
+        This.name = name;
+    }
+    getName() {
+        return This.name;
+    }
+    move(dist) {
+        This.position = This.position + dist;
+    }
+}
+
+var r = Robot("ABC");
+r.position = 0;
+r.move(5);
+print r.getName();       // ABC
+print r.position;        // 5
+```
+
+- 클래스 바디 안의 메서드는 `Func` 키워드 없이 `이름(params) { ... }` 형태로 선언합니다.
+- 생성자는 이름이 관례적으로 `init`인 평범한 메서드입니다. `Robot("ABC")`처럼 클래스를
+  호출하면 새 인스턴스를 만들고 `init`을 실행한 뒤 그 인스턴스를 반환합니다(반환값은
+  버림). `init`이 없으면 인자 없이 인스턴스만 생성됩니다.
+- 필드는 미리 선언할 필요가 없습니다 - `This.필드 = 값`으로 처음 대입하는 순간 생성되고,
+  이미 있으면 갱신됩니다.
+- `This`는 클래스 메서드 안에서만 사용할 수 있고, 현재 인스턴스를 가리킵니다.
+- `init` 메서드는 값이 있는 `return`을 쓸 수 없습니다(`return;`은 허용 여부가 팀
+  컨벤션으로 금지되어 있음 - 값 있는 `return`만 오류로 검사됨).
+
+### 상속 (Super, `:`) — 문법 파싱만 구현, 의미 검사·실행은 미구현
+
+```
+Class Robot {
+    move(dist) { print "move"; }
+}
+Class SpeedRobot : Robot {
+    move(dist) {
+        Super.move(dist);
+        print "Speeeed!";
+    }
+}
+```
+
+`Class 자식 : 부모 { ... }` 문법과 `Super.method(...)`/`Super.field` 표현식은
+Assembler가 이미 파싱할 수 있습니다. 하지만 Checker의 상속 의미 검사(자기 상속 금지,
+클래스가 아닌 대상 상속 금지, `Super` 사용 위치 검사)와 Executor의 실행 규칙(메서드
+오버라이딩, `superclass` 체인 탐색, `instanceof`의 부모 클래스 판정)은 아직 구현되어
+있지 않습니다 - 상속을 실제로 실행하면 자식 클래스의 메서드 탐색이 부모까지 올라가지
+않고, `Super` 관련 검사도 수행되지 않습니다(`IntegrationTest/DebugIntegrationTest.cpp`에
+`DISABLED_` 접두사로 남겨진, 구현되면 통과해야 할 시나리오들이 있습니다).
+
+### 정적 배열 (Array)
+
+```
+var arr = Array(3);      // [nil, nil, nil]
+arr[0] = 10;
+var i = 2;
+arr[i - 1] = 7;           // arr[1] = 7
+print arr[0];             // 10
+```
+
+- `Array(n)`은 크기가 `n`으로 고정된 배열을 만들고, 모든 원소를 `Nil`로 채웁니다.
+- 크기는 반드시 number여야 하고, 인덱스도 반드시 number여야 하며, 범위(`[0, n)`)를
+  벗어나면 오류입니다.
+
+### 타입 검사 (instanceof)
+
+```
+Class Robot { }
+var r = Robot();
+print r instanceof Robot;   // true
+print 1 instanceof Robot;   // false (인스턴스가 아니면 항상 false)
+```
+
+현재는 정확히 같은 클래스인지만 포인터 비교하며, 상속 관계(부모 클래스에 대해서도
+`true`)는 아직 반영되지 않습니다(위 상속 항목 참고).
+
+### 모듈 (import)
+
+`math.cf`:
+```
+Func add(a, b) {
+    return a + b;
+}
+```
+
+메인 코드:
+```
+import "math.cf" alias sum;
+print sum.add(1, 2);        // 3
+```
+
+- import 대상 파일에는 `var` 선언, `Func` 선언, `Class` 선언만 허용됩니다(그 외
+  문장이 섞여 있으면 오류).
+- import는 파일을 그 자리에서 재귀적으로 다시 파싱하며, 순환 import는 오류입니다.
+- 같은 스코프에서 같은 alias로 두 번 import하거나, 상위 스코프에서 이미 import한
+  이름을 하위 스코프에서 다시 import하면 오류입니다.
+- 반복문(`for`) 바디 안에서는 import를 사용할 수 없습니다.
+
+## 오류(Error) 종류와 메시지
+
+CodeFab의 각 Unit은 자신만의 예외 타입을 던지며(모두 `std::exception`을 직접 상속),
+Shell(REPL/파일 모드)은 이를 `catch (const std::exception&)` 한 번에 잡아 `e.what()`
+메시지를 그대로 출력합니다. 오류 메시지는 현재 대부분 한글이며(영어로 통일하는 작업은
+`TODO.md` "코드 정리 #1"에 남아 있음), `Checker`가 던지는 메시지에만 `[N번째 줄]`
+줄 번호 접두사가 붙습니다.
+
+### 1. Tokenizer — `AssemblyError` / `IncompleteInputError`
+
+| 예외 | 발생 조건 | 메시지 예시 |
+|---|---|---|
+| `AssemblyError` | 알 수 없는 문자(정의되지 않은 기호)를 만남 | `[1번째 줄] 알 수 없는 문자: '?'` |
+| `AssemblyError` | 문자열 리터럴이 끝까지 닫히지 않음 | `문자열이 종결되지 않았습니다.` |
+| `IncompleteInputError` | (오류가 아님) REPL에서 문자열이 아직 안 닫힌 상태 - Shell이 다음 줄을 계속 입력받도록 하는 신호 | - |
+
+### 2. Assembler — `AssemblerError`
+
+문법(구문) 오류. 메시지에 `(near '토큰' at line N)` 접미사가 붙는 경우가 많습니다.
+
+| 발생 조건 | 예시 입력 | 메시지 |
+|---|---|---|
+| 세미콜론 누락 | `print 1 + 2` | `Expect ';' after value.` |
+| 닫는 괄호 누락 | `print (1 + 2 3);` | `Expect ')' after expression.` |
+| 대입 좌변이 identifier/필드/배열 원소가 아님 | `a + b = 3;` | `Invalid assignment target.` |
+| 식이 와야 할 자리에 다른 토큰 | `print * 5;` | `Expect expression.` |
+| 블록이 안 닫힘 | `{ var x = 1;` | `Expect '}' after block.` |
+| 순환 import | `a.cf`가 `b.cf`를, `b.cf`가 다시 `a.cf`를 import | `순환 import: '경로'` |
+| import 대상 파일을 열 수 없음 | `import "missing.cf" alias m;` | `import 대상 파일을 열 수 없습니다: '경로' (사유)` |
+| import 대상 파일에 선언 외의 문장이 있음 | import 대상에 `print 1;`만 있음 | `import 대상 파일에는 선언 외의 내용을 허용하지 않습니다: '경로'` |
+| 이항 연산자 토큰이 처리되지 않음(내부 방어 코드) | (정상 사용 경로에서는 발생하지 않음) | `makeBinaryExpression: 처리되지 않은 연산자 토큰입니다.` |
+
+### 3. Checker — `CheckerError`
+
+의미(semantic) 오류. 모두 `[N번째 줄]` 접두사가 붙습니다.
+
+| 발생 조건 | 예시 입력 | 메시지 |
+|---|---|---|
+| 초기화식에서 자기 참조 | `var a = a;` | `자신의 초기화식에서 지역변수를 읽을 수 없습니다.` |
+| 같은 스코프에서 변수 중복 선언 | `var a = "hi"; var a = 3;` | `'a'에러: 이미 해당 변수는 현재 스코프에서 사용중입니다.` |
+| 선언되지 않은 변수 참조 | `print notDefined;` | `'notDefined'에러: 선언되지 않은 변수입니다.` |
+| 함수/메서드 밖에서 `return` | `return 5;` (최상위) | `함수(메서드) 밖에서 return을 사용할 수 없습니다.` |
+| 파라미터 이름 중복 | `Func foo(a, a) { }` | `'foo'의 파라미터 이름 'a'이(가) 중복됩니다.` |
+| 같은 스코프에서 함수/클래스 이름 중복 선언 | 같은 이름의 `Func`/`Class`를 두 번 선언 | `'이름'에러: 이미 해당 이름은 현재 스코프에서 사용중입니다.` |
+| 클래스 메서드 밖에서 `This` 사용 | `print This;` (최상위) | `클래스 메서드 밖에서 This를 사용할 수 없습니다.` |
+| `init` 메서드에서 값 있는 `return` | `Class Robot { init() { return 5; } }` | `init 메서드는 값을 반환할 수 없습니다.` |
+| 반복문(`for`) 안에서 import | `for (...) { import "x.cf" alias x; }` | `반복문(for) 안에서는 import를 사용할 수 없습니다.` |
+| 같은 스코프에서 같은 alias로 중복 import | 같은 경로/alias를 두 번 import | `'alias'에러: 이미 해당 이름은 현재 스코프에서 사용중입니다.` |
+| 상위 스코프에서 이미 사용 중인 alias를 하위에서 재import | - | `'alias'에러: 상위 스코프에서 이미 사용중인 이름입니다.` |
+
+**상속 관련 검사(설계는 확정, 아직 구현 전)** — 구현되면 아래 메시지로 나올 예정입니다
+(현재 코드에는 해당 검사가 없어 통과되어 버립니다).
+
+| 발생 조건(예정) | 메시지(예정) |
+|---|---|
+| 자기 자신을 상속 | `'Robot' 클래스는 자기 자신을 상속할 수 없습니다.` |
+| 클래스가 아닌 대상을 상속 | `'x'은(는) 클래스가 아니므로 상속할 수 없습니다.` |
+| 클래스 메서드 밖에서 `Super` 사용 | `클래스 메서드 밖에서 Super를 사용할 수 없습니다.` |
+| 부모 클래스가 없는 클래스 안에서 `Super` 사용 | `부모 클래스가 없는 클래스에서 Super를 사용할 수 없습니다.` |
+
+### 4. Executor — `ExecutorError`
+
+실행 중(런타임) 오류. 줄 번호를 담지 않으므로 접두사 없이 메시지만 출력됩니다.
+
+| 발생 조건 | 예시 입력 | 메시지 |
+|---|---|---|
+| 산술/비교 연산자의 피연산자 타입 불일치 | `print 1 + "HI";` | `타입 오류: number + string` (연산자별로 `-`, `*`, `/`, `%`, `<`, `<=`, `>`, `>=`도 동일 형식) |
+| 단항 `-`의 피연산자가 number가 아님 | `print -"FabCoding";` | `타입 오류: -string` |
+| 0으로 나누기 | `print 3 / 0;`, `print 10 % 0;` | `0으로 나눌 수 없습니다` |
+| 대입/참조 시 미정의 변수 (Checker가 대부분 선점하므로 실전에서는 드묾) | - | `'이름' 변수가 정의되지 않았습니다.` |
+| 호출 인자 개수 불일치 | `Func oneArg(a) { } oneArg();` | `'oneArg' 호출에는 인자 1개가 필요합니다 (전달된 인자: 0개)` |
+| 함수/클래스가 아닌 값을 호출 | `var x = 1; x();` | `호출할 수 없는 대상입니다.` |
+| 존재하지 않는 필드 읽기 | `Class Empty { } print Empty().missing;` | `'missing' 필드가 존재하지 않습니다.` |
+| 존재하지 않는 메서드 호출 | `Class Empty { } Empty().missing();` | `'missing' 메서드가 존재하지 않습니다.` |
+| 인스턴스가 아닌 대상의 필드에 접근/대입 | `var x = "hello"; x.field = 1;` | `인스턴스가 아닌 대상에 필드를 대입했습니다.` (읽기는 `인스턴스가 아닌 대상의 필드에 접근했습니다.`) |
+| 인스턴스가 아닌 대상의 메서드 호출 | `var x = 1; x.foo();` | `인스턴스가 아닌 대상의 메서드를 호출했습니다.` |
+| 클래스 메서드 밖에서 `This` 사용(Checker가 대부분 선점) | - | `클래스 외부에서 This를 사용했습니다.` |
+| 모듈에 없는 이름 접근 | `math.pi`인데 `pi`가 없음 | `모듈에 '이름'이(가) 없습니다.` |
+| 모듈에 없는 함수 호출 | `sum.notExist();` | `모듈에 '이름' 함수가 없습니다.` |
+| 배열 크기가 number가 아님 | `Array("hi");` | `배열의 사이즈는 반드시 number여야 합니다.` |
+| 배열이 아닌 값 인덱싱 | `var x = 1; x[0];` | `index 접근은 오직 배열만 지원합니다.` |
+| 인덱스가 number가 아님 | `arr["zero"];` | `인덱스는 반드시 숫자여야 합니다.` |
+| 배열 인덱스가 범위를 벗어남 | `var arr = Array(3); arr[3];` | `배열 인덱스 범위를 벗어났습니다.` |
+| `instanceof` 우변이 클래스가 아님 | `1 instanceof notAClass;` | `'notAClass'은(는) 클래스가 아닙니다.` |
+| 지원하지 않는 대입 대상(내부 방어 코드) | (정상 파싱 경로에서는 도달하지 않음) | `아직 지원하지 않는 대입 대상입니다.` |
+
+### 5. Shell(REPL/파일 모드) 자체 메시지
+
+Shell은 위 예외들을 그대로 노출하는 것 외에, 아래 상황에서 자체 메시지를 출력합니다.
+
+| 상황 | 메시지 |
+|---|---|
+| `check()`가 예외 없이 `false`를 반환(현재 구현은 항상 `true`를 반환하므로 실전에서는 도달하지 않음) | `코드 검사에 실패했습니다.` |
+| 파일 모드에서 경로가 파일이 아님(디렉터리 등) | `path는 파일 1개(단일 파일)여야 합니다: <경로>` |
+| 파일 모드에서 파일을 열 수 없음 | `파일을 열 수 없습니다: <경로>` |
+| `debug` 모드 실행 시도(아직 미구현) | `이 모드는 아직 구현되지 않았습니다. --help로 사용 가능한 모드를 확인하세요.` |
+| CLI 인자 오류(`run`/`debug`에 경로 누락, 알 수 없는 모드) | `run 모드는 실행할 파일 경로가 필요합니다. 사용법: CodeFab run <path>` 등 |
+
+## 앞으로 구현될 기능 (ImplementTodo.md 기준)
+
+`ImplementTodo.md`에 5인 담당제로 정리된, 이번 라운드에 진행 중인 작업입니다.
+
+- **상속 완성**: Checker의 `checkClass`/`checkSuper`(자기 상속·비클래스 상속·`Super`
+  사용 위치 검사), Executor의 `findMethod`/`resolveSuperclass`(메서드 오버라이딩,
+  `Super.method(...)` 호출, `instanceof`의 부모 클래스 판정 확장).
+- **Checker/Optimizer 책임 분리**: 상수 폴딩(현재는 `evaluate()` 호출만 확인하고 실제
+  치환은 하지 않음)을 `Checker`에서 떼어내 별도 `Optimizer`(`OptimizerInterface`,
+  계약은 이미 있음)로 옮기고 실제로 트리를 리터럴로 치환한다.
+- **Visitor 패턴 전환**: `SyntaxNodeVisitor`/`accept()`는 이미 모든 노드에 정의되어
+  있으나, `Executor`는 아직 `typeid`/`dynamic_cast` 기반 분기(`statementHandlers_`/
+  `expressionHandlers_` 맵)로 동작한다 - 이를 `visit(...)` 오버라이드로 전환.
+- **버그 수정**: `Assembler`의 `makeBinaryExpression` default 분기가 과거
+  `OrExpression`으로 암묵 처리되던 문제(이미 수정됨, 새 연산자 추가 시 회귀 방지),
+  import 대상 파일에 `Class` 선언 허용(이미 반영됨).
+- **통합 테스트 보강**: 클래스 메서드 재귀 호출, module import(스코프별 독립성/동시
+  import), 상속 시나리오(현재 `DISABLED_` 상태) 등.
+- **Debug 모드**: `DebugMode`/`Debugger`(breakpoint/step/next/watch/inspect)는
+  Architecture.md에 설계만 있고 아직 코드가 없다.
