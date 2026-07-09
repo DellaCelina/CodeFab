@@ -46,6 +46,8 @@ CodeFab.exe run ..\..\CodeFab\IntegrationTest\01_arithmetic_precedence.txt
 | `13_error_undefined_variable.txt` | 선언되지 않은 변수 참조 → Checker 오류 | (없음) | 실패(exit 1), 오류 메시지: `[line 1] 'notDefined' is not declared.` |
 | `14_error_type_mismatch.txt` | 숫자 + 문자열 → Executor 런타임 오류 | (없음) | 실패(exit 1), 오류 메시지: `[line 1] type error: number + string` |
 | `15_error_division_by_zero.txt` | 0으로 나누기 → Executor 런타임 오류 | (없음) | 실패(exit 1), 오류 메시지: `[line 1] division by zero.` |
+| `16_inheritance_super_call.txt` | 상속 + `Super.method()` 호출(파일 모드 전용 회귀) | `BasicBot`\n`3`\n`FastBot`\n`9`\n`Speeeed!` | 성공(exit 0) |
+| `17_inheritance_super_init_and_instanceof.txt` | 상속 + `Super.init()` + `instanceof`(파일 모드 전용 회귀) | `AndOr`\n`10`\n`Zeta`\n`Sam`\n`999`\n`true`\n`true`\n`false`\n`false`\n`false` | 성공(exit 0) |
 
 ## 참고
 
@@ -57,3 +59,9 @@ CodeFab.exe run ..\..\CodeFab\IntegrationTest\01_arithmetic_precedence.txt
   `FileNotFound_...`, `PathIsDirectory_...`)는 실제 파일이 필요 없어 이 폴더에는
   포함하지 않았다 — 존재하지 않는 임의의 경로나 이 폴더 자체를 `run`에 넘겨보면
   재현할 수 있다.
+- 16~17번은 다른 시나리오와 달리 `RunPromptShellTest.cpp`가 아니라 파일 모드
+  전용으로 추가됐다 — `FileRunMode`는 파일 전체를 `"{" + 내용 + "}"`로 감싸
+  실행하므로 클래스 선언이 REPL(각 줄이 전역 스코프)과 달리 블록 스코프 한 단계
+  안에 있다. `ClassRuntime::resolveSuperclass`가 depth 캐싱이 아니라 항상 동적
+  `lookup`을 쓰는 이유가 바로 이 차이 때문이라(`ClassRuntime.cpp` 주석 참고),
+  상속/`Super`/`instanceof`가 파일 모드에서도 실제로 동작하는지 별도로 확인한다.
