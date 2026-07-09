@@ -219,13 +219,17 @@ TEST_F(RunPromptShellIntegrationTest, LineEndingWithBackslash_AcrossThreeLinesJo
 // Assembler가 던지는 메시지에는 실제 Tokenizer가 항상 덧붙이는 EOF 토큰 등의 영향으로
 // "(near '...' at line N)" 접미사가 붙을 수 있어, 핵심 문구만 부분 일치로 검증한다.
 
-TEST_F(RunPromptShellIntegrationTest, MissingSemicolon_ReportsSyntaxError) {
+TEST_F(RunPromptShellIntegrationTest, MissingSemicolon_WaitsForNextLineInsteadOfErroringImmediately) {
+    // RunPromptShell은 세미콜론이 없어 문장이 아직 안 끝난 상태(EOF로 인한
+    // AssemblerError, "[line " 접두어 없음)를 "다음 줄을 더 받아야 한다"는
+    // 신호로 처리한다(RunPromptShell.cpp의 IsIncompleteInputError() 참고) - 즉시
+    // 오류를 보고하지 않고 "... " 프롬프트로 대기한 뒤, 세미콜론이 채워지면 그
+    // 시점에 실행된다.
     std::ostringstream out;
-    run("print 1 + 2\n", out);
+    run("print 1 + 2\n;\n", out);
 
-    EXPECT_EQ(programOutput.str(), "");  // Executor까지 도달하지 않았다.
-    EXPECT_THAT(out.str(), AllOf(StartsWith(">>> "), HasSubstr("Expect ';' after value."),
-                                  EndsWith(">>> ")));
+    EXPECT_EQ(programOutput.str(), "3\n");
+    EXPECT_EQ(out.str(), ">>> ... >>> ");
 }
 
 TEST_F(RunPromptShellIntegrationTest, MissingClosingParen_ReportsSyntaxError) {
@@ -268,13 +272,16 @@ TEST_F(RunPromptShellIntegrationTest, MissingClosingParenInSubExpression_Reports
                                   EndsWith(">>> ")));
 }
 
-TEST_F(RunPromptShellIntegrationTest, MissingClosingBrace_ReportsSyntaxError) {
+TEST_F(RunPromptShellIntegrationTest, MissingClosingBrace_WaitsForNextLineInsteadOfErroringImmediately) {
+    // 예전에는 매 getline() 한 줄을 곧바로 "완결된 문장"으로 취급해서, 블록이
+    // 다음 줄에 걸쳐 있으면 그 자리에서 "Expect '}' after block." 오류를 즉시
+    // 던졌다. 이제는 같은 오류가 EOF(토큰 부족)로 인한 것인지 확인해서, 그렇다면
+    // 오류로 보고하지 않고 '}'가 실제로 올 때까지 계속 기다린다.
     std::ostringstream out;
-    run("{ var x = 1;\n", out);
+    run("{ var x = 1;\nprint x;\n}\n", out);
 
-    EXPECT_EQ(programOutput.str(), "");
-    EXPECT_THAT(out.str(), AllOf(StartsWith(">>> "), HasSubstr("Expect '}' after block."),
-                                  EndsWith(">>> ")));
+    EXPECT_EQ(programOutput.str(), "1\n");
+    EXPECT_EQ(out.str(), ">>> ... ... >>> ");
 }
 
 // --- 2-2. Checker 정적 에러 시나리오 ---
