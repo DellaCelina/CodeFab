@@ -64,6 +64,41 @@
 - [ ] 재귀 도중 `This`가 항상 같은 인스턴스를 가리키는지 확인하는 케이스도 함께
       추가(예: 재귀 중 필드를 누적시키는 메서드를 만들어 최종 필드 값으로 검증)
 
+## 13. Executor/Import: module에 대한 integration test 없음
+
+**증상**: `IntegrationTest/DebugIntegrationTest.cpp`에는 import/module 관련 테스트가
+전혀 없다("import"/"module" 문자열 자체가 등장하지 않음). Import 실행 경로 자체는
+고쳐져 있고(위 "# TODO"의 1번 항목 참고) `FieldAccessExpression`/`CallExpression`의
+module 분기도 구현되어 있으므로, 이제는 end-to-end로 검증할 차례다.
+
+**의존성**: 테스트용 module 파일에 `Class` 선언까지 넣으려면, `Assembler.cpp`의
+`parseImport`가 현재 `DeclareStatement`/`FunctionDeclareStatement`만 허용하고
+`ClassDeclareStatement`가 섞이면 `AssemblerError`를 던지는 제약과 부딪힌다(위
+"# TODO"의 9번 항목 참고). 클래스 import를 지원하기로 결정하기 전까지는, module
+테스트 파일에 `Class` 선언을 넣어 두더라도 그 파일을 실제로 import하는 테스트는
+9번 항목의 "클래스 import 허용" 결정이 먼저 나야 통과할 수 있다는 점을 감안해서
+작성 순서를 잡는다(예: `Func`/`var`만 있는 module로 우선 import 시나리오를
+완성하고, `Class`가 섞인 module은 9번 항목 결정 이후로 미룬다).
+
+**해야 할 일**:
+- [ ] `IntegrationTest` 폴더 아래에 테스트 전용 module 파일을 2개 이상 작성한다.
+      각 파일에는 `Func`, `Class`, `var` 선언이 모두 들어 있어야 한다(단, 실제로
+      import해서 통과시키는 테스트는 위 의존성 문단대로 `Class`를 뺀 하위 집합부터
+      단계적으로 추가).
+- [ ] 기본 module import 시나리오 테스트: 함수/변수 접근(`sum.add(1, 2)`,
+      `math.pi`)이 정상 동작하는지 확인
+- [ ] scope 변화에 따른 module import 테스트: 서로 다른 블록 스코프에서 같은
+      module을 각각 import했을 때 서로 간섭하지 않는지, 블록을 벗어나면 alias가
+      더 이상 보이지 않는지 확인
+- [ ] `if`절 등 조건문/블록 내부에서의 module import 테스트: 조건이 참일 때만
+      import가 실행되고 그 alias가 해당 블록 스코프에만 존재하는지 확인
+- [ ] 2개 이상의 module을 동시에 import했을 때 생길 수 있는 문제를 테스트로
+      확인: 서로 다른 module에 동일한 이름(`Func`/`var` 이름)이 있어도 각각 다른
+      alias로 접근하면 충돌하지 않는지, 두 module을 같은 스코프에서 import한 뒤
+      각 alias로 교차 접근했을 때 값이 서로 섞이지 않는지
+- [ ] 위 "# TODO" 1번(문서 갱신)·9번(클래스 import 결정) 항목의 진행 상황에 맞춰
+      이 테스트 목록을 갱신
+
 ## 3. Assembler: import + alias 접근을 이어붙인 통합 테스트 없음
 
 `AssemblerImportTest`는 `ImportStatement` 노드 자체(declarations 구성, 순환/파일없음/
