@@ -1,15 +1,5 @@
 ﻿#include "Checker.h"
 
-namespace {
-
-bool isLiteralExpression(Expression* expr) {
-    return dynamic_cast<NumberExpression*>(expr) != nullptr
-        || dynamic_cast<BooleanExpression*>(expr) != nullptr
-        || dynamic_cast<StringExpression*>(expr) != nullptr;
-}
-
-}  // namespace
-
 Checker::Checker(ExecuteInterface& executor) : executor_(executor) {
     enterScope(); // 세션 전체에 걸쳐 유지되는 전역 스코프
     registerDefaultHandlers();
@@ -17,10 +7,12 @@ Checker::Checker(ExecuteInterface& executor) : executor_(executor) {
 
 void Checker::enterScope() {
     scopes.emplace_back();
+    classNames_.emplace_back();
 }
 
 void Checker::exitScope() {
     scopes.pop_back();
+    classNames_.pop_back();
 }
 
 bool Checker::isDeclaredInCurrentScope(const string& name) const {
@@ -40,6 +32,21 @@ void Checker::declare(const string& name) {
     if (!scopes.empty()) {
         scopes.back().insert(name);
     }
+}
+
+void Checker::declareClass(const string& name) {
+    if (!classNames_.empty()) {
+        classNames_.back().insert(name);
+    }
+}
+
+bool Checker::isClassDeclaredInAnyScope(const string& name) const {
+    for (auto it = classNames_.rbegin(); it != classNames_.rend(); ++it) {
+        if (it->count(name) > 0) {
+            return true;
+        }
+    }
+    return false;
 }
 
 void Checker::reportError(int line, const string& message) {
@@ -100,6 +107,9 @@ void Checker::registerDefaultHandlers() {
     };
     expressionHandlers_[type_index(typeid(ThisExpression))] = [this](Expression* expr) {
         checkThis(static_cast<ThisExpression*>(expr));
+    };
+    expressionHandlers_[type_index(typeid(SuperExpression))] = [this](Expression* expr) {
+        checkSuper(static_cast<SuperExpression*>(expr));
     };
     expressionHandlers_[type_index(typeid(ArrayExpression))] = [this](Expression* expr) {
         checkExpression(static_cast<ArrayExpression*>(expr)->sizeExpr);
@@ -256,21 +266,6 @@ void Checker::checkIdentifier(IdentifierExpression* id) {
 void Checker::checkBinary(BinaryExpression* bin) {
     checkExpression(bin->left);
     checkExpression(bin->right);
-    foldConstantIfPossible(bin);
-}
-
-void Checker::foldConstantIfPossible(BinaryExpression* bin) {
-    if (!isLiteralExpression(bin->left) || !isLiteralExpression(bin->right)) {
-        return;
-    }
-    try {
-        executor_.evaluate(bin);
-        // TODO(refactor): 여기서 얻은 값으로 bin 자리를 리터럴 노드로 치환해야 진짜 폴딩이다.
-        // BinaryExpression::left/right가 Expression* const라 지금은 트리를 바꾸지 못하고,
-        // evaluate()가 호출된다는 것만 확인한다.
-    } catch (const ExecutorError&) {
-        // 0으로 나누기 등 - 컴파일 타임에 대신 오류를 내면 안 되므로 조용히 건너뛴다.
-    }
 }
 
 void Checker::checkFunctionBody(const string& name, const vector<Token>& params,
@@ -322,13 +317,28 @@ void Checker::checkClass(ClassDeclareStatement* classDecl) {
         reportError(classDecl->getLine(), "'" + name + "'에러: 이미 해당 이름은 현재 스코프에서 사용중입니다.");
     }
     declare(name);
+    declareClass(name);
+
+    if (classDecl->superclass != nullptr) {
+        const string& superName = classDecl->superclass->name;
+        if (superName == name) {
+            reportError(classDecl->getLine(), "'" + name + "' 클래스는 자기 자신을 상속할 수 없습니다.");
+        }
+        checkExpression(classDecl->superclass); // 존재 여부 검사 + depth 캐싱(resolveIdentifier)까지 재사용
+        if (!isClassDeclaredInAnyScope(superName)) {
+            reportError(classDecl->getLine(), "'" + superName + "'은(는) 클래스가 아니므로 상속할 수 없습니다.");
+        }
+    }
 
     // TODO(refactor): 같은 클래스 안에서 메서드 이름이 중복돼도 지금은 검사하지 않는다.
+    bool previousHasSuper = hasSuperclass_;
+    hasSuperclass_ = classDecl->superclass != nullptr;
     for (MethodDeclareStatement* method : classDecl->methods) {
         bool isInit = method->name.origin == "init";
         checkFunctionBody(method->name.origin, method->params, method->body, method->getLine(),
             /*isMethod=*/true, /*isInit=*/isInit);
     }
+    hasSuperclass_ = previousHasSuper;
 }
 
 void Checker::checkReturn(ReturnStatement* ret) {
@@ -359,10 +369,19 @@ void Checker::checkImport(ImportStatement* importStmt) {
 
     declare(alias);
 
-    // 파일 존재/순환 검사는 Assembler가 이미 끝냈으므로 declarations는 그대로 재귀 검사만 한다.
-    for (Statement* decl : importStmt->declarations) {
-        checkStatement(decl);
+    // import 내부 선언은 전용 스코프에서 검사한다 - 그러지 않으면 이름이 바깥 스코프로
+    // 새어나간다(PR #36 지적사항). 파일 존재/순환 검사는 Assembler가 이미 끝냈으므로
+    // declarations는 재귀 검사만 한다.
+    enterScope();
+    try {
+        for (Statement* decl : importStmt->declarations) {
+            checkStatement(decl);
+        }
+    } catch (...) {
+        exitScope();
+        throw;
     }
+    exitScope();
 }
 
 void Checker::checkThis(ThisExpression* thisExpr) {
@@ -370,6 +389,14 @@ void Checker::checkThis(ThisExpression* thisExpr) {
         reportError(thisExpr->getLine(), "클래스 메서드 밖에서 This를 사용할 수 없습니다.");
     }
     // this는 checkFunctionBody가 메서드 스코프에 미리 declare해두므로 여기선 추가 처리가 없다.
+}
+
+void Checker::checkSuper(SuperExpression* superExpr) {
+    if (classMethodDepth == 0) {
+        reportError(superExpr->getLine(), "클래스 메서드 밖에서 Super를 사용할 수 없습니다.");
+    } else if (!hasSuperclass_) {
+        reportError(superExpr->getLine(), "부모 클래스가 없는 클래스에서 Super를 사용할 수 없습니다.");
+    }
 }
 
 void Checker::resolveIdentifier(IdentifierExpression* id) const {
