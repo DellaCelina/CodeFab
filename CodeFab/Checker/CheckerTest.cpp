@@ -969,3 +969,75 @@ TEST_F(CheckerTest, SuperInsideMethodWithSuperclassPasses) {
 
     EXPECT_NO_THROW(checker.check(tree));
 }
+
+// ===========================================================================
+// and/or/% 회귀 - Visitor 전환 전에는 type_index 맵에 AndExpression/OrExpression/
+// ModExpression 핸들러가 등록되어 있지 않아 조용히 검사를 건너뛰었다. Visitor는
+// SyntaxNodeVisitor의 모든 visit()을 구현해야 컴파일되므로 이 틈이 저절로 막힌다.
+// ===========================================================================
+
+// print notDefined and true;   -> and의 좌변이 선언되지 않은 변수라 에러여야 한다.
+TEST_F(CheckerTest, UndeclaredVariableInsideAndExpressionReportsError) {
+    auto lhs = std::make_unique<IdentifierExpression>(testTokens(TokenType::IDENTIFIER, "notDefined", 1), "notDefined");
+    auto rhs = std::make_unique<BooleanExpression>(testTokens(TokenType::TRUE, "true", 1), true);
+    auto andExpr = std::make_unique<AndExpression>(testTokens(TokenType::AND, "and", 1), lhs.get(), rhs.get());
+    auto printStmt = std::make_unique<PrintStatement>(testTokens(TokenType::PRINT, "print", 1), andExpr.get());
+
+    SyntaxNode* root = printStmt.get();
+    tree.add(std::move(lhs));
+    tree.add(std::move(rhs));
+    tree.add(std::move(andExpr));
+    tree.add(std::move(printStmt));
+    tree.setRoot(root);
+
+    try {
+        checker.check(tree);
+        FAIL() << "CheckerError가 발생해야 합니다.";
+    } catch (const CheckerError& e) {
+        EXPECT_THAT(std::string(e.what()), testing::HasSubstr("'notDefined'에러: 선언되지 않은 변수입니다"));
+    }
+}
+
+// print false or notDefined;   -> or의 우변이 선언되지 않은 변수라 에러여야 한다.
+TEST_F(CheckerTest, UndeclaredVariableInsideOrExpressionReportsError) {
+    auto lhs = std::make_unique<BooleanExpression>(testTokens(TokenType::FALSE, "false", 1), false);
+    auto rhs = std::make_unique<IdentifierExpression>(testTokens(TokenType::IDENTIFIER, "notDefined", 1), "notDefined");
+    auto orExpr = std::make_unique<OrExpression>(testTokens(TokenType::OR, "or", 1), lhs.get(), rhs.get());
+    auto printStmt = std::make_unique<PrintStatement>(testTokens(TokenType::PRINT, "print", 1), orExpr.get());
+
+    SyntaxNode* root = printStmt.get();
+    tree.add(std::move(lhs));
+    tree.add(std::move(rhs));
+    tree.add(std::move(orExpr));
+    tree.add(std::move(printStmt));
+    tree.setRoot(root);
+
+    try {
+        checker.check(tree);
+        FAIL() << "CheckerError가 발생해야 합니다.";
+    } catch (const CheckerError& e) {
+        EXPECT_THAT(std::string(e.what()), testing::HasSubstr("'notDefined'에러: 선언되지 않은 변수입니다"));
+    }
+}
+
+// print notDefined % 2;   -> %의 좌변이 선언되지 않은 변수라 에러여야 한다.
+TEST_F(CheckerTest, UndeclaredVariableInsideModExpressionReportsError) {
+    auto lhs = std::make_unique<IdentifierExpression>(testTokens(TokenType::IDENTIFIER, "notDefined", 1), "notDefined");
+    auto rhs = std::make_unique<NumberExpression>(testTokens(TokenType::NUMBER, "2", 1), 2.0);
+    auto modExpr = std::make_unique<ModExpression>(testTokens(TokenType::PERCENT, "%", 1), lhs.get(), rhs.get());
+    auto printStmt = std::make_unique<PrintStatement>(testTokens(TokenType::PRINT, "print", 1), modExpr.get());
+
+    SyntaxNode* root = printStmt.get();
+    tree.add(std::move(lhs));
+    tree.add(std::move(rhs));
+    tree.add(std::move(modExpr));
+    tree.add(std::move(printStmt));
+    tree.setRoot(root);
+
+    try {
+        checker.check(tree);
+        FAIL() << "CheckerError가 발생해야 합니다.";
+    } catch (const CheckerError& e) {
+        EXPECT_THAT(std::string(e.what()), testing::HasSubstr("'notDefined'에러: 선언되지 않은 변수입니다"));
+    }
+}

@@ -67,10 +67,7 @@ bool DebugMode::run(const std::string& filePath, std::istream& in, std::ostream&
     try {
         std::vector<Token> tokens = tokenizer_.tokenize(source);
         SyntaxTree tree = assembler_.assemble(tokens);
-        if (!checker_.check(tree)) {
-            out << "코드 검사에 실패했습니다.\n";
-            return false;
-        }
+        checker_.check(tree);
 
         // 여기서 만든 "{ }" 래핑 블록은 실제 소스에는 없는 합성 statement라,
         // executor_.execute(tree)로 그대로 실행하면 Executor::execute(Statement*)가
