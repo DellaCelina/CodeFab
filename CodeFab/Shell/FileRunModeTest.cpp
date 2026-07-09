@@ -46,7 +46,7 @@ public:
 
 class MockChecker : public CheckerInterface {
 public:
-    MOCK_METHOD(bool, check, (SyntaxTree & tree), (override));
+    MOCK_METHOD(void, check, (SyntaxTree & tree), (override));
 };
 
 class MockExecutor : public ExecuteInterface {
@@ -109,7 +109,7 @@ TEST_F(FileRunModeTest, ValidFile_CallsPipelineInOrderAndReturnsTrue) {
     InSequence seq;
     EXPECT_CALL(tokenizer, tokenize(_)).WillOnce(Return(std::vector<Token>{}));
     EXPECT_CALL(assembler, assemble(_)).WillOnce(Return(ByMove(SyntaxTree())));
-    EXPECT_CALL(checker, check(_)).WillOnce(Return(true));
+    EXPECT_CALL(checker, check(_));
     EXPECT_CALL(executor, execute(_));
 
     std::ostringstream out;
@@ -165,7 +165,7 @@ TEST_F(FileRunModeTest, CheckerThrows_ReportsMessageAndReturnsFalse) {
 TEST_F(FileRunModeTest, ExecutorThrows_ReportsMessageAndReturnsFalse) {
     EXPECT_CALL(tokenizer, tokenize(_)).WillOnce(Return(std::vector<Token>{}));
     EXPECT_CALL(assembler, assemble(_)).WillOnce(Return(ByMove(SyntaxTree())));
-    EXPECT_CALL(checker, check(_)).WillOnce(Return(true));
+    EXPECT_CALL(checker, check(_));
     EXPECT_CALL(executor, execute(_)).WillOnce(Throw(ExecutorError("0으로 나눈 오류")));
 
     std::ostringstream out;
@@ -189,7 +189,7 @@ protected:
     Assembler assembler{ sourceReader };
     std::ostringstream programOutput;  // Executor가 print 결과를 쓰는 곳 (out과는 별개)
     Executor executor{ programOutput };
-    Checker checker{ executor };
+    Checker checker;
 
     FileRunMode mode{ tokenizer, assembler, checker, executor };
 

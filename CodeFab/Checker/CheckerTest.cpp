@@ -994,7 +994,7 @@ TEST_F(CheckerTest, UndeclaredVariableInsideAndExpressionReportsError) {
         checker.check(tree);
         FAIL() << "CheckerError가 발생해야 합니다.";
     } catch (const CheckerError& e) {
-        EXPECT_THAT(std::string(e.what()), testing::HasSubstr("'notDefined'에러: 선언되지 않은 변수입니다"));
+        EXPECT_THAT(std::string(e.what()), testing::HasSubstr("'notDefined' is not declared."));
     }
 }
 
@@ -1016,7 +1016,7 @@ TEST_F(CheckerTest, UndeclaredVariableInsideOrExpressionReportsError) {
         checker.check(tree);
         FAIL() << "CheckerError가 발생해야 합니다.";
     } catch (const CheckerError& e) {
-        EXPECT_THAT(std::string(e.what()), testing::HasSubstr("'notDefined'에러: 선언되지 않은 변수입니다"));
+        EXPECT_THAT(std::string(e.what()), testing::HasSubstr("'notDefined' is not declared."));
     }
 }
 
@@ -1038,6 +1038,6 @@ TEST_F(CheckerTest, UndeclaredVariableInsideModExpressionReportsError) {
         checker.check(tree);
         FAIL() << "CheckerError가 발생해야 합니다.";
     } catch (const CheckerError& e) {
-        EXPECT_THAT(std::string(e.what()), testing::HasSubstr("'notDefined'에러: 선언되지 않은 변수입니다"));
+        EXPECT_THAT(std::string(e.what()), testing::HasSubstr("'notDefined' is not declared."));
     }
 }
