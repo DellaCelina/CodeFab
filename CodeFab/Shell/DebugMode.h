@@ -6,6 +6,7 @@
 
 #include "../Assembler/AssemblerInterface.h"
 #include "../Checker/CheckerInterface.h"
+#include "../Checker/OptimizerInterface.h"
 #include "../Executor/Executor.h"
 #include "../Tokenizer/TokenizeInterface.h"
 
@@ -21,7 +22,7 @@
 class DebugMode {
 public:
     DebugMode(TokenizeInterface& tokenizer, AssemblerInterface& assembler,
-              CheckerInterface& checker, Executor& executor);
+              CheckerInterface& checker, OptimizerInterface& optimizer, Executor& executor);
 
     // filePath가 가리키는 파일 1개를 읽어, Debugger를 붙인 채로 파이프라인을
     // 한 번 실행한다. in/out은 디버거의 명령 입력/출력 전용이다(프로그램 자체의
@@ -36,5 +37,6 @@ private:
     TokenizeInterface& tokenizer_;
     AssemblerInterface& assembler_;
     CheckerInterface& checker_;
+    OptimizerInterface& optimizer_;
     Executor& executor_;
 };

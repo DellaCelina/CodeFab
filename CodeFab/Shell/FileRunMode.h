@@ -5,6 +5,7 @@
 
 #include "../Assembler/AssemblerInterface.h"
 #include "../Checker/CheckerInterface.h"
+#include "../Checker/OptimizerInterface.h"
 #include "../Executor/ExecuteInterface.h"
 #include "../Tokenizer/TokenizeInterface.h"
 
@@ -20,7 +21,8 @@
 class FileRunMode {
 public:
     FileRunMode(TokenizeInterface& tokenizer, AssemblerInterface& assembler,
-                CheckerInterface& checker, ExecuteInterface& executor);
+                CheckerInterface& checker, OptimizerInterface& optimizer,
+                ExecuteInterface& executor);
 
     // filePath가 가리키는 파일 1개를 읽어 파이프라인을 한 번 실행한다.
     // - filePath가 존재하지 않거나 열 수 없으면 out에 오류 메시지를 출력하고
@@ -39,5 +41,6 @@ private:
     TokenizeInterface& tokenizer_;
     AssemblerInterface& assembler_;
     CheckerInterface& checker_;
+    OptimizerInterface& optimizer_;
     ExecuteInterface& executor_;
 };

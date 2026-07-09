@@ -15,6 +15,7 @@
 #include "../Assembler/SyntaxTree.h"
 #include "../Checker/Checker.h"
 #include "../Checker/CheckerInterface.h"
+#include "../Checker/Optimizer.h"
 #include "../Executor/ExecuteInterface.h"
 #include "../Executor/Executor.h"
 #include "../Tokenizer/Token.h"
@@ -61,8 +62,9 @@ protected:
     std::ostringstream programOutput;  // Executor가 print 결과를 쓰는 곳 (out과는 별개)
     Executor executor{programOutput};
     Checker checker;
+    Optimizer optimizer{executor};
 
-    RunPromptShell shell{tokenizer, assembler, checker, executor};
+    RunPromptShell shell{tokenizer, assembler, checker, optimizer, executor};
 
     // import 통합 테스트용: FileSourceReader가 실제 파일 시스템을 읽으므로,
     // 임시 디렉터리에 라이브러리 파일을 써두고 테스트가 끝나면 지운다

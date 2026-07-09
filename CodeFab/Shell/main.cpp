@@ -8,6 +8,7 @@
 #include "../Assembler/Assembler.h"
 #include "../Assembler/FileSourceReader.h"
 #include "../Checker/Checker.h"
+#include "../Checker/Optimizer.h"
 #include "../Executor/Executor.h"
 #include "CommandLineArgs.h"
 #include "DebugMode.h"
@@ -43,22 +44,23 @@ int main(int argc, char** argv) {
     Assembler assembler(sourceReader);
     Executor executor;
     Checker checker;
+    Optimizer optimizer(executor);
 
     switch (args.mode) {
         case ShellMode::Repl: {
             std::cout << "[mode: REPL] type 'exit' to quit.\n";
-            RunPromptShell shell(tokenizer, assembler, checker, executor);
+            RunPromptShell shell(tokenizer, assembler, checker, optimizer, executor);
             shell.run(std::cin, std::cout);
             return 0;
         }
         case ShellMode::Run: {
             std::cout << "[mode: RUN]\n";
-            FileRunMode mode(tokenizer, assembler, checker, executor);
+            FileRunMode mode(tokenizer, assembler, checker, optimizer, executor);
             return mode.run(args.path, std::cout) ? 0 : 1;
         }
         case ShellMode::Debug: {
             std::cout << "[mode: DEBUG]\n";
-            DebugMode mode(tokenizer, assembler, checker, executor);
+            DebugMode mode(tokenizer, assembler, checker, optimizer, executor);
             return mode.run(args.path, std::cin, std::cout) ? 0 : 1;
         }
         default:

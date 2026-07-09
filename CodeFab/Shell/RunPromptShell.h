@@ -5,17 +5,19 @@
 
 #include "../Assembler/AssemblerInterface.h"
 #include "../Checker/CheckerInterface.h"
+#include "../Checker/OptimizerInterface.h"
 #include "../Executor/ExecuteInterface.h"
 #include "../Tokenizer/TokenizeInterface.h"
 
 // CodeFab Prompt Shell.
-// 4개의 Unit 인터페이스에 의존하여 한 줄씩 입력받아
-// tokenize -> assemble -> check -> execute 파이프라인을 구동한다.
+// 5개의 Unit 인터페이스에 의존하여 한 줄씩 입력받아
+// tokenize -> assemble -> check -> optimize -> execute 파이프라인을 구동한다.
 class RunPromptShell {
 public:
     RunPromptShell(TokenizeInterface& tokenizer,
                    AssemblerInterface& assembler,
                    CheckerInterface& checker,
+                   OptimizerInterface& optimizer,
                    ExecuteInterface& executor);
 
     // in 에서 한 줄씩 읽어 실행하고 out 에 프롬프트/실행 결과/오류를 출력한다.
@@ -26,5 +28,6 @@ private:
     TokenizeInterface& tokenizer_;
     AssemblerInterface& assembler_;
     CheckerInterface& checker_;
+    OptimizerInterface& optimizer_;
     ExecuteInterface& executor_;
 };
