@@ -1932,4 +1932,747 @@
     </root>
   </mxGraphModel>
 </diagram>
+<diagram name="09. Assembler - Parsing Flow" id="tab-assembler-parsing">
+  <mxGraphModel dx="1800" dy="1300" grid="1" gridSize="10" guides="1" tooltips="1" connectable="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1900" pageHeight="1600" math="0" shadow="0">
+    <root>
+      <mxCell id="0" />
+      <mxCell id="1" parent="0" />
+
+      <!-- Section A title -->
+      <mxCell id="A_title" value="Section A: Precedence-Climbing Ladder (expression parsing)" style="text;html=1;fontStyle=1;fontSize=16;align=left;verticalAlign=middle;" vertex="1" parent="1">
+        <mxGeometry x="40" y="0" width="700" height="30" as="geometry"/>
+      </mxCell>
+
+      <mxCell id="p_expr" value="expression()&#10;entry point; calls assignment()" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;align=center;verticalAlign=middle;spacing=6;" vertex="1" parent="1">
+        <mxGeometry x="100" y="40" width="700" height="70" as="geometry"/>
+      </mxCell>
+
+      <mxCell id="p_assign" value="assignment()&#10;parses target; if next token is '=', parse value via assignment() (right-assoc), build AssignExpression; else falls through to logicOr()" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;align=center;verticalAlign=middle;spacing=6;" vertex="1" parent="1">
+        <mxGeometry x="100" y="140" width="700" height="70" as="geometry"/>
+      </mxCell>
+
+      <mxCell id="p_or" value="logicOr()&#10;calls logicAnd(); while match(OR): wrap left in OrExpression, parse right via logicAnd(), loop" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;align=center;verticalAlign=middle;spacing=6;" vertex="1" parent="1">
+        <mxGeometry x="100" y="240" width="700" height="70" as="geometry"/>
+      </mxCell>
+
+      <mxCell id="p_and" value="logicAnd()&#10;calls equality(); while match(AND): wrap in AndExpression, loop" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;align=center;verticalAlign=middle;spacing=6;" vertex="1" parent="1">
+        <mxGeometry x="100" y="340" width="700" height="70" as="geometry"/>
+      </mxCell>
+
+      <mxCell id="p_eq" value="equality()&#10;calls comparison(); while match(==,!=): wrap in Equal/NotEqualExpression, loop" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;align=center;verticalAlign=middle;spacing=6;" vertex="1" parent="1">
+        <mxGeometry x="100" y="440" width="700" height="70" as="geometry"/>
+      </mxCell>
+
+      <mxCell id="p_cmp" value="comparison()&#10;calls term(); while match(&lt;,&lt;=,&gt;,&gt;=): wrap in Less/Greater(Equal)Expression, loop" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;align=center;verticalAlign=middle;spacing=6;" vertex="1" parent="1">
+        <mxGeometry x="100" y="540" width="700" height="70" as="geometry"/>
+      </mxCell>
+
+      <mxCell id="p_term" value="term()&#10;calls factor(); while match(+,-): wrap in Add/SubExpression, loop" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;align=center;verticalAlign=middle;spacing=6;" vertex="1" parent="1">
+        <mxGeometry x="100" y="640" width="700" height="70" as="geometry"/>
+      </mxCell>
+
+      <mxCell id="p_factor" value="factor()&#10;calls unary(); while match(*,/,%): wrap in Mult/Divide/ModExpression, loop" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;align=center;verticalAlign=middle;spacing=6;" vertex="1" parent="1">
+        <mxGeometry x="100" y="740" width="700" height="70" as="geometry"/>
+      </mxCell>
+
+      <mxCell id="p_unary" value="unary()&#10;if match(-,!): parse operand via unary() (recursive, handles --x), build Negative/NotExpression; else falls through to call()" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;align=center;verticalAlign=middle;spacing=6;" vertex="1" parent="1">
+        <mxGeometry x="100" y="840" width="700" height="70" as="geometry"/>
+      </mxCell>
+
+      <mxCell id="p_call" value="call()&#10;parses primary(); while match('(' or '.'): wrap in CallExpression (args) or FieldAccessExpression (.name), loop -- handles chained a.b().c[i]" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;align=center;verticalAlign=middle;spacing=6;" vertex="1" parent="1">
+        <mxGeometry x="100" y="940" width="700" height="70" as="geometry"/>
+      </mxCell>
+
+      <mxCell id="p_primary" value="primary()&#10;leaf: NUMBER/STRING/TRUE/FALSE/THIS/SUPER literal, IDENTIFIER, '(' expression ')' grouping, ARRAY[size], or 'new' Class() via CallExpression" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;align=center;verticalAlign=middle;spacing=6;" vertex="1" parent="1">
+        <mxGeometry x="100" y="1040" width="700" height="70" as="geometry"/>
+      </mxCell>
+
+      <!-- ladder edges -->
+      <mxCell id="e_1" value="1: calls assignment()" style="endArrow=block;html=1;fontColor=#333333;" edge="1" parent="1" source="p_expr" target="p_assign">
+        <mxGeometry relative="1" as="geometry"/>
+      </mxCell>
+      <mxCell id="e_2" value="2: falls through to logicOr()" style="endArrow=block;html=1;fontColor=#333333;" edge="1" parent="1" source="p_assign" target="p_or">
+        <mxGeometry relative="1" as="geometry"/>
+      </mxCell>
+      <mxCell id="e_3" value="3: calls logicAnd()" style="endArrow=block;html=1;fontColor=#333333;" edge="1" parent="1" source="p_or" target="p_and">
+        <mxGeometry relative="1" as="geometry"/>
+      </mxCell>
+      <mxCell id="e_4" value="4: calls equality()" style="endArrow=block;html=1;fontColor=#333333;" edge="1" parent="1" source="p_and" target="p_eq">
+        <mxGeometry relative="1" as="geometry"/>
+      </mxCell>
+      <mxCell id="e_5" value="5: calls comparison()" style="endArrow=block;html=1;fontColor=#333333;" edge="1" parent="1" source="p_eq" target="p_cmp">
+        <mxGeometry relative="1" as="geometry"/>
+      </mxCell>
+      <mxCell id="e_6" value="6: calls term()" style="endArrow=block;html=1;fontColor=#333333;" edge="1" parent="1" source="p_cmp" target="p_term">
+        <mxGeometry relative="1" as="geometry"/>
+      </mxCell>
+      <mxCell id="e_7" value="7: calls factor()" style="endArrow=block;html=1;fontColor=#333333;" edge="1" parent="1" source="p_term" target="p_factor">
+        <mxGeometry relative="1" as="geometry"/>
+      </mxCell>
+      <mxCell id="e_8" value="8: calls unary()" style="endArrow=block;html=1;fontColor=#333333;" edge="1" parent="1" source="p_factor" target="p_unary">
+        <mxGeometry relative="1" as="geometry"/>
+      </mxCell>
+      <mxCell id="e_9" value="9: falls through to call()" style="endArrow=block;html=1;fontColor=#333333;" edge="1" parent="1" source="p_unary" target="p_call">
+        <mxGeometry relative="1" as="geometry"/>
+      </mxCell>
+      <mxCell id="e_10" value="10: parses primary()" style="endArrow=block;html=1;fontColor=#333333;" edge="1" parent="1" source="p_call" target="p_primary">
+        <mxGeometry relative="1" as="geometry"/>
+      </mxCell>
+
+      <!-- worked example -->
+      <mxCell id="example_box" value="input: 1 + 2 * 3&#10;term() calls factor() for left operand -&gt; sees NUMBER 1, returns NumberExpression(1)&#10;term() sees '+', calls factor() for right operand:&#10;  factor() calls unary()-&gt;call()-&gt;primary() -&gt; NUMBER 2 -&gt; NumberExpression(2)&#10;  factor() sees '*', calls unary()-&gt;...-&gt;primary() -&gt; NUMBER 3 -&gt; NumberExpression(3)&#10;  factor() wraps: MultExpression(2, 3)&#10;term() wraps: AddExpression(1, MultExpression(2, 3))&#10;=&gt; multiplication binds tighter because factor() greedily consumes it before term() ever sees the '+'" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontFamily=Courier New;align=left;verticalAlign=top;spacing=8;" vertex="1" parent="1">
+        <mxGeometry x="100" y="1150" width="700" height="220" as="geometry"/>
+      </mxCell>
+
+      <!-- Section B title -->
+      <mxCell id="B_title" value="Section B: Statement Parsing Dispatch" style="text;html=1;fontStyle=1;fontSize=16;align=left;verticalAlign=middle;" vertex="1" parent="1">
+        <mxGeometry x="1000" y="0" width="700" height="30" as="geometry"/>
+      </mxCell>
+
+      <mxCell id="s_dispatch" value="statement()&#10;dispatch on leading token" style="rhombus;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;align=center;verticalAlign=middle;" vertex="1" parent="1">
+        <mxGeometry x="1300" y="40" width="200" height="90" as="geometry"/>
+      </mxCell>
+
+      <mxCell id="s_print" value="printStatement()&#10;consume PRINT, parse expression(), consume ';', build PrintStatement" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;align=center;verticalAlign=middle;spacing=6;" vertex="1" parent="1">
+        <mxGeometry x="1020" y="200" width="380" height="100" as="geometry"/>
+      </mxCell>
+
+      <mxCell id="s_if" value="ifStatement()&#10;consume IF '(', parse expression() condition, ')', parse statement() as thenBranch; if match(ELSE): parse statement() as elseBranch" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;align=center;verticalAlign=middle;spacing=6;" vertex="1" parent="1">
+        <mxGeometry x="1460" y="200" width="380" height="100" as="geometry"/>
+      </mxCell>
+
+      <mxCell id="s_for" value="forStatement()&#10;consume FOR '(', parse init (declare or expr stmt), compare expression, ';', next expression, ')', parse statement() as loop body" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;align=center;verticalAlign=middle;spacing=6;" vertex="1" parent="1">
+        <mxGeometry x="1020" y="320" width="380" height="100" as="geometry"/>
+      </mxCell>
+
+      <mxCell id="s_block" value="block()&#10;consume '{', loop calling statement()/declaration() until '}', collect into BlockStatement -- each block is its own lexical scope" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;align=center;verticalAlign=middle;spacing=6;" vertex="1" parent="1">
+        <mxGeometry x="1460" y="320" width="380" height="100" as="geometry"/>
+      </mxCell>
+
+      <mxCell id="s_var" value="declareStatement()&#10;consume VAR IDENTIFIER, optional '= expression()', ';', build DeclareStatement" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;align=center;verticalAlign=middle;spacing=6;" vertex="1" parent="1">
+        <mxGeometry x="1020" y="440" width="380" height="100" as="geometry"/>
+      </mxCell>
+
+      <mxCell id="s_func" value="functionDeclaration()&#10;consume FUNC name '(' params ')' block(), build FunctionDeclareStatement" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;align=center;verticalAlign=middle;spacing=6;" vertex="1" parent="1">
+        <mxGeometry x="1460" y="440" width="380" height="100" as="geometry"/>
+      </mxCell>
+
+      <mxCell id="s_class" value="classDeclaration()&#10;consume CLASS name, optional ': superclass', '{', repeatedly parse method declarations (Token name + params + block, no FUNC keyword), '}', build ClassDeclareStatement" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;align=center;verticalAlign=middle;spacing=6;" vertex="1" parent="1">
+        <mxGeometry x="1020" y="560" width="380" height="100" as="geometry"/>
+      </mxCell>
+
+      <mxCell id="s_return" value="returnStatement()&#10;consume RETURN, optional expression() if not ';', ';', build ReturnStatement" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;align=center;verticalAlign=middle;spacing=6;" vertex="1" parent="1">
+        <mxGeometry x="1460" y="560" width="380" height="100" as="geometry"/>
+      </mxCell>
+
+      <mxCell id="s_import" value="importStatement()&#10;consume IMPORT path 'alias' alias, recursively assembles the imported file's tokens via sourceReader_, collects its top-level declarations, build ImportStatement" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;align=center;verticalAlign=middle;spacing=6;" vertex="1" parent="1">
+        <mxGeometry x="1020" y="680" width="380" height="100" as="geometry"/>
+      </mxCell>
+
+      <mxCell id="s_exprstmt" value="expressionStatement()&#10;parse expression(), consume ';', build ExpressionStatement (covers assignments and bare calls like foo();)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;align=center;verticalAlign=middle;spacing=6;" vertex="1" parent="1">
+        <mxGeometry x="1460" y="680" width="380" height="100" as="geometry"/>
+      </mxCell>
+
+      <!-- dispatch edges -->
+      <mxCell id="d_print" value="1: PRINT" style="endArrow=block;html=1;fontColor=#333333;" edge="1" parent="1" source="s_dispatch" target="s_print">
+        <mxGeometry relative="1" as="geometry"/>
+      </mxCell>
+      <mxCell id="d_if" value="2: IF" style="endArrow=block;html=1;fontColor=#333333;" edge="1" parent="1" source="s_dispatch" target="s_if">
+        <mxGeometry relative="1" as="geometry"/>
+      </mxCell>
+      <mxCell id="d_for" value="3: FOR" style="endArrow=block;html=1;fontColor=#333333;" edge="1" parent="1" source="s_dispatch" target="s_for">
+        <mxGeometry relative="1" as="geometry"/>
+      </mxCell>
+      <mxCell id="d_block" value="4: LEFT_BRACE" style="endArrow=block;html=1;fontColor=#333333;" edge="1" parent="1" source="s_dispatch" target="s_block">
+        <mxGeometry relative="1" as="geometry"/>
+      </mxCell>
+      <mxCell id="d_var" value="5: VAR" style="endArrow=block;html=1;fontColor=#333333;" edge="1" parent="1" source="s_dispatch" target="s_var">
+        <mxGeometry relative="1" as="geometry"/>
+      </mxCell>
+      <mxCell id="d_func" value="6: FUNC" style="endArrow=block;html=1;fontColor=#333333;" edge="1" parent="1" source="s_dispatch" target="s_func">
+        <mxGeometry relative="1" as="geometry"/>
+      </mxCell>
+      <mxCell id="d_class" value="7: CLASS" style="endArrow=block;html=1;fontColor=#333333;" edge="1" parent="1" source="s_dispatch" target="s_class">
+        <mxGeometry relative="1" as="geometry"/>
+      </mxCell>
+      <mxCell id="d_return" value="8: RETURN" style="endArrow=block;html=1;fontColor=#333333;" edge="1" parent="1" source="s_dispatch" target="s_return">
+        <mxGeometry relative="1" as="geometry"/>
+      </mxCell>
+      <mxCell id="d_import" value="9: IMPORT" style="endArrow=block;html=1;fontColor=#333333;" edge="1" parent="1" source="s_dispatch" target="s_import">
+        <mxGeometry relative="1" as="geometry"/>
+      </mxCell>
+      <mxCell id="d_exprstmt" value="10: (default, no keyword matched)" style="endArrow=block;html=1;fontColor=#333333;" edge="1" parent="1" source="s_dispatch" target="s_exprstmt">
+        <mxGeometry relative="1" as="geometry"/>
+      </mxCell>
+
+      <!-- design pattern callout -->
+      <mxCell id="callout" value="Design pattern: Recursive Descent / Precedence Climbing. Each precedence level is a dedicated function that delegates to the next tighter-binding level before applying its own operators -- this directly encodes the grammar's precedence table into the call structure, with no explicit precedence numbers or tables needed. The resulting SyntaxNode tree is then consumed via the Visitor pattern (see tabs 05/06) -- together this is the classic Interpreter (GoF) pattern: a language's grammar is represented as a class hierarchy (the AST), and operations on it (checking, optimizing, executing) are separate Visitor objects." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontStyle=2;align=left;verticalAlign=top;spacing=8;" vertex="1" parent="1">
+        <mxGeometry x="40" y="1420" width="1800" height="140" as="geometry"/>
+      </mxCell>
+
+    </root>
+  </mxGraphModel>
+</diagram>
+<diagram name="10. Checker &amp; Optimizer - Visitor Pattern" id="tab-checker-optimizer-behavior">
+  <mxGraphModel dx="1900" dy="1400" grid="1" gridSize="10" guides="1" tooltips="1" connectable="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="2000" pageHeight="1600" math="0" shadow="0">
+    <root>
+      <mxCell id="0" />
+      <mxCell id="1" parent="0" />
+
+      <!-- Section title -->
+      <mxCell id="s1_title" value="1. Visitor double-dispatch mechanism (generic to Checker / Optimizer / Executor)" style="text;html=1;fontStyle=1;fontSize=16;align=left;verticalAlign=middle;" vertex="1" parent="1">
+        <mxGeometry x="40" y="20" width="900" height="30" as="geometry" />
+      </mxCell>
+
+      <!-- Section 1: participant boxes -->
+      <mxCell id="p_client" value="Client" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;align=center;verticalAlign=middle;fontStyle=1;" vertex="1" parent="1">
+        <mxGeometry x="40" y="80" width="180" height="60" as="geometry" />
+      </mxCell>
+      <mxCell id="p_tree" value="SyntaxTree" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;align=center;verticalAlign=middle;fontStyle=1;" vertex="1" parent="1">
+        <mxGeometry x="300" y="80" width="220" height="60" as="geometry" />
+      </mxCell>
+      <mxCell id="p_node" value="SyntaxNode&#10;(e.g. BlockStatement)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;align=center;verticalAlign=middle;fontStyle=1;" vertex="1" parent="1">
+        <mxGeometry x="600" y="80" width="240" height="60" as="geometry" />
+      </mxCell>
+      <mxCell id="p_checker" value="Checker&#10;(SyntaxNodeVisitor)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;align=center;verticalAlign=middle;fontStyle=1;" vertex="1" parent="1">
+        <mxGeometry x="920" y="80" width="240" height="60" as="geometry" />
+      </mxCell>
+
+      <mxCell id="e1" value="1: check(tree)" style="endArrow=block;html=1;fontColor=#333333;" edge="1" parent="1" source="p_client" target="p_tree">
+        <mxGeometry relative="1" as="geometry" />
+      </mxCell>
+      <mxCell id="e2" value="2: tree.getRoot()-&gt;accept(*this)" style="endArrow=block;html=1;fontColor=#333333;" edge="1" parent="1" source="p_tree" target="p_node">
+        <mxGeometry relative="1" as="geometry" />
+      </mxCell>
+      <mxCell id="e3" value="3: node.accept(v) calls v.visit(*this) - node's static type picks the overload" style="endArrow=block;html=1;fontColor=#333333;" edge="1" parent="1" source="p_node" target="p_checker">
+        <mxGeometry relative="1" as="geometry" />
+      </mxCell>
+      <mxCell id="e4" value="4: visit(BlockStatement&amp;) runs type-specific logic (enterScope, iterate children, exitScope)" style="endArrow=block;html=1;fontColor=#333333;" edge="1" parent="1" source="p_checker" target="p_node">
+        <mxGeometry relative="1" as="geometry">
+          <Array as="points">
+            <mxPoint x="740" y="170" />
+          </Array>
+        </mxGeometry>
+      </mxCell>
+      <mxCell id="e5" value="5: for each child stmt: stmt-&gt;accept(*this) - recurses down the tree" style="endArrow=block;html=1;fontColor=#333333;dashed=1;curved=1;" edge="1" parent="1" source="p_node" target="p_node">
+        <mxGeometry relative="1" as="geometry">
+          <Array as="points">
+            <mxPoint x="900" y="220" />
+            <mxPoint x="720" y="220" />
+          </Array>
+        </mxGeometry>
+      </mxCell>
+
+      <mxCell id="s1_why" value="Why Visitor matters:&#10;Without Visitor: you'd need a big switch/if-chain on node-&gt;type() in every operation (Checker, Optimizer, Executor), and adding a new AST node type would require editing every one of those switches.&#10;With Visitor: SyntaxNodeVisitor declares one visit(X&amp;) per node type (compile-time exhaustive - the compiler errors if a new node type's visit() is missing), and each operation (Checker/Optimizer/Executor) is a self-contained class implementing that interface.&#10;Adding a new operation = one new visitor class; adding a new node type = one new visit() method in each existing visitor (compiler-enforced)." style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontFamily=Courier New;align=left;verticalAlign=top;spacing=8;" vertex="1" parent="1">
+        <mxGeometry x="40" y="260" width="1120" height="140" as="geometry" />
+      </mxCell>
+
+      <!-- Section 2 title -->
+      <mxCell id="s2_title" value="2. Checker: static-scope resolution (resolveIdentifier / IdentifierExpression::depth)" style="text;html=1;fontStyle=1;fontSize=16;align=left;verticalAlign=middle;" vertex="1" parent="1">
+        <mxGeometry x="40" y="440" width="900" height="30" as="geometry" />
+      </mxCell>
+
+      <mxCell id="s2_start" value="visit(IdentifierExpression&amp; node)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;align=center;verticalAlign=middle;spacing=6;" vertex="1" parent="1">
+        <mxGeometry x="80" y="490" width="320" height="60" as="geometry" />
+      </mxCell>
+      <mxCell id="s2_init" value="distance = 0;&#10;scopeIndex = scopes.size() - 1 (innermost)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;align=center;verticalAlign=middle;spacing=6;" vertex="1" parent="1">
+        <mxGeometry x="80" y="580" width="320" height="70" as="geometry" />
+      </mxCell>
+      <mxCell id="s2_dec" value="scopes[scopeIndex] contains node.name?" style="rhombus;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;align=center;verticalAlign=middle;" vertex="1" parent="1">
+        <mxGeometry x="90" y="690" width="300" height="100" as="geometry" />
+      </mxCell>
+      <mxCell id="s2_miss" value="No, and scopeIndex &gt; 0:&#10;distance++; scopeIndex--" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;align=center;verticalAlign=middle;spacing=6;" vertex="1" parent="1">
+        <mxGeometry x="440" y="700" width="280" height="80" as="geometry" />
+      </mxCell>
+      <mxCell id="s2_found" value="Yes:&#10;node.depth = distance&#10;(cached on the AST node itself, mutable optional&lt;int&gt;)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;align=center;verticalAlign=middle;spacing=6;" vertex="1" parent="1">
+        <mxGeometry x="80" y="850" width="320" height="90" as="geometry" />
+      </mxCell>
+      <mxCell id="s2_exhaust" value="No, and scopeIndex == 0 (exhausted all scopes):&#10;treat as global/undeclared - checked at the outermost scope; error if truly undeclared" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;align=center;verticalAlign=middle;spacing=6;" vertex="1" parent="1">
+        <mxGeometry x="440" y="850" width="360" height="100" as="geometry" />
+      </mxCell>
+      <mxCell id="s2_end" value="Later: Environment::lookupAt(node.depth, name)&#10;gives O(1) access instead of walking the whole scope chain at runtime" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;align=center;verticalAlign=middle;spacing=6;" vertex="1" parent="1">
+        <mxGeometry x="80" y="990" width="720" height="80" as="geometry" />
+      </mxCell>
+
+      <mxCell id="s2_e1" style="endArrow=block;html=1;" edge="1" parent="1" source="s2_start" target="s2_init">
+        <mxGeometry relative="1" as="geometry" />
+      </mxCell>
+      <mxCell id="s2_e2" style="endArrow=block;html=1;" edge="1" parent="1" source="s2_init" target="s2_dec">
+        <mxGeometry relative="1" as="geometry" />
+      </mxCell>
+      <mxCell id="s2_e3" value="no, scopeIndex &gt; 0" style="endArrow=block;html=1;" edge="1" parent="1" source="s2_dec" target="s2_miss">
+        <mxGeometry relative="1" as="geometry" />
+      </mxCell>
+      <mxCell id="s2_e4" value="loop back" style="endArrow=block;html=1;dashed=1;" edge="1" parent="1" source="s2_miss" target="s2_dec">
+        <mxGeometry relative="1" as="geometry">
+          <Array as="points">
+            <mxPoint x="580" y="670" />
+            <mxPoint x="390" y="670" />
+          </Array>
+        </mxGeometry>
+      </mxCell>
+      <mxCell id="s2_e5" value="yes" style="endArrow=block;html=1;" edge="1" parent="1" source="s2_dec" target="s2_found">
+        <mxGeometry relative="1" as="geometry" />
+      </mxCell>
+      <mxCell id="s2_e6" value="no, scopeIndex == 0" style="endArrow=block;html=1;" edge="1" parent="1" source="s2_dec" target="s2_exhaust">
+        <mxGeometry relative="1" as="geometry" />
+      </mxCell>
+      <mxCell id="s2_e7" style="endArrow=block;html=1;" edge="1" parent="1" source="s2_found" target="s2_end">
+        <mxGeometry relative="1" as="geometry" />
+      </mxCell>
+      <mxCell id="s2_e8" style="endArrow=block;html=1;" edge="1" parent="1" source="s2_exhaust" target="s2_end">
+        <mxGeometry relative="1" as="geometry" />
+      </mxCell>
+
+      <mxCell id="s2_code" value="{&#10;  var x = 1;        // declared in outer block scope&#10;  {&#10;    var y = 2;       // inner block scope&#10;    print x + y;    // resolving 'x': not in inner scope (depth 0 miss) -&gt; found in outer scope at depth 1&#10;                      // resolving 'y': found immediately in inner scope at depth 0&#10;  }&#10;}" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontFamily=Courier New;align=left;verticalAlign=top;spacing=8;" vertex="1" parent="1">
+        <mxGeometry x="80" y="1090" width="720" height="180" as="geometry" />
+      </mxCell>
+
+      <!-- Section 3 title -->
+      <mxCell id="s3_title" value="3. Optimizer: constant folding" style="text;html=1;fontStyle=1;fontSize=16;align=left;verticalAlign=middle;" vertex="1" parent="1">
+        <mxGeometry x="1050" y="440" width="700" height="30" as="geometry" />
+      </mxCell>
+
+      <mxCell id="s3_start" value="visit(BinaryExpression&amp; node)&#10;e.g. AddExpression" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;align=center;verticalAlign=middle;spacing=6;" vertex="1" parent="1">
+        <mxGeometry x="1090" y="490" width="380" height="70" as="geometry" />
+      </mxCell>
+      <mxCell id="s3_left" value="foldExpression(node.left)&#10;recurse first (post-order / bottom-up)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;align=center;verticalAlign=middle;spacing=6;" vertex="1" parent="1">
+        <mxGeometry x="1090" y="590" width="380" height="70" as="geometry" />
+      </mxCell>
+      <mxCell id="s3_right" value="foldExpression(node.right)&#10;recurse first" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;align=center;verticalAlign=middle;spacing=6;" vertex="1" parent="1">
+        <mxGeometry x="1090" y="690" width="380" height="60" as="geometry" />
+      </mxCell>
+      <mxCell id="s3_dec" value="both node.left and node.right&#10;are now literal nodes (Number/String/Boolean)?" style="rhombus;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;align=center;verticalAlign=middle;" vertex="1" parent="1">
+        <mxGeometry x="1110" y="780" width="340" height="110" as="geometry" />
+      </mxCell>
+      <mxCell id="s3_eval" value="Yes:&#10;value = executor_.evaluate(&amp;node)&#10;computes the result at compile time using the real Executor" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;align=center;verticalAlign=middle;spacing=6;" vertex="1" parent="1">
+        <mxGeometry x="1090" y="930" width="380" height="90" as="geometry" />
+      </mxCell>
+      <mxCell id="s3_replace" value="replaceWithLiteral(node, value):&#10;allocates a new literal SyntaxNode owned by tree_, and rewrites the PARENT's pointer to point at it&#10;(node.left/right and BinaryExpression's own slot are non-const specifically to allow this rewrite)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;align=center;verticalAlign=middle;spacing=6;" vertex="1" parent="1">
+        <mxGeometry x="1090" y="1040" width="380" height="120" as="geometry" />
+      </mxCell>
+      <mxCell id="s3_no" value="No:&#10;leave node as-is; at least one operand is still&#10;a runtime expression (e.g. a variable)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;align=center;verticalAlign=middle;spacing=6;" vertex="1" parent="1">
+        <mxGeometry x="1520" y="800" width="340" height="90" as="geometry" />
+      </mxCell>
+
+      <mxCell id="s3_e1" style="endArrow=block;html=1;" edge="1" parent="1" source="s3_start" target="s3_left">
+        <mxGeometry relative="1" as="geometry" />
+      </mxCell>
+      <mxCell id="s3_e2" style="endArrow=block;html=1;" edge="1" parent="1" source="s3_left" target="s3_right">
+        <mxGeometry relative="1" as="geometry" />
+      </mxCell>
+      <mxCell id="s3_e3" style="endArrow=block;html=1;" edge="1" parent="1" source="s3_right" target="s3_dec">
+        <mxGeometry relative="1" as="geometry" />
+      </mxCell>
+      <mxCell id="s3_e4" value="yes" style="endArrow=block;html=1;" edge="1" parent="1" source="s3_dec" target="s3_eval">
+        <mxGeometry relative="1" as="geometry" />
+      </mxCell>
+      <mxCell id="s3_e5" style="endArrow=block;html=1;" edge="1" parent="1" source="s3_eval" target="s3_replace">
+        <mxGeometry relative="1" as="geometry" />
+      </mxCell>
+      <mxCell id="s3_e6" value="no" style="endArrow=block;html=1;" edge="1" parent="1" source="s3_dec" target="s3_no">
+        <mxGeometry relative="1" as="geometry" />
+      </mxCell>
+
+      <mxCell id="s3_code" value="BEFORE optimize():&#10;  AddExpression&#10;    left:  NumberExpression(2)&#10;    right: MultExpression&#10;             left:  NumberExpression(3)&#10;             right: NumberExpression(4)&#10;&#10;Optimizer visits bottom-up: MultExpression(3,4) folds first (both literals) -&gt; NumberExpression(12)&#10;Then AddExpression(2, 12) folds (both literals) -&gt; NumberExpression(14)&#10;&#10;AFTER optimize():&#10;  NumberExpression(14)   // entire subtree replaced by a single literal" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontFamily=Courier New;align=left;verticalAlign=top;spacing=8;" vertex="1" parent="1">
+        <mxGeometry x="1090" y="1180" width="780" height="220" as="geometry" />
+      </mxCell>
+
+      <!-- Design pattern callout -->
+      <mxCell id="callout" value="Design pattern: Visitor (GoF). SyntaxNodeVisitor decouples the AST node hierarchy (Assembler module) from the operations performed on it - Checker, Optimizer, and Executor (see tab 11) are three interchangeable Visitor implementations over the same tree, following the classic Interpreter (GoF) structure where grammar = class hierarchy and behavior = external visitor objects. Optimizer's constant folding is a standard compiler technique layered on top of the same dispatch mechanism." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontStyle=2;align=left;verticalAlign=top;spacing=8;" vertex="1" parent="1">
+        <mxGeometry x="40" y="1440" width="1910" height="100" as="geometry" />
+      </mxCell>
+
+    </root>
+  </mxGraphModel>
+</diagram>
+<diagram name="11. Executor - Dispatch &amp; Interpretation" id="tab-executor-behavior">
+  <mxGraphModel dx="1900" dy="1400" grid="1" gridSize="10" guides="1" tooltips="1" connectable="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="2000" pageHeight="1600" math="0" shadow="0">
+    <root>
+      <mxCell id="0" />
+      <mxCell id="1" parent="0" />
+
+      <!-- ===================== SECTION 1: Tree-walking interpretation loop ===================== -->
+      <mxCell id="s1_title" value="Section 1: Tree-walking interpretation loop (Visitor pattern)" style="text;html=1;fontStyle=1;fontSize=16;align=left;verticalAlign=middle;" vertex="1" parent="1">
+        <mxGeometry x="40" y="10" width="700" height="30" as="geometry" />
+      </mxCell>
+
+      <mxCell id="p_shell" value="Shell driver" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;align=center;verticalAlign=middle;fontStyle=1;" vertex="1" parent="1">
+        <mxGeometry x="40" y="70" width="180" height="60" as="geometry" />
+      </mxCell>
+      <mxCell id="p_exec" value="Executor" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;align=center;verticalAlign=middle;fontStyle=1;" vertex="1" parent="1">
+        <mxGeometry x="330" y="70" width="180" height="60" as="geometry" />
+      </mxCell>
+      <mxCell id="p_stmt" value="Statement node" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;align=center;verticalAlign=middle;fontStyle=1;" vertex="1" parent="1">
+        <mxGeometry x="620" y="70" width="180" height="60" as="geometry" />
+      </mxCell>
+      <mxCell id="p_hook" value="statementHook_" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;align=center;verticalAlign=middle;fontStyle=1;" vertex="1" parent="1">
+        <mxGeometry x="910" y="70" width="180" height="60" as="geometry" />
+      </mxCell>
+
+      <mxCell id="e_s1_1" value="1: execute(tree)" style="endArrow=block;html=1;fontColor=#333333;" edge="1" parent="1" source="p_shell" target="p_exec">
+        <mxGeometry relative="1" as="geometry" />
+      </mxCell>
+      <mxCell id="e_s1_2" value="2: for each top-level Statement: execute(stmt)" style="endArrow=block;html=1;fontColor=#333333;" edge="1" parent="1" source="p_exec" target="p_stmt">
+        <mxGeometry relative="1" as="geometry" />
+      </mxCell>
+      <mxCell id="e_s1_3" value="3: if hook set, statementHook_(stmt, depth) - lets a Debugger observe every statement before it runs (see tab 12)" style="endArrow=block;html=1;fontColor=#333333;" edge="1" parent="1" source="p_exec" target="p_hook">
+        <mxGeometry relative="1" as="geometry" />
+      </mxCell>
+      <mxCell id="e_s1_4" value="4: stmt-&gt;accept(*this) - double dispatch picks visit(ConcreteType&amp;)" style="endArrow=block;html=1;fontColor=#333333;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=1;entryDx=0;entryDy=0;" edge="1" parent="1" source="p_exec" target="p_stmt">
+        <mxGeometry relative="1" as="geometry">
+          <Array as="points">
+            <mxPoint x="420" y="180" />
+            <mxPoint x="710" y="180" />
+          </Array>
+        </mxGeometry>
+      </mxCell>
+      <mxCell id="e_s1_5" value="5: visit(BlockStatement&amp;) pushes a new Scope, recurses into child statements (each via execute(child)), pops the Scope on exit" style="endArrow=block;html=1;fontColor=#333333;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=1;entryDx=0;entryDy=0;" edge="1" parent="1" source="p_stmt" target="p_exec">
+        <mxGeometry relative="1" as="geometry">
+          <Array as="points">
+            <mxPoint x="710" y="220" />
+            <mxPoint x="420" y="220" />
+          </Array>
+        </mxGeometry>
+      </mxCell>
+
+      <!-- ===================== SECTION 2: Dynamic method dispatch ===================== -->
+      <mxCell id="s2_title" value="Section 2: Dynamic method dispatch across the inheritance chain" style="text;html=1;fontStyle=1;fontSize=16;align=left;verticalAlign=middle;" vertex="1" parent="1">
+        <mxGeometry x="40" y="300" width="700" height="30" as="geometry" />
+      </mxCell>
+
+      <mxCell id="d2_1" value="Start: Executor::callMethod(FieldAccessExpression* callee, argExprs)&#10;callee is `robot.move`" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;align=center;verticalAlign=middle;spacing=6;" vertex="1" parent="1">
+        <mxGeometry x="60" y="340" width="260" height="70" as="geometry" />
+      </mxCell>
+      <mxCell id="d2_2" value="evaluate(callee-&gt;object) -&gt; Value holding&#10;shared_ptr&lt;InstanceValue&gt; for `robot`" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;align=center;verticalAlign=middle;spacing=6;" vertex="1" parent="1">
+        <mxGeometry x="60" y="440" width="260" height="70" as="geometry" />
+      </mxCell>
+      <mxCell id="d2_3" value="is callee-&gt;name a field, or a method?&#10;(field path: simple Scope::get on InstanceValue::fields)" style="rhombus;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;align=center;verticalAlign=middle;" vertex="1" parent="1">
+        <mxGeometry x="60" y="550" width="260" height="90" as="geometry" />
+      </mxCell>
+      <mxCell id="d2_4" value="classRuntime_.callInstanceMethod(object, callee, argExprs)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;align=center;verticalAlign=middle;spacing=6;" vertex="1" parent="1">
+        <mxGeometry x="60" y="680" width="260" height="70" as="geometry" />
+      </mxCell>
+      <mxCell id="d2_5" value="findMethod(instance-&gt;klass, &quot;move&quot;)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;align=center;verticalAlign=middle;spacing=6;" vertex="1" parent="1">
+        <mxGeometry x="380" y="680" width="260" height="70" as="geometry" />
+      </mxCell>
+      <mxCell id="d2_6" value="method &quot;move&quot; declared directly&#10;on this class?" style="rhombus;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;align=center;verticalAlign=middle;" vertex="1" parent="1">
+        <mxGeometry x="700" y="670" width="260" height="90" as="geometry" />
+      </mxCell>
+      <mxCell id="d2_7" value="resolveSuperclass(klass) -&gt; walk to&#10;klass-&gt;superclass's ClassDeclareStatement" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;align=center;verticalAlign=middle;spacing=6;" vertex="1" parent="1">
+        <mxGeometry x="700" y="820" width="260" height="70" as="geometry" />
+      </mxCell>
+      <mxCell id="d2_8" value="method not found -&gt; throw ExecutorError&#10;(reached the root, superclass is null)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;align=center;verticalAlign=middle;spacing=6;" vertex="1" parent="1">
+        <mxGeometry x="380" y="820" width="260" height="70" as="geometry" />
+      </mxCell>
+      <mxCell id="d2_9" value="found MethodDeclareStatement*&#10;on this class (or an ancestor)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;align=center;verticalAlign=middle;spacing=6;" vertex="1" parent="1">
+        <mxGeometry x="700" y="550" width="260" height="70" as="geometry" />
+      </mxCell>
+      <mxCell id="d2_10" value="invoke(method, args, boundThis = instance) -&#10;pushes new Scope, binds `this`=instance and&#10;each param, executes method body statements,&#10;pops Scope, returns the method's return Value (or Nil)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;align=center;verticalAlign=middle;spacing=6;" vertex="1" parent="1">
+        <mxGeometry x="700" y="440" width="260" height="90" as="geometry" />
+      </mxCell>
+
+      <mxCell id="e_d2_1" value="1" style="endArrow=block;html=1;fontColor=#333333;" edge="1" parent="1" source="d2_1" target="d2_2">
+        <mxGeometry relative="1" as="geometry" />
+      </mxCell>
+      <mxCell id="e_d2_2" value="2" style="endArrow=block;html=1;fontColor=#333333;" edge="1" parent="1" source="d2_2" target="d2_3">
+        <mxGeometry relative="1" as="geometry" />
+      </mxCell>
+      <mxCell id="e_d2_3" value="3: method" style="endArrow=block;html=1;fontColor=#333333;" edge="1" parent="1" source="d2_3" target="d2_4">
+        <mxGeometry relative="1" as="geometry" />
+      </mxCell>
+      <mxCell id="e_d2_4" value="4" style="endArrow=block;html=1;fontColor=#333333;" edge="1" parent="1" source="d2_4" target="d2_5">
+        <mxGeometry relative="1" as="geometry" />
+      </mxCell>
+      <mxCell id="e_d2_5" value="5" style="endArrow=block;html=1;fontColor=#333333;" edge="1" parent="1" source="d2_5" target="d2_6">
+        <mxGeometry relative="1" as="geometry" />
+      </mxCell>
+      <mxCell id="e_d2_6yes" value="6: Yes" style="endArrow=block;html=1;fontColor=#333333;" edge="1" parent="1" source="d2_6" target="d2_9">
+        <mxGeometry relative="1" as="geometry" />
+      </mxCell>
+      <mxCell id="e_d2_6no" value="6: No" style="endArrow=block;html=1;fontColor=#333333;" edge="1" parent="1" source="d2_6" target="d2_7">
+        <mxGeometry relative="1" as="geometry" />
+      </mxCell>
+      <mxCell id="e_d2_7loop" value="repeat up the chain: findMethod on the superclass" style="endArrow=block;html=1;fontColor=#333333;dashed=1;" edge="1" parent="1" source="d2_7" target="d2_5">
+        <mxGeometry relative="1" as="geometry">
+          <Array as="points">
+            <mxPoint x="620" y="855" />
+            <mxPoint x="510" y="855" />
+          </Array>
+        </mxGeometry>
+      </mxCell>
+      <mxCell id="e_d2_7null" value="superclass is null (root reached)" style="endArrow=block;html=1;fontColor=#333333;" edge="1" parent="1" source="d2_7" target="d2_8">
+        <mxGeometry relative="1" as="geometry" />
+      </mxCell>
+      <mxCell id="e_d2_9" value="7" style="endArrow=block;html=1;fontColor=#333333;" edge="1" parent="1" source="d2_9" target="d2_10">
+        <mxGeometry relative="1" as="geometry" />
+      </mxCell>
+
+      <mxCell id="code2" value="class Animal { init() { } move() { print &quot;Animal moves&quot;; } }&#10;class Robot: Animal { init() { } }   // Robot has no move() of its own&#10;&#10;var robot = Robot();&#10;robot.move();&#10;// findMethod(Robot, &quot;move&quot;) -&gt; not found directly on Robot&#10;// resolveSuperclass(Robot) -&gt; Animal&#10;// findMethod(Animal, &quot;move&quot;) -&gt; found!&#10;// invoke Animal::move with this = robot instance -&gt; prints &quot;Animal moves&quot;" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontFamily=Courier New;align=left;verticalAlign=top;spacing=8;" vertex="1" parent="1">
+        <mxGeometry x="60" y="920" width="900" height="180" as="geometry" />
+      </mxCell>
+
+      <!-- ===================== SECTION 3: Object instantiation ===================== -->
+      <mxCell id="s3_title" value="Section 3: Object instantiation flow" style="text;html=1;fontStyle=1;fontSize=16;align=left;verticalAlign=middle;" vertex="1" parent="1">
+        <mxGeometry x="1050" y="300" width="700" height="30" as="geometry" />
+      </mxCell>
+
+      <mxCell id="d3_1" value="Start: CallExpression evaluated where callee&#10;resolves to a Class value, e.g. `Robot()`" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;align=center;verticalAlign=middle;spacing=6;" vertex="1" parent="1">
+        <mxGeometry x="1050" y="340" width="330" height="70" as="geometry" />
+      </mxCell>
+      <mxCell id="d3_2" value="classRuntime_.instantiate(klass, args)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;align=center;verticalAlign=middle;spacing=6;" vertex="1" parent="1">
+        <mxGeometry x="1050" y="440" width="330" height="60" as="geometry" />
+      </mxCell>
+      <mxCell id="d3_3" value="create shared_ptr&lt;InstanceValue&gt;{ klass, fields = new Scope() }" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;align=center;verticalAlign=middle;spacing=6;" vertex="1" parent="1">
+        <mxGeometry x="1050" y="530" width="330" height="70" as="geometry" />
+      </mxCell>
+      <mxCell id="d3_4" value="findMethod(klass, &quot;init&quot;) - walks superclass&#10;chain same as any method lookup" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;align=center;verticalAlign=middle;spacing=6;" vertex="1" parent="1">
+        <mxGeometry x="1050" y="630" width="330" height="70" as="geometry" />
+      </mxCell>
+      <mxCell id="d3_5" value="init found?" style="rhombus;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;align=center;verticalAlign=middle;" vertex="1" parent="1">
+        <mxGeometry x="1130" y="730" width="170" height="80" as="geometry" />
+      </mxCell>
+      <mxCell id="d3_6yes" value="invoke(init, args, boundThis = new instance) -&#10;runs constructor body, typically&#10;Scope::define()'ing fields on `this`" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;align=center;verticalAlign=middle;spacing=6;" vertex="1" parent="1">
+        <mxGeometry x="1440" y="720" width="300" height="90" as="geometry" />
+      </mxCell>
+      <mxCell id="d3_6no" value="skip - class has no explicit constructor,&#10;instance starts with empty fields" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;align=center;verticalAlign=middle;spacing=6;" vertex="1" parent="1">
+        <mxGeometry x="1050" y="850" width="330" height="70" as="geometry" />
+      </mxCell>
+      <mxCell id="d3_7" value="return Value::Instance(instance)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;align=center;verticalAlign=middle;spacing=6;" vertex="1" parent="1">
+        <mxGeometry x="1200" y="960" width="330" height="60" as="geometry" />
+      </mxCell>
+
+      <mxCell id="e_d3_1" value="1" style="endArrow=block;html=1;fontColor=#333333;" edge="1" parent="1" source="d3_1" target="d3_2">
+        <mxGeometry relative="1" as="geometry" />
+      </mxCell>
+      <mxCell id="e_d3_2" value="2" style="endArrow=block;html=1;fontColor=#333333;" edge="1" parent="1" source="d3_2" target="d3_3">
+        <mxGeometry relative="1" as="geometry" />
+      </mxCell>
+      <mxCell id="e_d3_3" value="3" style="endArrow=block;html=1;fontColor=#333333;" edge="1" parent="1" source="d3_3" target="d3_4">
+        <mxGeometry relative="1" as="geometry" />
+      </mxCell>
+      <mxCell id="e_d3_4" value="4" style="endArrow=block;html=1;fontColor=#333333;" edge="1" parent="1" source="d3_4" target="d3_5">
+        <mxGeometry relative="1" as="geometry" />
+      </mxCell>
+      <mxCell id="e_d3_5yes" value="5: Yes" style="endArrow=block;html=1;fontColor=#333333;" edge="1" parent="1" source="d3_5" target="d3_6yes">
+        <mxGeometry relative="1" as="geometry" />
+      </mxCell>
+      <mxCell id="e_d3_5no" value="5: No" style="endArrow=block;html=1;fontColor=#333333;" edge="1" parent="1" source="d3_5" target="d3_6no">
+        <mxGeometry relative="1" as="geometry" />
+      </mxCell>
+      <mxCell id="e_d3_6" value="6" style="endArrow=block;html=1;fontColor=#333333;" edge="1" parent="1" source="d3_6yes" target="d3_7">
+        <mxGeometry relative="1" as="geometry" />
+      </mxCell>
+      <mxCell id="e_d3_6b" value="6" style="endArrow=block;html=1;fontColor=#333333;" edge="1" parent="1" source="d3_6no" target="d3_7">
+        <mxGeometry relative="1" as="geometry" />
+      </mxCell>
+
+      <!-- ===================== Design pattern callout ===================== -->
+      <mxCell id="callout" value="Design pattern: Visitor (GoF) for the interpretation loop - Executor is a SyntaxNodeVisitor, exactly like Checker/Optimizer (see tab 10), just performing evaluation instead of checking/folding. The superclass method-lookup walk (findMethod + resolveSuperclass looping until found or root reached) is a linear chain search reminiscent of Chain-of-Responsibility, applied here to single inheritance rather than an object graph. Splitting Executor into ClassRuntime/ModuleRuntime/ArrayRuntime collaborators (each holding a back-reference to the owning Executor) is a Facade-style decomposition: Executor stays the single entry point (ExecuteInterface) while delegating cohesive chunks of behavior to focused helper classes." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontStyle=2;align=left;verticalAlign=top;spacing=8;" vertex="1" parent="1">
+        <mxGeometry x="40" y="1130" width="1900" height="130" as="geometry" />
+      </mxCell>
+
+    </root>
+  </mxGraphModel>
+</diagram>
+<diagram name="12. Shell - Debugger Hook Flow" id="tab-shell-debugger-flow">
+  <mxGraphModel dx="1900" dy="1400" grid="1" gridSize="10" guides="1" tooltips="1" connectable="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="2000" pageHeight="1500" math="0" shadow="0">
+    <root>
+      <mxCell id="0" />
+      <mxCell id="1" parent="0" />
+
+      <!-- ===================== SECTION 1: Wiring the hook ===================== -->
+      <mxCell id="s1_title" value="Section 1: Wiring the hook (setup phase)" style="text;html=1;fontStyle=1;fontSize=16;align=left;verticalAlign=middle;" vertex="1" parent="1">
+        <mxGeometry x="40" y="10" width="500" height="30" as="geometry" />
+      </mxCell>
+
+      <mxCell id="p_main" value="main" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;align=center;verticalAlign=middle;fontStyle=1;" vertex="1" parent="1">
+        <mxGeometry x="40" y="60" width="180" height="50" as="geometry" />
+      </mxCell>
+      <mxCell id="p_debugmode" value="DebugMode" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;align=center;verticalAlign=middle;fontStyle=1;" vertex="1" parent="1">
+        <mxGeometry x="330" y="60" width="220" height="50" as="geometry" />
+      </mxCell>
+      <mxCell id="p_debugger" value="Debugger" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;align=center;verticalAlign=middle;fontStyle=1;" vertex="1" parent="1">
+        <mxGeometry x="680" y="60" width="220" height="50" as="geometry" />
+      </mxCell>
+      <mxCell id="p_executor" value="Executor" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;align=center;verticalAlign=middle;fontStyle=1;" vertex="1" parent="1">
+        <mxGeometry x="1030" y="60" width="220" height="50" as="geometry" />
+      </mxCell>
+
+      <mxCell id="s1_box2" value="2: tokenize -&gt; assemble -&gt; check -&gt; optimize&#10;(same 5-stage pipeline as FileRunMode, see tab 08)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;align=center;verticalAlign=middle;spacing=6;" vertex="1" parent="1">
+        <mxGeometry x="330" y="150" width="220" height="80" as="geometry" />
+      </mxCell>
+
+      <mxCell id="e1_1" value="1: DebugMode(tokenizer, assembler, checker, optimizer, executor)&#10;.run(filePath, in, out)" style="endArrow=block;html=1;fontColor=#333333;" edge="1" parent="1" source="p_main" target="p_debugmode">
+        <mxGeometry relative="1" as="geometry" />
+      </mxCell>
+      <mxCell id="e1_2" value="2: internal pipeline call" style="endArrow=block;html=1;fontColor=#333333;dashed=1;" edge="1" parent="1" source="p_debugmode" target="s1_box2">
+        <mxGeometry relative="1" as="geometry" />
+      </mxCell>
+      <mxCell id="e1_3" value="3: new Debugger(executor, in, out, sourceLines)&#10;-- constructed with the FILE's source lines for printing context,&#10;and the debug session's OWN in/out streams&#10;(separate from the program's print output stream)" style="endArrow=block;html=1;fontColor=#333333;" edge="1" parent="1" source="p_debugmode" target="p_debugger">
+        <mxGeometry relative="1" as="geometry" />
+      </mxCell>
+      <mxCell id="e1_4" value="4: executor.setStatementHook( [&amp;](stmt, depth){ debugger.onStatement(stmt, depth); } )&#10;-- requires the CONCRETE Executor type because setStatementHook&#10;is not part of ExecuteInterface" style="endArrow=block;html=1;fontColor=#333333;" edge="1" parent="1" source="p_debugmode" target="p_executor">
+        <mxGeometry relative="1" as="geometry" />
+      </mxCell>
+      <mxCell id="e1_5" value="5: executor.execute(tree)&#10;-- hands off control; from here the hook drives everything" style="endArrow=block;html=1;fontColor=#333333;" edge="1" parent="1" source="p_debugmode" target="p_executor">
+        <mxGeometry relative="1" as="geometry" />
+      </mxCell>
+
+      <!-- ===================== SECTION 2: Per-statement pause/resume loop ===================== -->
+      <mxCell id="s2_title" value="Section 2: Per-statement pause/resume loop (the hook in action)" style="text;html=1;fontStyle=1;fontSize=16;align=left;verticalAlign=middle;" vertex="1" parent="1">
+        <mxGeometry x="40" y="360" width="600" height="30" as="geometry" />
+      </mxCell>
+
+      <mxCell id="n1" value="Executor::execute(Statement* stmt)&#10;about to run the next statement" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;align=center;verticalAlign=middle;spacing=6;" vertex="1" parent="1">
+        <mxGeometry x="60" y="410" width="260" height="60" as="geometry" />
+      </mxCell>
+      <mxCell id="n2" value="statementHook_(stmt, depth) invoked&#10;BEFORE the statement executes --&#10;Debugger::onStatement(stmt, depth)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;align=center;verticalAlign=middle;spacing=6;" vertex="1" parent="1">
+        <mxGeometry x="60" y="500" width="260" height="70" as="geometry" />
+      </mxCell>
+      <mxCell id="n3" value="shouldStop(stmt, depth)?" style="rhombus;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;align=center;verticalAlign=middle;" vertex="1" parent="1">
+        <mxGeometry x="80" y="610" width="220" height="90" as="geometry" />
+      </mxCell>
+
+      <mxCell id="n4a" value="Mode == Step:&#10;always true -- stop on&#10;every statement" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;align=center;verticalAlign=middle;spacing=6;" vertex="1" parent="1">
+        <mxGeometry x="380" y="600" width="230" height="70" as="geometry" />
+      </mxCell>
+      <mxCell id="n4b" value="Mode == Next:&#10;true only if depth &lt;= nextTargetDepth_ --&#10;implements step-OVER (skip into function/&#10;method calls, i.e. deeper depth, without stopping)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;align=center;verticalAlign=middle;spacing=6;" vertex="1" parent="1">
+        <mxGeometry x="380" y="690" width="230" height="90" as="geometry" />
+      </mxCell>
+      <mxCell id="n4c" value="Mode == Continue:&#10;true only if stmt-&gt;containsLine(line)&#10;matches a breakpoint in breakpoints_" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;align=center;verticalAlign=middle;spacing=6;" vertex="1" parent="1">
+        <mxGeometry x="380" y="800" width="230" height="80" as="geometry" />
+      </mxCell>
+
+      <mxCell id="n5" value="did shouldStop return true?" style="rhombus;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;align=center;verticalAlign=middle;" vertex="1" parent="1">
+        <mxGeometry x="680" y="690" width="220" height="90" as="geometry" />
+      </mxCell>
+      <mxCell id="n6no" value="No: return immediately --&#10;Executor proceeds to&#10;stmt-&gt;accept(*this), no pause" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;align=center;verticalAlign=middle;spacing=6;" vertex="1" parent="1">
+        <mxGeometry x="960" y="600" width="240" height="70" as="geometry" />
+      </mxCell>
+      <mxCell id="n6yes" value="Yes: printCurrentSourceLine(stmt's line)&#10;+ printWatches() -- show context" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;align=center;verticalAlign=middle;spacing=6;" vertex="1" parent="1">
+        <mxGeometry x="960" y="700" width="240" height="70" as="geometry" />
+      </mxCell>
+      <mxCell id="n7" value="promptAndHandleCommand(stmt, depth) --&#10;blocks reading from in_ until the user&#10;issues a recognized command" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;align=center;verticalAlign=middle;spacing=6;" vertex="1" parent="1">
+        <mxGeometry x="960" y="800" width="240" height="80" as="geometry" />
+      </mxCell>
+      <mxCell id="n8" value="which command?" style="rhombus;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;align=center;verticalAlign=middle;" vertex="1" parent="1">
+        <mxGeometry x="980" y="920" width="220" height="100" as="geometry" />
+      </mxCell>
+
+      <mxCell id="n9step" value="step: mode_ = Step; return control&#10;to Executor (runs exactly this one&#10;statement, will stop again next statement)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;align=center;verticalAlign=middle;spacing=6;" vertex="1" parent="1">
+        <mxGeometry x="60" y="1060" width="240" height="80" as="geometry" />
+      </mxCell>
+      <mxCell id="n9next" value="next: mode_ = Next; nextTargetDepth_ = depth;&#10;return control (won't stop again until&#10;back at this depth or shallower)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;align=center;verticalAlign=middle;spacing=6;" vertex="1" parent="1">
+        <mxGeometry x="320" y="1060" width="240" height="80" as="geometry" />
+      </mxCell>
+      <mxCell id="n9cont" value="continue: mode_ = Continue;&#10;return control (runs freely until&#10;a breakpoint line is hit)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;align=center;verticalAlign=middle;spacing=6;" vertex="1" parent="1">
+        <mxGeometry x="580" y="1060" width="240" height="80" as="geometry" />
+      </mxCell>
+      <mxCell id="n9break" value="break &lt;line&gt;: breakpoints_.insert(line);&#10;loop back to promptAndHandleCommand&#10;(stay paused, wait for next command)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;align=center;verticalAlign=middle;spacing=6;" vertex="1" parent="1">
+        <mxGeometry x="840" y="1060" width="240" height="80" as="geometry" />
+      </mxCell>
+      <mxCell id="n9watch" value="watch &lt;name&gt;: watches_.push_back(name);&#10;loop back to promptAndHandleCommand" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;align=center;verticalAlign=middle;spacing=6;" vertex="1" parent="1">
+        <mxGeometry x="1100" y="1060" width="240" height="80" as="geometry" />
+      </mxCell>
+      <mxCell id="n9inspect" value="inspect: printInspect() reads&#10;executor_.environment().scopes() and&#10;Scope::variables() to dump current variable&#10;bindings; loop back to promptAndHandleCommand" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;align=center;verticalAlign=middle;spacing=6;" vertex="1" parent="1">
+        <mxGeometry x="1360" y="1050" width="260" height="100" as="geometry" />
+      </mxCell>
+
+      <mxCell id="n10" value="control returns to Executor::execute(stmt),&#10;which now calls stmt-&gt;accept(*this)&#10;to actually run the statement" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;align=center;verticalAlign=middle;spacing=6;" vertex="1" parent="1">
+        <mxGeometry x="60" y="1190" width="500" height="80" as="geometry" />
+      </mxCell>
+
+      <mxCell id="f1" style="endArrow=block;html=1;fontColor=#333333;" edge="1" parent="1" source="n1" target="n2">
+        <mxGeometry relative="1" as="geometry" />
+      </mxCell>
+      <mxCell id="f2" style="endArrow=block;html=1;fontColor=#333333;" edge="1" parent="1" source="n2" target="n3">
+        <mxGeometry relative="1" as="geometry" />
+      </mxCell>
+      <mxCell id="f3a" value="Step mode" style="endArrow=block;html=1;fontColor=#333333;" edge="1" parent="1" source="n3" target="n4a">
+        <mxGeometry relative="1" as="geometry" />
+      </mxCell>
+      <mxCell id="f3b" value="Next mode" style="endArrow=block;html=1;fontColor=#333333;" edge="1" parent="1" source="n3" target="n4b">
+        <mxGeometry relative="1" as="geometry" />
+      </mxCell>
+      <mxCell id="f3c" value="Continue mode" style="endArrow=block;html=1;fontColor=#333333;" edge="1" parent="1" source="n3" target="n4c">
+        <mxGeometry relative="1" as="geometry" />
+      </mxCell>
+      <mxCell id="f4a" style="endArrow=block;html=1;fontColor=#333333;" edge="1" parent="1" source="n4a" target="n5">
+        <mxGeometry relative="1" as="geometry" />
+      </mxCell>
+      <mxCell id="f4b" style="endArrow=block;html=1;fontColor=#333333;" edge="1" parent="1" source="n4b" target="n5">
+        <mxGeometry relative="1" as="geometry" />
+      </mxCell>
+      <mxCell id="f4c" style="endArrow=block;html=1;fontColor=#333333;" edge="1" parent="1" source="n4c" target="n5">
+        <mxGeometry relative="1" as="geometry" />
+      </mxCell>
+      <mxCell id="f5no" value="No" style="endArrow=block;html=1;fontColor=#333333;" edge="1" parent="1" source="n5" target="n6no">
+        <mxGeometry relative="1" as="geometry" />
+      </mxCell>
+      <mxCell id="f5yes" value="Yes" style="endArrow=block;html=1;fontColor=#333333;" edge="1" parent="1" source="n5" target="n6yes">
+        <mxGeometry relative="1" as="geometry" />
+      </mxCell>
+      <mxCell id="f6" style="endArrow=block;html=1;fontColor=#333333;" edge="1" parent="1" source="n6yes" target="n7">
+        <mxGeometry relative="1" as="geometry" />
+      </mxCell>
+      <mxCell id="f7" style="endArrow=block;html=1;fontColor=#333333;" edge="1" parent="1" source="n7" target="n8">
+        <mxGeometry relative="1" as="geometry" />
+      </mxCell>
+      <mxCell id="f8step" value="step" style="endArrow=block;html=1;fontColor=#333333;" edge="1" parent="1" source="n8" target="n9step">
+        <mxGeometry relative="1" as="geometry" />
+      </mxCell>
+      <mxCell id="f8next" value="next" style="endArrow=block;html=1;fontColor=#333333;" edge="1" parent="1" source="n8" target="n9next">
+        <mxGeometry relative="1" as="geometry" />
+      </mxCell>
+      <mxCell id="f8cont" value="continue" style="endArrow=block;html=1;fontColor=#333333;" edge="1" parent="1" source="n8" target="n9cont">
+        <mxGeometry relative="1" as="geometry" />
+      </mxCell>
+      <mxCell id="f8break" value="break &lt;line&gt;" style="endArrow=block;html=1;fontColor=#333333;" edge="1" parent="1" source="n8" target="n9break">
+        <mxGeometry relative="1" as="geometry" />
+      </mxCell>
+      <mxCell id="f8watch" value="watch &lt;name&gt;" style="endArrow=block;html=1;fontColor=#333333;" edge="1" parent="1" source="n8" target="n9watch">
+        <mxGeometry relative="1" as="geometry" />
+      </mxCell>
+      <mxCell id="f8inspect" value="inspect" style="endArrow=block;html=1;fontColor=#333333;" edge="1" parent="1" source="n8" target="n9inspect">
+        <mxGeometry relative="1" as="geometry" />
+      </mxCell>
+      <mxCell id="f9breakloop" value="loop back" style="endArrow=block;html=1;fontColor=#333333;dashed=1;exitX=0;exitY=0.5;entryX=0;entryY=0.5;" edge="1" parent="1" source="n9break" target="n7">
+        <mxGeometry relative="1" as="geometry" />
+      </mxCell>
+      <mxCell id="f9watchloop" value="loop back" style="endArrow=block;html=1;fontColor=#333333;dashed=1;exitX=0;exitY=0;entryX=1;entryY=0.3;" edge="1" parent="1" source="n9watch" target="n7">
+        <mxGeometry relative="1" as="geometry" />
+      </mxCell>
+      <mxCell id="f9inspectloop" value="loop back" style="endArrow=block;html=1;fontColor=#333333;dashed=1;exitX=0;exitY=0;entryX=1;entryY=0.6;" edge="1" parent="1" source="n9inspect" target="n7">
+        <mxGeometry relative="1" as="geometry" />
+      </mxCell>
+      <mxCell id="f10" style="endArrow=block;html=1;fontColor=#333333;" edge="1" parent="1" source="n9step" target="n10">
+        <mxGeometry relative="1" as="geometry" />
+      </mxCell>
+      <mxCell id="f10b" style="endArrow=block;html=1;fontColor=#333333;" edge="1" parent="1" source="n9next" target="n10">
+        <mxGeometry relative="1" as="geometry" />
+      </mxCell>
+      <mxCell id="f10c" style="endArrow=block;html=1;fontColor=#333333;" edge="1" parent="1" source="n9cont" target="n10">
+        <mxGeometry relative="1" as="geometry" />
+      </mxCell>
+      <mxCell id="f10d" style="endArrow=block;html=1;fontColor=#333333;" edge="1" parent="1" source="n6no" target="n10">
+        <mxGeometry relative="1" as="geometry" />
+      </mxCell>
+
+      <!-- ===================== SECTION 3: Example timeline ===================== -->
+      <mxCell id="s3_title" value="Section 3: Example timeline" style="text;html=1;fontStyle=1;fontSize=16;align=left;verticalAlign=middle;" vertex="1" parent="1">
+        <mxGeometry x="1150" y="360" width="400" height="30" as="geometry" />
+      </mxCell>
+      <mxCell id="ex1" value="source:&#10;1: var x = 1;&#10;2: func add(a, b) { return a + b; }&#10;3: var y = add(x, 2);&#10;4: print y;&#10;&#10;debug session (Step mode from start):&#10;&gt; stop at line 1 (depth 0)     -- user types: next&#10;&gt; stop at line 3 (depth 0)     -- (line 2 is a declaration, no call yet;&#10;                                   &quot;next&quot; at depth 0 skips over it)&#10;                                -- user types: step&#10;&gt; stop at line 3, entering add() call (depth 1)&#10;                                -- Step mode always stops, even one level deeper&#10;                                -- user types: continue&#10;&gt; program runs to completion (no breakpoints set) -- prints &quot;3&quot;" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontFamily=Courier New;align=left;verticalAlign=top;spacing=8;" vertex="1" parent="1">
+        <mxGeometry x="1150" y="400" width="810" height="300" as="geometry" />
+      </mxCell>
+
+      <!-- ===================== Design pattern callout ===================== -->
+      <mxCell id="callout1" value="Design pattern: Observer / Hook (callback injection). Executor exposes a single extension point -- statementHook_ -- without knowing anything about Debugger; DebugMode wires the two together at the Shell layer, so the core interpreter stays completely decoupled from debugging concerns (RunPromptShell and FileRunMode never set a hook at all). Debugger::Mode (Step/Next/Continue) acting as three different shouldStop() decision rules is a small Strategy-pattern flavor: the same onStatement() call is interpreted differently depending on which mode is currently active." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontStyle=2;align=left;verticalAlign=top;spacing=8;" vertex="1" parent="1">
+        <mxGeometry x="40" y="1300" width="1920" height="120" as="geometry" />
+      </mxCell>
+
+    </root>
+  </mxGraphModel>
+</diagram>
 </mxfile>
