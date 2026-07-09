@@ -99,6 +99,15 @@
     <ClCompile Include="Executor\EnvironmentTest.cpp">
       <Filter>Executor</Filter>
     </ClCompile>
+    <ClCompile Include="Executor\ClassRuntime.cpp">
+      <Filter>Executor</Filter>
+    </ClCompile>
+    <ClCompile Include="Executor\ModuleRuntime.cpp">
+      <Filter>Executor</Filter>
+    </ClCompile>
+    <ClCompile Include="Executor\ArrayRuntime.cpp">
+      <Filter>Executor</Filter>
+    </ClCompile>
     <ClCompile Include="Shell\main.cpp">
       <Filter>Shell</Filter>
     </ClCompile>
@@ -192,6 +201,15 @@
       <Filter>Executor</Filter>
     </ClInclude>
     <ClInclude Include="Executor\Scope.h">
+      <Filter>Executor</Filter>
+    </ClInclude>
+    <ClInclude Include="Executor\ClassRuntime.h">
+      <Filter>Executor</Filter>
+    </ClInclude>
+    <ClInclude Include="Executor\ModuleRuntime.h">
+      <Filter>Executor</Filter>
+    </ClInclude>
+    <ClInclude Include="Executor\ArrayRuntime.h">
       <Filter>Executor</Filter>
     </ClInclude>
     <ClInclude Include="Shell\RunPromptShell.h">
