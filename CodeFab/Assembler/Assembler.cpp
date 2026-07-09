@@ -229,6 +229,14 @@ private:
     ClassDeclareStatement* parseClass() {
         Token classToken = popToken();
         Token name = popExpectedToken(TokenType::IDENTIFIER, "Expect class name.");
+
+        IdentifierExpression* superclass = nullptr;
+        if (auto t = currentToken(); t && t->type == TokenType::COLON) {
+            popToken();
+            Token superName = popExpectedToken(TokenType::IDENTIFIER, "Expect superclass name after ':'.");
+            superclass = addNode<IdentifierExpression>(Tokens{ superName }, superName.origin);
+        }
+
         Token leftBrace = popExpectedToken(TokenType::LEFT_BRACE, "Expect '{' before class body.");
         std::vector<MethodDeclareStatement*> methods;
         // 클래스 바디는 일반 statement가 아니라 메서드 선언만 허용되는 별도
@@ -238,7 +246,7 @@ private:
             methods.push_back(parseMethod());
         }
         Token rightBrace = popExpectedToken(TokenType::RIGHT_BRACE, "Expect '}' after class body.");
-        return addNode<ClassDeclareStatement>(Tokens{ classToken, leftBrace, rightBrace }, name, methods);
+        return addNode<ClassDeclareStatement>(Tokens{ classToken, leftBrace, rightBrace }, name, methods, superclass);
     }
 
     // return이 함수/메서드 밖에서 쓰였는지는 의미 검사(Checker)의 몫이므로,
@@ -281,7 +289,8 @@ private:
         try {
             Parser importedParser(importedTokens, tree, operatorPriority, unaryOperator, sourceReader, importStack);
             for (Statement* decl : importedParser.parseProgram()) {
-                if (!dynamic_cast<DeclareStatement*>(decl) && !dynamic_cast<FunctionDeclareStatement*>(decl)) {
+                if (!dynamic_cast<DeclareStatement*>(decl) && !dynamic_cast<FunctionDeclareStatement*>(decl)
+                    && !dynamic_cast<ClassDeclareStatement*>(decl)) {
                     throw AssemblerError("import 대상 파일에는 선언 외의 내용을 허용하지 않습니다: '{}'", pathToken.origin);
                 }
                 declarations.push_back(decl);
@@ -392,6 +401,9 @@ private:
             case TokenType::THIS:
                 popToken();
                 return addNode<ThisExpression>(Tokens{ *token });
+            case TokenType::SUPER:
+                popToken();
+                return addNode<SuperExpression>(Tokens{ *token });
             case TokenType::IDENTIFIER:
                 popToken();
                 return addNode<IdentifierExpression>(Tokens{ *token }, token->origin);
@@ -454,7 +466,8 @@ private:
             case TokenType::SLASH: return addNode<DivideExpression>(Tokens{ opToken }, left, right);
             case TokenType::PERCENT: return addNode<ModExpression>(Tokens{ opToken }, left, right);
             case TokenType::AND: return addNode<AndExpression>(Tokens{ opToken }, left, right);
-            default: return addNode<OrExpression>(Tokens{ opToken }, left, right);
+            case TokenType::OR: return addNode<OrExpression>(Tokens{ opToken }, left, right);
+            default: throw AssemblerError("makeBinaryExpression: 처리되지 않은 연산자 토큰입니다.");
         }
     }
 

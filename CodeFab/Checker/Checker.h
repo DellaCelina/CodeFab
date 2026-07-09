@@ -1,13 +1,17 @@
 ﻿#pragma once
+#include <functional>
 #include <string>
-#include <vector>
+#include <typeindex>
+#include <unordered_map>
 #include <unordered_set>
+#include <vector>
 
 #include "../Assembler/SyntaxTree.h"
 #include "../Executor/ExecuteInterface.h"
 #include "CheckerInterface.h"
 
 using namespace std;
+
 
 class Checker : public CheckerInterface {
 
@@ -37,7 +41,12 @@ private:
 
     [[noreturn]] void reportError(int line, const string& message);
 
-    // SyntaxNode에 accept()가 없어 dynamic_cast로 타입 분기한다.
+    // SyntaxNode에 accept()가 추가됐지만(TODO.md #11, Visitor 패턴 적용 결정),
+    // Checker는 이번 라운드 리팩토링 범위가 아니라 여전히 dynamic_cast로 타입
+    // 분기한다 - Executor 전환 이후 별도로 진행한다.
+    void registerDefaultHandlers();
+
+    // 핸들러 없는 타입(리터럴 등)은 조용히 지나간다.
     void checkStatement(Statement* stmt);
     void checkExpression(Expression* expr);
 
@@ -55,6 +64,8 @@ private:
     // (Fake/Mock ExecuteInterface로) 테스트로 검증한다 - 실제 폴딩은 Assembler와 협의 후 추가.
     void foldConstantIfPossible(BinaryExpression* bin);
 
+    void checkFunctionDeclare(FunctionDeclareStatement* funcDecl);
+
     // FunctionDeclareStatement/MethodDeclareStatement가 필드 모양이 같아 공용으로 처리한다.
     void checkFunctionBody(const string& name, const vector<Token>& params,
         const vector<Statement*>& body, int line, bool isMethod, bool isInit);
@@ -65,4 +76,7 @@ private:
 
     // 정적 바인딩: 몇 단계 위 스코프에서 선언됐는지 세어 id->depth에 기록한다.
     void resolveIdentifier(IdentifierExpression* id) const;
+
+    unordered_map<type_index, function<void(Statement*)>> statementHandlers_;
+    unordered_map<type_index, function<void(Expression*)>> expressionHandlers_;
 };

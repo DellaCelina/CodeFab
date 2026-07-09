@@ -172,6 +172,7 @@
     <ClCompile Include="Shell\DebuggerTest.cpp" />
     <ClCompile Include="Shell\DebugMode.cpp" />
     <ClCompile Include="Shell\DebugModeTest.cpp" />
+    <ClCompile Include="IntegrationTest\DebugIntegrationTest.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Tokenizer\Token.h" />
@@ -184,6 +185,7 @@
     <ClInclude Include="Assembler\FileSourceReader.h" />
     <ClInclude Include="Checker\Checker.h" />
     <ClInclude Include="Checker\CheckerInterface.h" />
+    <ClInclude Include="Checker\OptimizerInterface.h" />
     <ClInclude Include="Executor\ExecuteInterface.h" />
     <ClInclude Include="Executor\Executor.h" />
     <ClInclude Include="Executor\Value.h" />

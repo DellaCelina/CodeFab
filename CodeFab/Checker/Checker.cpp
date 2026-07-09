@@ -12,6 +12,7 @@ bool isLiteralExpression(Expression* expr) {
 
 Checker::Checker(ExecuteInterface& executor) : executor_(executor) {
     enterScope(); // 세션 전체에 걸쳐 유지되는 전역 스코프
+    registerDefaultHandlers();
 }
 
 void Checker::enterScope() {
@@ -45,94 +46,128 @@ void Checker::reportError(int line, const string& message) {
     throw CheckerError("[{}번째 줄] {}", line, message);
 }
 
+void Checker::registerDefaultHandlers() {
+    statementHandlers_[type_index(typeid(BlockStatement))] = [this](Statement* stmt) {
+        checkBlock(static_cast<BlockStatement*>(stmt));
+    };
+    statementHandlers_[type_index(typeid(DeclareStatement))] = [this](Statement* stmt) {
+        checkDeclare(static_cast<DeclareStatement*>(stmt));
+    };
+    statementHandlers_[type_index(typeid(PrintStatement))] = [this](Statement* stmt) {
+        checkPrint(static_cast<PrintStatement*>(stmt));
+    };
+    statementHandlers_[type_index(typeid(IfStatement))] = [this](Statement* stmt) {
+        checkIf(static_cast<IfStatement*>(stmt));
+    };
+    statementHandlers_[type_index(typeid(ForStatement))] = [this](Statement* stmt) {
+        checkFor(static_cast<ForStatement*>(stmt));
+    };
+    statementHandlers_[type_index(typeid(ExpressionStatement))] = [this](Statement* stmt) {
+        checkExpression(static_cast<ExpressionStatement*>(stmt)->expr);
+    };
+    statementHandlers_[type_index(typeid(FunctionDeclareStatement))] = [this](Statement* stmt) {
+        checkFunctionDeclare(static_cast<FunctionDeclareStatement*>(stmt));
+    };
+    statementHandlers_[type_index(typeid(ClassDeclareStatement))] = [this](Statement* stmt) {
+        checkClass(static_cast<ClassDeclareStatement*>(stmt));
+    };
+    statementHandlers_[type_index(typeid(ReturnStatement))] = [this](Statement* stmt) {
+        checkReturn(static_cast<ReturnStatement*>(stmt));
+    };
+    statementHandlers_[type_index(typeid(ImportStatement))] = [this](Statement* stmt) {
+        checkImport(static_cast<ImportStatement*>(stmt));
+    };
+    // MethodDeclareStatement는 클래스 바디 전용이라 핸들러가 없다 - checkClass가 직접 처리한다.
+
+    expressionHandlers_[type_index(typeid(IdentifierExpression))] = [this](Expression* expr) {
+        checkIdentifier(static_cast<IdentifierExpression*>(expr));
+    };
+    expressionHandlers_[type_index(typeid(AssignExpression))] = [this](Expression* expr) {
+        auto* assign = static_cast<AssignExpression*>(expr);
+        checkExpression(assign->target);
+        checkExpression(assign->value);
+    };
+    expressionHandlers_[type_index(typeid(CallExpression))] = [this](Expression* expr) {
+        // 호출 대상/인자 개수 검증은 런타임 몫이라 여기선 재귀 검사만 한다.
+        auto* call = static_cast<CallExpression*>(expr);
+        checkExpression(call->callee);
+        for (Expression* arg : call->arguments) {
+            checkExpression(arg);
+        }
+    };
+    expressionHandlers_[type_index(typeid(FieldAccessExpression))] = [this](Expression* expr) {
+        checkExpression(static_cast<FieldAccessExpression*>(expr)->object);
+    };
+    expressionHandlers_[type_index(typeid(ThisExpression))] = [this](Expression* expr) {
+        checkThis(static_cast<ThisExpression*>(expr));
+    };
+    expressionHandlers_[type_index(typeid(ArrayExpression))] = [this](Expression* expr) {
+        checkExpression(static_cast<ArrayExpression*>(expr)->sizeExpr);
+    };
+    expressionHandlers_[type_index(typeid(IndexExpression))] = [this](Expression* expr) {
+        auto* idx = static_cast<IndexExpression*>(expr);
+        checkExpression(idx->collection);
+        checkExpression(idx->index);
+    };
+    expressionHandlers_[type_index(typeid(InstanceOfExpression))] = [this](Expression* expr) {
+        // TODO(refactor): instOf->className은 Token이라 정적으로 선언 여부를 확인하지 않는다.
+        checkExpression(static_cast<InstanceOfExpression*>(expr)->object);
+    };
+
+    // type_index는 정확한 타입만 매칭되므로 BinaryExpression 하위 타입마다 등록해야 한다.
+    // 새 이항 연산자가 추가되면 여기 한 줄 추가.
+    auto binaryHandler = [this](Expression* expr) {
+        checkBinary(static_cast<BinaryExpression*>(expr));
+    };
+    expressionHandlers_[type_index(typeid(AddExpression))] = binaryHandler;
+    expressionHandlers_[type_index(typeid(SubExpression))] = binaryHandler;
+    expressionHandlers_[type_index(typeid(MultExpression))] = binaryHandler;
+    expressionHandlers_[type_index(typeid(DivideExpression))] = binaryHandler;
+    expressionHandlers_[type_index(typeid(EqualExpression))] = binaryHandler;
+    expressionHandlers_[type_index(typeid(NotEqualExpression))] = binaryHandler;
+    expressionHandlers_[type_index(typeid(LessExpression))] = binaryHandler;
+    expressionHandlers_[type_index(typeid(LessEqualExpression))] = binaryHandler;
+    expressionHandlers_[type_index(typeid(GreaterExpression))] = binaryHandler;
+    expressionHandlers_[type_index(typeid(GreaterEqualExpression))] = binaryHandler;
+
+    auto unaryHandler = [this](Expression* expr) {
+        checkExpression(static_cast<UnaryExpression*>(expr)->operand);
+    };
+    expressionHandlers_[type_index(typeid(NegativeExpression))] = unaryHandler;
+    expressionHandlers_[type_index(typeid(NotExpression))] = unaryHandler;
+
+    // 리터럴(Number/String/Boolean)은 항상 유효하므로 핸들러가 없다.
+}
+
 void Checker::checkStatement(Statement* stmt) {
     if (stmt == nullptr) {
         return;
     }
-
-    if (auto* block = dynamic_cast<BlockStatement*>(stmt)) {
-        checkBlock(block);
+    auto it = statementHandlers_.find(type_index(typeid(*stmt)));
+    if (it != statementHandlers_.end()) {
+        it->second(stmt);
     }
-    else if (auto* decl = dynamic_cast<DeclareStatement*>(stmt)) {
-        checkDeclare(decl);
-    }
-    else if (auto* print = dynamic_cast<PrintStatement*>(stmt)) {
-        checkPrint(print);
-    }
-    else if (auto* ifStmt = dynamic_cast<IfStatement*>(stmt)) {
-        checkIf(ifStmt);
-    }
-    else if (auto* forStmt = dynamic_cast<ForStatement*>(stmt)) {
-        checkFor(forStmt);
-    }
-    else if (auto* exprStmt = dynamic_cast<ExpressionStatement*>(stmt)) {
-        checkExpression(exprStmt->expr);
-    }
-    else if (auto* funcDecl = dynamic_cast<FunctionDeclareStatement*>(stmt)) {
-        const string& name = funcDecl->name.origin;
-        if (isDeclaredInCurrentScope(name)) {
-            reportError(funcDecl->getLine(), "'" + name + "'에러: 이미 해당 이름은 현재 스코프에서 사용중입니다.");
-        }
-        // 바디 검사 전에 이름을 등록해 재귀 호출이 미선언 변수 오류로 잡히지 않게 한다.
-        declare(name);
-        checkFunctionBody(name, funcDecl->params, funcDecl->body, funcDecl->getLine(),
-            /*isMethod=*/false, /*isInit=*/false);
-    }
-    else if (auto* classDecl = dynamic_cast<ClassDeclareStatement*>(stmt)) {
-        checkClass(classDecl);
-    }
-    else if (auto* ret = dynamic_cast<ReturnStatement*>(stmt)) {
-        checkReturn(ret);
-    }
-    else if (auto* importStmt = dynamic_cast<ImportStatement*>(stmt)) {
-        checkImport(importStmt);
-    }
-    // MethodDeclareStatement는 클래스 바디 전용이라 여기 오지 않고 checkClass가 직접 처리한다.
 }
 
 void Checker::checkExpression(Expression* expr) {
     if (expr == nullptr) {
         return;
     }
+    auto it = expressionHandlers_.find(type_index(typeid(*expr)));
+    if (it != expressionHandlers_.end()) {
+        it->second(expr);
+    }
+}
 
-    if (auto* id = dynamic_cast<IdentifierExpression*>(expr)) {
-        checkIdentifier(id);
+void Checker::checkFunctionDeclare(FunctionDeclareStatement* funcDecl) {
+    const string& name = funcDecl->name.origin;
+    if (isDeclaredInCurrentScope(name)) {
+        reportError(funcDecl->getLine(), "'" + name + "'에러: 이미 해당 이름은 현재 스코프에서 사용중입니다.");
     }
-    else if (auto* bin = dynamic_cast<BinaryExpression*>(expr)) {
-        checkBinary(bin);
-    }
-    else if (auto* assign = dynamic_cast<AssignExpression*>(expr)) {
-        checkExpression(assign->target);
-        checkExpression(assign->value);
-    }
-    else if (auto* un = dynamic_cast<UnaryExpression*>(expr)) {
-        checkExpression(un->operand);
-    }
-    else if (auto* call = dynamic_cast<CallExpression*>(expr)) {
-        // 호출 대상/인자 개수 검증은 런타임 몫이라 여기선 재귀 검사만 한다.
-        checkExpression(call->callee);
-        for (Expression* arg : call->arguments) {
-            checkExpression(arg);
-        }
-    }
-    else if (auto* field = dynamic_cast<FieldAccessExpression*>(expr)) {
-        checkExpression(field->object);
-    }
-    else if (auto* thisExpr = dynamic_cast<ThisExpression*>(expr)) {
-        checkThis(thisExpr);
-    }
-    else if (auto* arr = dynamic_cast<ArrayExpression*>(expr)) {
-        checkExpression(arr->sizeExpr);
-    }
-    else if (auto* idx = dynamic_cast<IndexExpression*>(expr)) {
-        checkExpression(idx->collection);
-        checkExpression(idx->index);
-    }
-    else if (auto* instOf = dynamic_cast<InstanceOfExpression*>(expr)) {
-        // TODO(refactor): instOf->className은 Token이라 정적으로 선언 여부를 확인하지 않는다.
-        checkExpression(instOf->object);
-    }
-    // 리터럴(Number/String/Boolean)은 항상 유효하므로 분기가 없다.
+    // 바디 검사 전에 이름을 등록해 재귀 호출이 미선언 변수 오류로 잡히지 않게 한다.
+    declare(name);
+    checkFunctionBody(name, funcDecl->params, funcDecl->body, funcDecl->getLine(),
+        /*isMethod=*/false, /*isInit=*/false);
 }
 
 void Checker::checkBlock(BlockStatement* block) {
@@ -206,7 +241,16 @@ void Checker::checkIdentifier(IdentifierExpression* id) {
         reportError(id->getLine(), "'" + id->name + "'에러: 선언되지 않은 변수입니다.");
     }
 
-    resolveIdentifier(id);
+    // 함수/메서드 본문 안에서는 정적 바인딩을 건너뛴다: Environment는 함수 호출마다
+    // (재귀 호출 포함) 스코프를 하나씩 더 쌓는 콜스택 구조라, 여기서 계산하는 "몇 단계
+    // 위 스코프인지"는 선언 시점 기준일 뿐 재귀 호출 깊이에 따라 실제 런타임 스코프
+    // 깊이와 달라진다 - 예: fact가 자기 자신을 재귀 호출하면 재귀가 한 단계 깊어질
+    // 때마다 실제로는 몇 단계를 더 올라가야 fact를 찾는데 depth는 1로 고정돼 있어
+    // 엉뚱한 스코프를 가리키게 된다. 함수/메서드 밖(블록/전역)은 재귀 호출 없이
+    // 코드 구조 그대로 스코프가 쌓이므로 정적 바인딩이 여전히 안전하다.
+    if (functionDepth == 0) {
+        resolveIdentifier(id);
+    }
 }
 
 void Checker::checkBinary(BinaryExpression* bin) {

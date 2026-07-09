@@ -28,6 +28,9 @@
     <Filter Include="Shell">
       <UniqueIdentifier>{1a2b3c4d-0005-4a1a-9c1a-000000000005}</UniqueIdentifier>
     </Filter>
+    <Filter Include="IntegrationTest">
+      <UniqueIdentifier>{1a2b3c4d-0006-4a1a-9c1a-000000000006}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />
@@ -123,6 +126,9 @@
     <ClCompile Include="Shell\DebugModeTest.cpp">
       <Filter>Shell</Filter>
     </ClCompile>
+    <ClCompile Include="IntegrationTest\DebugIntegrationTest.cpp">
+      <Filter>IntegrationTest</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Tokenizer\Token.h">
@@ -150,6 +156,9 @@
       <Filter>Assembler</Filter>
     </ClInclude>
     <ClInclude Include="Checker\CheckerInterface.h">
+      <Filter>Checker</Filter>
+    </ClInclude>
+    <ClInclude Include="Checker\OptimizerInterface.h">
       <Filter>Checker</Filter>
     </ClInclude>
     <ClInclude Include="Checker\Checker.h">
