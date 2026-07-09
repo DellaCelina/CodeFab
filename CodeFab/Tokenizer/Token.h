@@ -1,5 +1,6 @@
 ﻿#pragma once
 #include <string>
+#include <unordered_map>
 
 enum class TokenType {
     // 리터럴
@@ -65,6 +66,27 @@ enum class TokenType {
     COMMA,          // ,
 
     COLON,          // :
+};
+
+inline const std::unordered_map<std::string, TokenType> KEYWORDS = {
+    { "var",        TokenType::VAR        },
+    { "print",      TokenType::PRINT      },
+    { "if",         TokenType::IF         },
+    { "else",       TokenType::ELSE       },
+    { "for",        TokenType::FOR        },
+    { "true",       TokenType::TRUE       },
+    { "false",      TokenType::FALSE      },
+    { "Func",       TokenType::FUNC       },
+    { "return",     TokenType::RETURN     },
+    { "Class",      TokenType::CLASS      },
+    { "This",       TokenType::THIS       },
+    { "Array",      TokenType::ARRAY      },
+    { "import",     TokenType::IMPORT     },
+    { "alias",      TokenType::ALIAS      },
+    { "instanceof", TokenType::INSTANCEOF },
+    { "Super",      TokenType::SUPER      },
+    { "and",        TokenType::AND        },
+    { "or",         TokenType::OR         },
 };
 
 struct Token {
