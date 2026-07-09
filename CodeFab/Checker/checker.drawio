@@ -1,158 +1,203 @@
 <mxfile host="Electron" version="24.0.0">
   <diagram name="Checker" id="checker-module">
-    <mxGraphModel dx="1400" dy="900" grid="1" gridSize="10" guides="1" tooltips="1" connectable="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1500" pageHeight="1000" math="0" shadow="0">
+    <mxGraphModel dx="1500" dy="1000" grid="1" gridSize="10" guides="1" tooltips="1" connectable="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1600" pageHeight="1100" math="0" shadow="0">
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
 
         <!-- CheckerInterface -->
-        <mxCell id="C_CheckerInterface" value="&#171;interface&#187;&#10;CheckerInterface" style="swimlane;fontStyle=1;align=center;verticalAlign=middle;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=0;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="1">
-          <mxGeometry x="40" y="40" width="280" height="46" as="geometry"/>
+        <mxCell id="C_CheckerInterface" value="«interface»&#10;CheckerInterface" style="swimlane;fontStyle=1;align=center;verticalAlign=middle;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=0;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="40" y="40" width="300" height="46" as="geometry"/>
         </mxCell>
-        <mxCell id="C_CheckerInterface_r1" value="+ check(tree: SyntaxTree&amp;): bool" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="C_CheckerInterface">
-          <mxGeometry y="26" width="280" height="20" as="geometry"/>
+        <mxCell id="C_CheckerInterface_r1" value="+ check(tree: SyntaxTree&amp;): void" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="C_CheckerInterface">
+          <mxGeometry y="26" width="300" height="20" as="geometry"/>
         </mxCell>
 
         <!-- OptimizerInterface -->
-        <mxCell id="C_OptimizerInterface" value="&#171;interface&#187;&#10;OptimizerInterface" style="swimlane;fontStyle=1;align=center;verticalAlign=middle;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=0;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="1">
-          <mxGeometry x="640" y="40" width="280" height="46" as="geometry"/>
+        <mxCell id="C_OptimizerInterface" value="«interface»&#10;OptimizerInterface" style="swimlane;fontStyle=1;align=center;verticalAlign=middle;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=0;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="700" y="40" width="300" height="46" as="geometry"/>
         </mxCell>
         <mxCell id="C_OptimizerInterface_r1" value="+ optimize(tree: SyntaxTree&amp;): void" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="C_OptimizerInterface">
-          <mxGeometry y="26" width="280" height="20" as="geometry"/>
+          <mxGeometry y="26" width="300" height="20" as="geometry"/>
+        </mxCell>
+
+        <!-- SyntaxNodeVisitor (external) -->
+        <mxCell id="C_SyntaxNodeVisitor" value="«interface»&#10;SyntaxNodeVisitor&#10;«from Assembler»" style="swimlane;fontStyle=1;align=center;verticalAlign=middle;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=0;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;dashed=1;" vertex="1" parent="1">
+          <mxGeometry x="1340" y="40" width="340" height="46" as="geometry"/>
+        </mxCell>
+        <mxCell id="C_SyntaxNodeVisitor_r1" value="+ visit(Node&amp;) — one overload per AST leaf (double dispatch)" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="C_SyntaxNodeVisitor">
+          <mxGeometry y="26" width="340" height="20" as="geometry"/>
         </mxCell>
 
         <!-- Checker -->
         <mxCell id="C_Checker" value="Checker" style="swimlane;fontStyle=1;align=center;verticalAlign=middle;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=0;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="1">
-          <mxGeometry x="40" y="286" width="280" height="294" as="geometry"/>
+          <mxGeometry x="40" y="320" width="380" height="274" as="geometry"/>
         </mxCell>
-        <mxCell id="C_Checker_f1" value="- executor_: ExecuteInterface&amp;" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="C_Checker">
-          <mxGeometry y="26" width="280" height="20" as="geometry"/>
+        <mxCell id="C_Checker_f1" value="- scopes: vector&lt;unordered_set&lt;string&gt;&gt;" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="C_Checker">
+          <mxGeometry y="26" width="380" height="20" as="geometry"/>
         </mxCell>
-        <mxCell id="C_Checker_f2" value="- scopes: vector&lt;unordered_set&lt;string&gt;&gt;" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="C_Checker">
-          <mxGeometry y="46" width="280" height="20" as="geometry"/>
+        <mxCell id="C_Checker_f2" value="- classNames_: vector&lt;unordered_set&lt;string&gt;&gt;" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="C_Checker">
+          <mxGeometry y="46" width="380" height="20" as="geometry"/>
         </mxCell>
-        <mxCell id="C_Checker_f3" value="- classNames_: vector&lt;unordered_set&lt;string&gt;&gt;" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="C_Checker">
-          <mxGeometry y="66" width="280" height="20" as="geometry"/>
+        <mxCell id="C_Checker_f3" value="- currentlyDeclaring: string" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="C_Checker">
+          <mxGeometry y="66" width="380" height="20" as="geometry"/>
         </mxCell>
-        <mxCell id="C_Checker_f4" value="- currentlyDeclaring: string" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="C_Checker">
-          <mxGeometry y="86" width="280" height="20" as="geometry"/>
+        <mxCell id="C_Checker_f4" value="- functionDepth, classMethodDepth, forDepth: int" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="C_Checker">
+          <mxGeometry y="86" width="380" height="20" as="geometry"/>
         </mxCell>
-        <mxCell id="C_Checker_f5" value="- functionDepth, classMethodDepth, forDepth: int" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="C_Checker">
-          <mxGeometry y="106" width="280" height="20" as="geometry"/>
-        </mxCell>
-        <mxCell id="C_Checker_f6" value="- inInitMethod, hasSuperclass_: bool" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="C_Checker">
-          <mxGeometry y="126" width="280" height="20" as="geometry"/>
-        </mxCell>
-        <mxCell id="C_Checker_f7" value="- statementHandlers_, expressionHandlers_: unordered_map&lt;type_index, function&lt;...&gt;&gt;" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="C_Checker">
-          <mxGeometry y="146" width="280" height="20" as="geometry"/>
+        <mxCell id="C_Checker_f5" value="- inInitMethod, hasSuperclass_: bool" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="C_Checker">
+          <mxGeometry y="106" width="380" height="20" as="geometry"/>
         </mxCell>
         <mxCell id="C_Checker_sep1" value="" style="line;strokeWidth=1;fillColor=none;html=1;" vertex="1" parent="C_Checker">
-          <mxGeometry y="166" width="280" height="8" as="geometry"/>
+          <mxGeometry y="126" width="380" height="8" as="geometry"/>
         </mxCell>
-        <mxCell id="C_Checker_m1" value="+ check(tree: SyntaxTree&amp;): bool" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="C_Checker">
-          <mxGeometry y="174" width="280" height="20" as="geometry"/>
+        <mxCell id="C_Checker_m1" value="+ Checker()" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="C_Checker">
+          <mxGeometry y="134" width="380" height="20" as="geometry"/>
         </mxCell>
-        <mxCell id="C_Checker_m2" value="- resolveIdentifier(id: IdentifierExpression*)" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="C_Checker">
-          <mxGeometry y="194" width="280" height="20" as="geometry"/>
+        <mxCell id="C_Checker_m2" value="+ check(tree: SyntaxTree&amp;): void" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="C_Checker">
+          <mxGeometry y="154" width="380" height="20" as="geometry"/>
         </mxCell>
-        <mxCell id="C_Checker_m3" value="- enterScope()" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="C_Checker">
-          <mxGeometry y="214" width="280" height="20" as="geometry"/>
+        <mxCell id="C_Checker_m3" value="- resolveIdentifier(id: IdentifierExpression&amp;): void  {fills IdentifierExpression::depth for static-binding scope resolution}" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="C_Checker">
+          <mxGeometry y="174" width="380" height="20" as="geometry"/>
         </mxCell>
-        <mxCell id="C_Checker_m4" value="- exitScope()" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="C_Checker">
-          <mxGeometry y="234" width="280" height="20" as="geometry"/>
+        <mxCell id="C_Checker_m4" value="- enterScope()" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="C_Checker">
+          <mxGeometry y="194" width="380" height="20" as="geometry"/>
         </mxCell>
-        <mxCell id="C_Checker_m5" value="- declare(name: string)" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="C_Checker">
-          <mxGeometry y="254" width="280" height="20" as="geometry"/>
+        <mxCell id="C_Checker_m5" value="- exitScope()" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="C_Checker">
+          <mxGeometry y="214" width="380" height="20" as="geometry"/>
         </mxCell>
-        <mxCell id="C_Checker_m6" value="- checkStatement(node) / checkExpression(node)  {per-node-type dispatch table &#8212; one handler per AST node type}" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="C_Checker">
-          <mxGeometry y="274" width="280" height="20" as="geometry"/>
+        <mxCell id="C_Checker_m6" value="- declare(name: string)" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="C_Checker">
+          <mxGeometry y="234" width="380" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="C_Checker_m7" value="+ visit(node&amp;): void  {full visitor set, one overload per AST leaf — enforces compile-time exhaustiveness}" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="C_Checker">
+          <mxGeometry y="254" width="380" height="20" as="geometry"/>
         </mxCell>
 
         <!-- Optimizer -->
         <mxCell id="C_Optimizer" value="Optimizer" style="swimlane;fontStyle=1;align=center;verticalAlign=middle;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=0;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="1">
-          <mxGeometry x="640" y="286" width="280" height="154" as="geometry"/>
+          <mxGeometry x="800" y="320" width="380" height="254" as="geometry"/>
         </mxCell>
         <mxCell id="C_Optimizer_f1" value="- executor_: ExecuteInterface&amp;" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="C_Optimizer">
-          <mxGeometry y="26" width="280" height="20" as="geometry"/>
+          <mxGeometry y="26" width="380" height="20" as="geometry"/>
         </mxCell>
         <mxCell id="C_Optimizer_f2" value="- tree_: SyntaxTree* (valid only during optimize())" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="C_Optimizer">
-          <mxGeometry y="46" width="280" height="20" as="geometry"/>
+          <mxGeometry y="46" width="380" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="C_Optimizer_f3" value="- lastFolded_: Expression*" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="C_Optimizer">
+          <mxGeometry y="66" width="380" height="20" as="geometry"/>
         </mxCell>
         <mxCell id="C_Optimizer_sep1" value="" style="line;strokeWidth=1;fillColor=none;html=1;" vertex="1" parent="C_Optimizer">
-          <mxGeometry y="66" width="280" height="8" as="geometry"/>
+          <mxGeometry y="86" width="380" height="8" as="geometry"/>
         </mxCell>
-        <mxCell id="C_Optimizer_m1" value="+ optimize(tree: SyntaxTree&amp;): void" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="C_Optimizer">
-          <mxGeometry y="74" width="280" height="20" as="geometry"/>
+        <mxCell id="C_Optimizer_m1" value="+ Optimizer(executor: ExecuteInterface&amp;)" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="C_Optimizer">
+          <mxGeometry y="94" width="380" height="20" as="geometry"/>
         </mxCell>
-        <mxCell id="C_Optimizer_m2" value="- foldStatement(stmt)" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="C_Optimizer">
-          <mxGeometry y="94" width="280" height="20" as="geometry"/>
+        <mxCell id="C_Optimizer_m2" value="+ optimize(tree: SyntaxTree&amp;): void" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="C_Optimizer">
+          <mxGeometry y="114" width="380" height="20" as="geometry"/>
         </mxCell>
-        <mxCell id="C_Optimizer_m3" value="- foldExpression(expr): Expression*" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="C_Optimizer">
-          <mxGeometry y="114" width="280" height="20" as="geometry"/>
+        <mxCell id="C_Optimizer_m3" value="+ visit(node&amp;): void  {full visitor set — folds constant subtrees}" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="C_Optimizer">
+          <mxGeometry y="134" width="380" height="20" as="geometry"/>
         </mxCell>
-        <mxCell id="C_Optimizer_m4" value="- replaceWithLiteral(expr, value)" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="C_Optimizer">
-          <mxGeometry y="134" width="280" height="20" as="geometry"/>
+        <mxCell id="C_Optimizer_m4" value="- foldStatement(stmt)" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="C_Optimizer">
+          <mxGeometry y="154" width="380" height="20" as="geometry"/>
         </mxCell>
-
-        <!-- Note near Optimizer -->
-        <mxCell id="Note_Optimizer" value="Contract: optimize() must only run after check() returns true, and before execute() (not yet wired into Shell pipeline)" style="text;html=1;fontColor=#999999;fontStyle=2;whiteSpace=wrap;" vertex="1" parent="1">
-          <mxGeometry x="640" y="460" width="280" height="60" as="geometry"/>
+        <mxCell id="C_Optimizer_m5" value="- foldExpression(expr): Expression*" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="C_Optimizer">
+          <mxGeometry y="174" width="380" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="C_Optimizer_m6" value="- foldBinary(expr: BinaryExpression*)" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="C_Optimizer">
+          <mxGeometry y="194" width="380" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="C_Optimizer_m7" value="- foldUnary(expr: UnaryExpression*)" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="C_Optimizer">
+          <mxGeometry y="214" width="380" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="C_Optimizer_m8" value="- replaceWithLiteral(expr, value)" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="C_Optimizer">
+          <mxGeometry y="234" width="380" height="20" as="geometry"/>
         </mxCell>
 
         <!-- CheckerError -->
         <mxCell id="C_CheckerError" value="CheckerError" style="swimlane;fontStyle=1;align=center;verticalAlign=middle;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=0;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;" vertex="1" parent="1">
-          <mxGeometry x="360" y="340" width="220" height="46" as="geometry"/>
+          <mxGeometry x="480" y="660" width="260" height="46" as="geometry"/>
         </mxCell>
         <mxCell id="C_CheckerError_m1" value="+ what(): const char*" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="C_CheckerError">
-          <mxGeometry y="26" width="220" height="20" as="geometry"/>
+          <mxGeometry y="26" width="260" height="20" as="geometry"/>
         </mxCell>
 
         <!-- std::exception -->
         <mxCell id="C_StdException" value="std::exception" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;" vertex="1" parent="1">
-          <mxGeometry x="360" y="420" width="160" height="40" as="geometry"/>
+          <mxGeometry x="800" y="666" width="180" height="34" as="geometry"/>
         </mxCell>
 
         <!-- ExecuteInterface (external) -->
-        <mxCell id="C_ExecuteInterface" value="&#171;interface&#187;&#10;ExecuteInterface&#10;&#171;from Executor&#187;" style="swimlane;fontStyle=1;align=center;verticalAlign=middle;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=0;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;dashed=1;" vertex="1" parent="1">
-          <mxGeometry x="40" y="780" width="280" height="46" as="geometry"/>
+        <mxCell id="C_ExecuteInterface" value="«interface»&#10;ExecuteInterface&#10;«from Executor»" style="swimlane;fontStyle=1;align=center;verticalAlign=middle;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=0;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;dashed=1;" vertex="1" parent="1">
+          <mxGeometry x="200" y="900" width="340" height="46" as="geometry"/>
         </mxCell>
-        <mxCell id="C_ExecuteInterface_r1" value="+ execute/evaluate/environment()" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="C_ExecuteInterface">
-          <mxGeometry y="26" width="280" height="20" as="geometry"/>
+        <mxCell id="C_ExecuteInterface_r1" value="+ execute() / evaluate() / environment()" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="C_ExecuteInterface">
+          <mxGeometry y="26" width="340" height="20" as="geometry"/>
         </mxCell>
 
         <!-- SyntaxTree (external) -->
-        <mxCell id="C_SyntaxTree" value="SyntaxTree&#10;&#171;from Assembler&#187;" style="swimlane;fontStyle=1;align=center;verticalAlign=middle;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=0;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;dashed=1;" vertex="1" parent="1">
-          <mxGeometry x="640" y="780" width="280" height="46" as="geometry"/>
+        <mxCell id="C_SyntaxTree" value="SyntaxTree&#10;«from Assembler»" style="swimlane;fontStyle=1;align=center;verticalAlign=middle;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=0;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;dashed=1;" vertex="1" parent="1">
+          <mxGeometry x="700" y="900" width="340" height="46" as="geometry"/>
         </mxCell>
         <mxCell id="C_SyntaxTree_r1" value="+ getRoot() / setRoot() / add()" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="C_SyntaxTree">
-          <mxGeometry y="26" width="280" height="20" as="geometry"/>
+          <mxGeometry y="26" width="340" height="20" as="geometry"/>
         </mxCell>
 
-        <!-- Edges -->
+        <!-- Note -->
+        <mxCell id="Note_Wired" value="Optimizer is fully wired into the Shell pipeline — Repl/Run/Debug modes all call optimizer.optimize(tree) between checker.check(tree) and executor.execute(tree)." style="text;html=1;fontColor=#666666;fontStyle=2;align=left;" vertex="1" parent="1">
+          <mxGeometry x="200" y="1000" width="900" height="40" as="geometry"/>
+        </mxCell>
+
+        <!-- Edges: realizations -->
         <mxCell id="E_Checker_realizes_CheckerInterface" style="dashed=1;endArrow=block;endFill=0;html=1;" edge="1" parent="1" source="C_Checker" target="C_CheckerInterface">
           <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="E_Checker_realizes_SyntaxNodeVisitor" style="dashed=1;endArrow=block;endFill=0;html=1;" edge="1" parent="1" source="C_Checker" target="C_SyntaxNodeVisitor">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="420" y="200"/>
+              <mxPoint x="1510" y="200"/>
+            </Array>
+          </mxGeometry>
         </mxCell>
         <mxCell id="E_Optimizer_realizes_OptimizerInterface" style="dashed=1;endArrow=block;endFill=0;html=1;" edge="1" parent="1" source="C_Optimizer" target="C_OptimizerInterface">
           <mxGeometry relative="1" as="geometry"/>
         </mxCell>
+        <mxCell id="E_Optimizer_realizes_SyntaxNodeVisitor" style="dashed=1;endArrow=block;endFill=0;html=1;" edge="1" parent="1" source="C_Optimizer" target="C_SyntaxNodeVisitor">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1180" y="220"/>
+              <mxPoint x="1510" y="220"/>
+            </Array>
+          </mxGeometry>
+        </mxCell>
 
-        <mxCell id="E_Checker_uses_ExecuteInterface" value="uses (unused currently, kept for wiring)" style="dashed=1;endArrow=open;endFill=0;html=1;" edge="1" parent="1" source="C_Checker" target="C_ExecuteInterface">
-          <mxGeometry relative="1" as="geometry"/>
-        </mxCell>
-        <mxCell id="E_Checker_checks_SyntaxTree" value="checks &amp; fills IdentifierExpression::depth" style="dashed=1;endArrow=open;endFill=0;html=1;" edge="1" parent="1" source="C_Checker" target="C_SyntaxTree">
-          <mxGeometry relative="1" as="geometry"/>
-        </mxCell>
+        <!-- Edges: dependencies -->
         <mxCell id="E_Checker_throws_CheckerError" value="throws" style="dashed=1;endArrow=open;endFill=0;html=1;" edge="1" parent="1" source="C_Checker" target="C_CheckerError">
           <mxGeometry relative="1" as="geometry"/>
         </mxCell>
+        <mxCell id="E_Checker_checks_SyntaxTree" value="checks &amp; fills IdentifierExpression::depth" style="dashed=1;endArrow=open;endFill=0;html=1;" edge="1" parent="1" source="C_Checker" target="C_SyntaxTree">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="230" y="640"/>
+              <mxPoint x="850" y="750"/>
+            </Array>
+          </mxGeometry>
+        </mxCell>
 
         <mxCell id="E_Optimizer_calls_ExecuteInterface" value="calls evaluate() for constant folding" style="dashed=1;endArrow=open;endFill=0;html=1;" edge="1" parent="1" source="C_Optimizer" target="C_ExecuteInterface">
-          <mxGeometry relative="1" as="geometry"/>
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="900" y="750"/>
+              <mxPoint x="370" y="850"/>
+            </Array>
+          </mxGeometry>
         </mxCell>
-        <mxCell id="E_Optimizer_mutates_SyntaxTree" value="mutates AST, registers new literal nodes" style="dashed=1;endArrow=open;endFill=0;html=1;" edge="1" parent="1" source="C_Optimizer" target="C_SyntaxTree">
+        <mxCell id="E_Optimizer_mutates_SyntaxTree" value="mutates AST, registers new literal node ownership" style="dashed=1;endArrow=open;endFill=0;html=1;" edge="1" parent="1" source="C_Optimizer" target="C_SyntaxTree">
           <mxGeometry relative="1" as="geometry"/>
         </mxCell>
 
+        <!-- Edge: generalization -->
         <mxCell id="E_CheckerError_extends_StdException" style="endArrow=block;endFill=0;html=1;" edge="1" parent="1" source="C_CheckerError" target="C_StdException">
           <mxGeometry relative="1" as="geometry"/>
         </mxCell>

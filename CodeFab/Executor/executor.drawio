@@ -1,248 +1,383 @@
 <mxfile host="Electron" version="24.0.0">
   <diagram name="Executor" id="executor-module">
-    <mxGraphModel dx="1600" dy="1000" grid="1" gridSize="10" guides="1" tooltips="1" connectable="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1700" pageHeight="1100" math="0" shadow="0">
+    <mxGraphModel dx="1800" dy="1200" grid="1" gridSize="10" guides="1" tooltips="1" connectable="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1900" pageHeight="1300" math="0" shadow="0">
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
 
         <!-- ===================== ExecuteInterface (green interface) ===================== -->
-        <mxCell id="IF_Execute" value="&#171;interface&#187;&#10;ExecuteInterface" style="swimlane;fontStyle=1;align=center;verticalAlign=middle;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=0;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="1">
-          <mxGeometry x="40" y="40" width="260" height="86" as="geometry"/>
+        <mxCell id="IF_Execute" value="«interface»&#10;ExecuteInterface" style="swimlane;fontStyle=1;align=center;verticalAlign=middle;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=0;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="40" y="40" width="280" height="86" as="geometry"/>
         </mxCell>
         <mxCell id="IF_Execute_r1" value="+ execute(tree: SyntaxTree&amp;): void" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="IF_Execute">
-          <mxGeometry y="26" width="260" height="20" as="geometry"/>
+          <mxGeometry y="26" width="280" height="20" as="geometry"/>
         </mxCell>
         <mxCell id="IF_Execute_r2" value="+ evaluate(expr: Expression*): Value" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="IF_Execute">
-          <mxGeometry y="46" width="260" height="20" as="geometry"/>
+          <mxGeometry y="46" width="280" height="20" as="geometry"/>
         </mxCell>
         <mxCell id="IF_Execute_r3" value="+ environment(): const Environment&amp;" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="IF_Execute">
-          <mxGeometry y="66" width="260" height="20" as="geometry"/>
+          <mxGeometry y="66" width="280" height="20" as="geometry"/>
         </mxCell>
 
         <!-- ===================== SyntaxNodeVisitor (external gray interface) ===================== -->
-        <mxCell id="IF_SyntaxVisitor" value="&#171;interface&#187;&#10;SyntaxNodeVisitor&#10;&#171;from Assembler&#187;" style="swimlane;fontStyle=1;align=center;verticalAlign=middle;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=0;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;dashed=1;" vertex="1" parent="1">
-          <mxGeometry x="440" y="40" width="280" height="46" as="geometry"/>
+        <mxCell id="IF_SyntaxVisitor" value="«interface»&#10;SyntaxNodeVisitor&#10;«from Assembler»" style="swimlane;fontStyle=1;align=center;verticalAlign=middle;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=0;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;dashed=1;" vertex="1" parent="1">
+          <mxGeometry x="400" y="40" width="280" height="46" as="geometry"/>
         </mxCell>
         <mxCell id="IF_SyntaxVisitor_r1" value="+ visit(Node&amp;) - one overload per AST leaf (double dispatch)" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="IF_SyntaxVisitor">
           <mxGeometry y="26" width="280" height="20" as="geometry"/>
         </mxCell>
 
-        <!-- ===================== Executor ===================== -->
-        <mxCell id="Executor" value="Executor" style="swimlane;fontStyle=1;align=center;verticalAlign=middle;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=0;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="1">
-          <mxGeometry x="40" y="280" width="320" height="414" as="geometry"/>
+        <!-- ===================== External Assembler AST types (referenced by ExecuteInterface/Executor) ===================== -->
+        <mxCell id="Ext_SyntaxTree" value="SyntaxTree&#10;«from Assembler»" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;dashed=1;" vertex="1" parent="1">
+          <mxGeometry x="760" y="40" width="240" height="50" as="geometry"/>
         </mxCell>
-        <mxCell id="Executor_f1" value="- out_: ostream&amp;" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="Executor">
-          <mxGeometry y="26" width="320" height="20" as="geometry"/>
+        <mxCell id="Ext_Expression" value="Expression&#10;«from Assembler»" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;dashed=1;" vertex="1" parent="1">
+          <mxGeometry x="1080" y="40" width="240" height="50" as="geometry"/>
         </mxCell>
-        <mxCell id="Executor_f2" value="- environment_: Environment" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="Executor">
-          <mxGeometry y="46" width="320" height="20" as="geometry"/>
-        </mxCell>
-        <mxCell id="Executor_f3" value="- statementHook_: function&lt;void(Statement*)&gt;" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="Executor">
-          <mxGeometry y="66" width="320" height="20" as="geometry"/>
-        </mxCell>
-        <mxCell id="Executor_f4" value="- lastValue_: Value" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="Executor">
-          <mxGeometry y="86" width="320" height="20" as="geometry"/>
-        </mxCell>
-        <mxCell id="Executor_sep1" value="" style="line;strokeWidth=1;fillColor=none;html=1;" vertex="1" parent="Executor">
-          <mxGeometry y="106" width="320" height="8" as="geometry"/>
-        </mxCell>
-        <mxCell id="Executor_m1" value="+ execute(tree: SyntaxTree&amp;): void" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="Executor">
-          <mxGeometry y="114" width="320" height="20" as="geometry"/>
-        </mxCell>
-        <mxCell id="Executor_m2" value="+ execute(stmt: Statement*): void" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="Executor">
-          <mxGeometry y="134" width="320" height="20" as="geometry"/>
-        </mxCell>
-        <mxCell id="Executor_m3" value="+ evaluate(expr: Expression*): Value" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="Executor">
-          <mxGeometry y="154" width="320" height="20" as="geometry"/>
-        </mxCell>
-        <mxCell id="Executor_m4" value="+ environment(): const Environment&amp;" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="Executor">
-          <mxGeometry y="174" width="320" height="20" as="geometry"/>
-        </mxCell>
-        <mxCell id="Executor_m5" value="+ setStatementHook(hook)" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="Executor">
-          <mxGeometry y="194" width="320" height="20" as="geometry"/>
-        </mxCell>
-        <mxCell id="Executor_m6" value="+ visit(node&amp;): void  {one overload per AST leaf node - double dispatch}" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="Executor">
-          <mxGeometry y="214" width="320" height="20" as="geometry"/>
-        </mxCell>
-        <mxCell id="Executor_m7" value="- invoke(...)" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="Executor">
-          <mxGeometry y="234" width="320" height="20" as="geometry"/>
-        </mxCell>
-        <mxCell id="Executor_m8" value="- callFunction(...)" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="Executor">
-          <mxGeometry y="254" width="320" height="20" as="geometry"/>
-        </mxCell>
-        <mxCell id="Executor_m9" value="- callMethodDecl(...)" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="Executor">
-          <mxGeometry y="274" width="320" height="20" as="geometry"/>
-        </mxCell>
-        <mxCell id="Executor_m10" value="- instantiate(...)" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="Executor">
-          <mxGeometry y="294" width="320" height="20" as="geometry"/>
-        </mxCell>
-        <mxCell id="Executor_m11" value="- callMethod(...)" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="Executor">
-          <mxGeometry y="314" width="320" height="20" as="geometry"/>
-        </mxCell>
-        <mxCell id="Executor_m12" value="- findMethod(...)  {walks superclass chain}" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="Executor">
-          <mxGeometry y="334" width="320" height="20" as="geometry"/>
-        </mxCell>
-        <mxCell id="Executor_m13" value="- resolveSuperclass(...)" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="Executor">
-          <mxGeometry y="354" width="320" height="20" as="geometry"/>
-        </mxCell>
-        <mxCell id="Executor_m14" value="- resolveArrayIndex(...)" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="Executor">
-          <mxGeometry y="374" width="320" height="20" as="geometry"/>
-        </mxCell>
-        <mxCell id="Executor_m15" value="- requireNumberOperands(...)" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="Executor">
-          <mxGeometry y="394" width="320" height="20" as="geometry"/>
-        </mxCell>
-
-        <!-- ===================== Environment ===================== -->
-        <mxCell id="Environment" value="Environment" style="swimlane;fontStyle=1;align=center;verticalAlign=middle;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=0;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="1">
-          <mxGeometry x="440" y="280" width="260" height="194" as="geometry"/>
-        </mxCell>
-        <mxCell id="Environment_f1" value="- scopes_: vector&lt;Scope&gt;" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="Environment">
-          <mxGeometry y="26" width="260" height="20" as="geometry"/>
-        </mxCell>
-        <mxCell id="Environment_sep1" value="" style="line;strokeWidth=1;fillColor=none;html=1;" vertex="1" parent="Environment">
-          <mxGeometry y="46" width="260" height="8" as="geometry"/>
-        </mxCell>
-        <mxCell id="Environment_m1" value="+ pushScope()" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="Environment">
-          <mxGeometry y="54" width="260" height="20" as="geometry"/>
-        </mxCell>
-        <mxCell id="Environment_m2" value="+ popScope()" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="Environment">
-          <mxGeometry y="74" width="260" height="20" as="geometry"/>
-        </mxCell>
-        <mxCell id="Environment_m3" value="+ define(name, value)" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="Environment">
-          <mxGeometry y="94" width="260" height="20" as="geometry"/>
-        </mxCell>
-        <mxCell id="Environment_m4" value="+ assign(name, value): bool" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="Environment">
-          <mxGeometry y="114" width="260" height="20" as="geometry"/>
-        </mxCell>
-        <mxCell id="Environment_m5" value="+ lookup(name): optional&lt;Value&gt;" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="Environment">
-          <mxGeometry y="134" width="260" height="20" as="geometry"/>
-        </mxCell>
-        <mxCell id="Environment_m6" value="+ lookupAt(distance, name): optional&lt;Value&gt;" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="Environment">
-          <mxGeometry y="154" width="260" height="20" as="geometry"/>
-        </mxCell>
-        <mxCell id="Environment_m7" value="+ assignAt(distance, name, value): bool" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="Environment">
-          <mxGeometry y="174" width="260" height="20" as="geometry"/>
+        <mxCell id="Ext_Statement" value="Statement&#10;«from Assembler»" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;dashed=1;" vertex="1" parent="1">
+          <mxGeometry x="1400" y="40" width="240" height="50" as="geometry"/>
         </mxCell>
 
         <!-- ===================== ExecutorError ===================== -->
         <mxCell id="ExecutorError" value="ExecutorError" style="swimlane;fontStyle=1;align=center;verticalAlign=middle;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=0;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;" vertex="1" parent="1">
-          <mxGeometry x="840" y="280" width="260" height="46" as="geometry"/>
+          <mxGeometry x="1720" y="40" width="240" height="46" as="geometry"/>
         </mxCell>
         <mxCell id="ExecutorError_m1" value="+ what(): const char*" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="ExecutorError">
-          <mxGeometry y="26" width="260" height="20" as="geometry"/>
+          <mxGeometry y="26" width="240" height="20" as="geometry"/>
         </mxCell>
 
         <!-- ===================== std::exception (plain external base) ===================== -->
         <mxCell id="StdException" value="std::exception" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#666666;" vertex="1" parent="1">
-          <mxGeometry x="840" y="380" width="220" height="40" as="geometry"/>
+          <mxGeometry x="1720" y="160" width="240" height="40" as="geometry"/>
+        </mxCell>
+
+        <!-- ===================== Executor ===================== -->
+        <mxCell id="Executor" value="Executor" style="swimlane;fontStyle=1;align=center;verticalAlign=middle;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=0;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="40" y="320" width="340" height="434" as="geometry"/>
+        </mxCell>
+        <mxCell id="Executor_friend" value="friend class ClassRuntime; friend class ModuleRuntime;" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;fontStyle=2;" vertex="1" parent="Executor">
+          <mxGeometry y="26" width="340" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="Executor_f1" value="- out_: ostream&amp;" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="Executor">
+          <mxGeometry y="46" width="340" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="Executor_f2" value="- environment_: Environment" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="Executor">
+          <mxGeometry y="66" width="340" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="Executor_f3" value="- statementHook_: function&lt;void(Statement*, int depth)&gt;" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="Executor">
+          <mxGeometry y="86" width="340" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="Executor_f4" value="- statementDepth_: int" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="Executor">
+          <mxGeometry y="106" width="340" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="Executor_f5" value="- lastValue_: Value" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="Executor">
+          <mxGeometry y="126" width="340" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="Executor_f6" value="- classRuntime_: ClassRuntime" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="Executor">
+          <mxGeometry y="146" width="340" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="Executor_f7" value="- moduleRuntime_: ModuleRuntime" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="Executor">
+          <mxGeometry y="166" width="340" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="Executor_f8" value="- arrayRuntime_: ArrayRuntime" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="Executor">
+          <mxGeometry y="186" width="340" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="Executor_sep1" value="" style="line;strokeWidth=1;fillColor=none;html=1;" vertex="1" parent="Executor">
+          <mxGeometry y="206" width="340" height="8" as="geometry"/>
+        </mxCell>
+        <mxCell id="Executor_m1" value="+ Executor(out: ostream&amp;)" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="Executor">
+          <mxGeometry y="214" width="340" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="Executor_m2" value="+ execute(tree): void" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="Executor">
+          <mxGeometry y="234" width="340" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="Executor_m3" value="+ execute(stmt: Statement*): void" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="Executor">
+          <mxGeometry y="254" width="340" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="Executor_m4" value="+ evaluate(expr): Value" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="Executor">
+          <mxGeometry y="274" width="340" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="Executor_m5" value="+ environment(): const Environment&amp;" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="Executor">
+          <mxGeometry y="294" width="340" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="Executor_m6" value="+ setStatementHook(hook)" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="Executor">
+          <mxGeometry y="314" width="340" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="Executor_m7" value="+ visit(node&amp;): void  {full visitor set - delegates class/module/array node handling to the 3 Runtime collaborators}" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="Executor">
+          <mxGeometry y="334" width="340" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="Executor_m8" value="- invoke(name, params, body, args, boundThis?): Value" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="Executor">
+          <mxGeometry y="354" width="340" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="Executor_m9" value="- callFunction(FunctionDeclareStatement*, args): Value" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="Executor">
+          <mxGeometry y="374" width="340" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="Executor_m10" value="- callMethodDecl(MethodDeclareStatement*, args, boundThis): Value" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="Executor">
+          <mxGeometry y="394" width="340" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="Executor_m11" value="- callMethod(FieldAccessExpression*, argExprs): Value  {dispatches to classRuntime_/moduleRuntime_ depending on callee}" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="Executor">
+          <mxGeometry y="414" width="340" height="20" as="geometry"/>
+        </mxCell>
+
+        <!-- ===================== ClassRuntime (new collaborator, orange) ===================== -->
+        <mxCell id="ClassRuntime" value="ClassRuntime" style="swimlane;fontStyle=1;align=center;verticalAlign=middle;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=0;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;" vertex="1" parent="1">
+          <mxGeometry x="460" y="320" width="280" height="194" as="geometry"/>
+        </mxCell>
+        <mxCell id="ClassRuntime_f1" value="- executor_: Executor&amp;" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="ClassRuntime">
+          <mxGeometry y="26" width="280" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="ClassRuntime_sep1" value="" style="line;strokeWidth=1;fillColor=none;html=1;" vertex="1" parent="ClassRuntime">
+          <mxGeometry y="46" width="280" height="8" as="geometry"/>
+        </mxCell>
+        <mxCell id="ClassRuntime_m1" value="+ ClassRuntime(executor: Executor&amp;)" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="ClassRuntime">
+          <mxGeometry y="54" width="280" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="ClassRuntime_m2" value="+ instantiate(klass: const ClassDeclareStatement*, args: vector&lt;Value&gt;): Value" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="ClassRuntime">
+          <mxGeometry y="74" width="280" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="ClassRuntime_m3" value="+ callSuperMethod(callee: FieldAccessExpression*, argExprs): Value" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="ClassRuntime">
+          <mxGeometry y="94" width="280" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="ClassRuntime_m4" value="+ callInstanceMethod(object: Value, callee: FieldAccessExpression*, argExprs): Value" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="ClassRuntime">
+          <mxGeometry y="114" width="280" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="ClassRuntime_m5" value="+ isInstanceOf(klass, target: const ClassDeclareStatement*): bool" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="ClassRuntime">
+          <mxGeometry y="134" width="280" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="ClassRuntime_m6" value="- findMethod(klass, name: string): MethodDeclareStatement*" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="ClassRuntime">
+          <mxGeometry y="154" width="280" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="ClassRuntime_m7" value="- resolveSuperclass(klass): const ClassDeclareStatement*" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="ClassRuntime">
+          <mxGeometry y="174" width="280" height="20" as="geometry"/>
+        </mxCell>
+
+        <!-- ===================== ModuleRuntime (new collaborator, orange) ===================== -->
+        <mxCell id="ModuleRuntime" value="ModuleRuntime" style="swimlane;fontStyle=1;align=center;verticalAlign=middle;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=0;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;" vertex="1" parent="1">
+          <mxGeometry x="820" y="320" width="280" height="114" as="geometry"/>
+        </mxCell>
+        <mxCell id="ModuleRuntime_f1" value="- executor_: Executor&amp;" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="ModuleRuntime">
+          <mxGeometry y="26" width="280" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="ModuleRuntime_sep1" value="" style="line;strokeWidth=1;fillColor=none;html=1;" vertex="1" parent="ModuleRuntime">
+          <mxGeometry y="46" width="280" height="8" as="geometry"/>
+        </mxCell>
+        <mxCell id="ModuleRuntime_m1" value="+ ModuleRuntime(executor: Executor&amp;)" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="ModuleRuntime">
+          <mxGeometry y="54" width="280" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="ModuleRuntime_m2" value="+ runImport(node: ImportStatement&amp;): void  {binds alias into current scope}" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="ModuleRuntime">
+          <mxGeometry y="74" width="280" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="ModuleRuntime_m3" value="+ callMember(moduleValue: Value, callee: FieldAccessExpression*, argExprs): Value  {alias.member(...) calls}" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="ModuleRuntime">
+          <mxGeometry y="94" width="280" height="20" as="geometry"/>
+        </mxCell>
+
+        <!-- ===================== ArrayRuntime (new collaborator, orange) ===================== -->
+        <mxCell id="ArrayRuntime" value="ArrayRuntime" style="swimlane;fontStyle=1;align=center;verticalAlign=middle;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=0;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;" vertex="1" parent="1">
+          <mxGeometry x="1180" y="320" width="280" height="114" as="geometry"/>
+        </mxCell>
+        <mxCell id="ArrayRuntime_f1" value="- executor_: Executor&amp;" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="ArrayRuntime">
+          <mxGeometry y="26" width="280" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="ArrayRuntime_sep1" value="" style="line;strokeWidth=1;fillColor=none;html=1;" vertex="1" parent="ArrayRuntime">
+          <mxGeometry y="46" width="280" height="8" as="geometry"/>
+        </mxCell>
+        <mxCell id="ArrayRuntime_m1" value="+ ArrayRuntime(executor: Executor&amp;)" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="ArrayRuntime">
+          <mxGeometry y="54" width="280" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="ArrayRuntime_m2" value="+ create(sizeExpr: Expression*): Value  {fills new array with Nil}" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="ArrayRuntime">
+          <mxGeometry y="74" width="280" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="ArrayRuntime_m3" value="+ resolveIndex(collectionExpr, indexExpr: Expression*): pair&lt;shared_ptr&lt;ArrayValue&gt;, size_t&gt;  {bounds-checked}" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="ArrayRuntime">
+          <mxGeometry y="94" width="280" height="20" as="geometry"/>
+        </mxCell>
+
+        <!-- ===================== Environment ===================== -->
+        <mxCell id="Environment" value="Environment" style="swimlane;fontStyle=1;align=center;verticalAlign=middle;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=0;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="40" y="800" width="280" height="234" as="geometry"/>
+        </mxCell>
+        <mxCell id="Environment_f1" value="- scopes_: vector&lt;Scope&gt;" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="Environment">
+          <mxGeometry y="26" width="280" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="Environment_sep1" value="" style="line;strokeWidth=1;fillColor=none;html=1;" vertex="1" parent="Environment">
+          <mxGeometry y="46" width="280" height="8" as="geometry"/>
+        </mxCell>
+        <mxCell id="Environment_m1" value="+ pushScope()" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="Environment">
+          <mxGeometry y="54" width="280" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="Environment_m2" value="+ popScope()" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="Environment">
+          <mxGeometry y="74" width="280" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="Environment_m3" value="+ define(name, value)" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="Environment">
+          <mxGeometry y="94" width="280" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="Environment_m4" value="+ assign(name, value): bool" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="Environment">
+          <mxGeometry y="114" width="280" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="Environment_m5" value="+ lookup(name): optional&lt;Value&gt;" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="Environment">
+          <mxGeometry y="134" width="280" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="Environment_m6" value="+ lookupAt(distance, name): optional&lt;Value&gt;" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="Environment">
+          <mxGeometry y="154" width="280" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="Environment_m7" value="+ assignAt(distance, name, value): bool" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="Environment">
+          <mxGeometry y="174" width="280" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="Environment_m8" value="+ scopes(): const vector&lt;Scope&gt;&amp;  {read-only, used by Debugger inspect}" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="Environment">
+          <mxGeometry y="194" width="280" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="Environment_note1" value="also defines ScopeGuard - RAII push/pop, shared by Executor + all 3 Runtime helpers" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;fontStyle=2;" vertex="1" parent="Environment">
+          <mxGeometry y="214" width="280" height="20" as="geometry"/>
         </mxCell>
 
         <!-- ===================== Scope ===================== -->
         <mxCell id="Scope" value="Scope" style="swimlane;fontStyle=1;align=center;verticalAlign=middle;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=0;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="1">
-          <mxGeometry x="440" y="560" width="260" height="114" as="geometry"/>
+          <mxGeometry x="400" y="800" width="280" height="134" as="geometry"/>
         </mxCell>
         <mxCell id="Scope_f1" value="- variables_: unordered_map&lt;string, Value&gt;" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="Scope">
-          <mxGeometry y="26" width="260" height="20" as="geometry"/>
+          <mxGeometry y="26" width="280" height="20" as="geometry"/>
         </mxCell>
         <mxCell id="Scope_sep1" value="" style="line;strokeWidth=1;fillColor=none;html=1;" vertex="1" parent="Scope">
-          <mxGeometry y="46" width="260" height="8" as="geometry"/>
+          <mxGeometry y="46" width="280" height="8" as="geometry"/>
         </mxCell>
         <mxCell id="Scope_m1" value="+ define(name, value)" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="Scope">
-          <mxGeometry y="54" width="260" height="20" as="geometry"/>
+          <mxGeometry y="54" width="280" height="20" as="geometry"/>
         </mxCell>
         <mxCell id="Scope_m2" value="+ assign(name, value): bool" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="Scope">
-          <mxGeometry y="74" width="260" height="20" as="geometry"/>
+          <mxGeometry y="74" width="280" height="20" as="geometry"/>
         </mxCell>
         <mxCell id="Scope_m3" value="+ get(name): optional&lt;Value&gt;" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="Scope">
-          <mxGeometry y="94" width="260" height="20" as="geometry"/>
+          <mxGeometry y="94" width="280" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="Scope_m4" value="+ variables(): const unordered_map&lt;string, Value&gt;&amp;  {read-only, used by Debugger inspect}" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="Scope">
+          <mxGeometry y="114" width="280" height="20" as="geometry"/>
+        </mxCell>
+
+        <!-- ===================== External Assembler types used by ModuleRuntime ===================== -->
+        <mxCell id="Ext_ImportStatement" value="ImportStatement&#10;«from Assembler»" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;dashed=1;" vertex="1" parent="1">
+          <mxGeometry x="760" y="800" width="280" height="50" as="geometry"/>
+        </mxCell>
+
+        <!-- ===================== External Assembler types used by Value/ClassRuntime/InstanceValue ===================== -->
+        <mxCell id="Ext_FunctionDecl" value="FunctionDeclareStatement&#10;«from Assembler»" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;dashed=1;" vertex="1" parent="1">
+          <mxGeometry x="1120" y="800" width="280" height="50" as="geometry"/>
+        </mxCell>
+        <mxCell id="Ext_ClassDecl" value="ClassDeclareStatement&#10;«from Assembler»" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;dashed=1;" vertex="1" parent="1">
+          <mxGeometry x="1480" y="800" width="280" height="50" as="geometry"/>
         </mxCell>
 
         <!-- ===================== Value ===================== -->
         <mxCell id="Value" value="Value" style="swimlane;fontStyle=1;align=center;verticalAlign=middle;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=0;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="1">
-          <mxGeometry x="40" y="900" width="320" height="222" as="geometry"/>
+          <mxGeometry x="40" y="1100" width="340" height="222" as="geometry"/>
         </mxCell>
         <mxCell id="Value_f1" value="- data_: variant&lt;monostate,bool,double,string,const FunctionDeclareStatement*,const ClassDeclareStatement*,shared_ptr&lt;InstanceValue&gt;,shared_ptr&lt;ArrayValue&gt;,shared_ptr&lt;Scope&gt;&gt;" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="Value">
-          <mxGeometry y="26" width="320" height="20" as="geometry"/>
+          <mxGeometry y="26" width="340" height="20" as="geometry"/>
         </mxCell>
         <mxCell id="Value_sep1" value="" style="line;strokeWidth=1;fillColor=none;html=1;" vertex="1" parent="Value">
-          <mxGeometry y="46" width="320" height="8" as="geometry"/>
+          <mxGeometry y="46" width="340" height="8" as="geometry"/>
         </mxCell>
         <mxCell id="Value_m1" value="+ type(): Type" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="Value">
-          <mxGeometry y="54" width="320" height="20" as="geometry"/>
+          <mxGeometry y="54" width="340" height="20" as="geometry"/>
         </mxCell>
-        <mxCell id="Value_m2" value="+ isX(): bool  {isBoolean/isNumber/isString/...}" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="Value">
-          <mxGeometry y="74" width="320" height="20" as="geometry"/>
+        <mxCell id="Value_m2" value="+ isX(): bool" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="Value">
+          <mxGeometry y="74" width="340" height="20" as="geometry"/>
         </mxCell>
-        <mxCell id="Value_m3" value="+ asX(): T  {asBoolean/asNumber/asString/asFunction/asClass/asInstance/asArray/asModule}" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="Value">
-          <mxGeometry y="94" width="320" height="20" as="geometry"/>
+        <mxCell id="Value_m3" value="+ asX(): T" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="Value">
+          <mxGeometry y="94" width="340" height="20" as="geometry"/>
         </mxCell>
         <mxCell id="Value_m4" value="+ isTruthy(): bool" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="Value">
-          <mxGeometry y="114" width="320" height="20" as="geometry"/>
+          <mxGeometry y="114" width="340" height="20" as="geometry"/>
         </mxCell>
         <mxCell id="Value_m5" value="+ toString(): string" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="Value">
-          <mxGeometry y="134" width="320" height="20" as="geometry"/>
+          <mxGeometry y="134" width="340" height="20" as="geometry"/>
         </mxCell>
         <mxCell id="Value_m6" value="+ typeName(): string" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="Value">
-          <mxGeometry y="154" width="320" height="20" as="geometry"/>
+          <mxGeometry y="154" width="340" height="20" as="geometry"/>
         </mxCell>
         <mxCell id="Value_m7" value="+ operator==" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="Value">
-          <mxGeometry y="174" width="320" height="20" as="geometry"/>
+          <mxGeometry y="174" width="340" height="20" as="geometry"/>
         </mxCell>
         <mxCell id="Value_sep2" value="" style="line;strokeWidth=1;fillColor=none;html=1;" vertex="1" parent="Value">
-          <mxGeometry y="194" width="320" height="8" as="geometry"/>
+          <mxGeometry y="194" width="340" height="8" as="geometry"/>
         </mxCell>
         <mxCell id="Value_note1" value="enum class Type { Nil, Boolean, Number, String, Function, Class, Instance, Array, Module }" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;fontStyle=2;" vertex="1" parent="Value">
-          <mxGeometry y="202" width="320" height="20" as="geometry"/>
+          <mxGeometry y="202" width="340" height="20" as="geometry"/>
         </mxCell>
 
         <!-- ===================== ArrayValue ===================== -->
         <mxCell id="ArrayValue" value="ArrayValue" style="swimlane;fontStyle=1;align=center;verticalAlign=middle;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=0;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="1">
-          <mxGeometry x="440" y="900" width="260" height="46" as="geometry"/>
+          <mxGeometry x="440" y="1100" width="240" height="46" as="geometry"/>
         </mxCell>
         <mxCell id="ArrayValue_f1" value="+ items: vector&lt;Value&gt;" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="ArrayValue">
-          <mxGeometry y="26" width="260" height="20" as="geometry"/>
+          <mxGeometry y="26" width="240" height="20" as="geometry"/>
         </mxCell>
 
         <!-- ===================== InstanceValue ===================== -->
         <mxCell id="InstanceValue" value="InstanceValue" style="swimlane;fontStyle=1;align=center;verticalAlign=middle;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=0;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="1">
-          <mxGeometry x="440" y="990" width="260" height="66" as="geometry"/>
+          <mxGeometry x="760" y="1100" width="280" height="66" as="geometry"/>
         </mxCell>
         <mxCell id="InstanceValue_f1" value="+ klass: const ClassDeclareStatement* (non-owning)" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="InstanceValue">
-          <mxGeometry y="26" width="260" height="20" as="geometry"/>
+          <mxGeometry y="26" width="280" height="20" as="geometry"/>
         </mxCell>
         <mxCell id="InstanceValue_f2" value="+ fields: shared_ptr&lt;Scope&gt;" style="text;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;html=1;" vertex="1" parent="InstanceValue">
-          <mxGeometry y="46" width="260" height="20" as="geometry"/>
-        </mxCell>
-
-        <!-- ===================== External Assembler types ===================== -->
-        <mxCell id="ExtFunctionDecl" value="FunctionDeclareStatement&#10;&#171;from Assembler&#187;" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;dashed=1;" vertex="1" parent="1">
-          <mxGeometry x="840" y="900" width="260" height="50" as="geometry"/>
-        </mxCell>
-        <mxCell id="ExtClassDecl" value="ClassDeclareStatement&#10;&#171;from Assembler&#187;" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;dashed=1;" vertex="1" parent="1">
-          <mxGeometry x="840" y="990" width="260" height="50" as="geometry"/>
+          <mxGeometry y="46" width="280" height="20" as="geometry"/>
         </mxCell>
 
         <!-- ===================== Edges ===================== -->
-        <mxCell id="E_realize1" style="dashed=1;endArrow=block;endFill=0;html=1;" edge="1" parent="1" source="Executor" target="IF_Execute">
+        <mxCell id="E_realize_execint" style="dashed=1;endArrow=block;endFill=0;html=1;" edge="1" parent="1" source="Executor" target="IF_Execute">
           <mxGeometry relative="1" as="geometry"/>
         </mxCell>
-        <mxCell id="E_realize2" style="dashed=1;endArrow=block;endFill=0;html=1;" edge="1" parent="1" source="Executor" target="IF_SyntaxVisitor">
-          <mxGeometry relative="1" as="geometry"/>
-        </mxCell>
-
-        <mxCell id="E_comp_exec_env" value="1" style="startArrow=diamondThin;startFill=1;endArrow=none;html=1;" edge="1" parent="1" source="Executor" target="Environment">
+        <mxCell id="E_realize_visitor" style="dashed=1;endArrow=block;endFill=0;html=1;" edge="1" parent="1" source="Executor" target="IF_SyntaxVisitor">
           <mxGeometry relative="1" as="geometry"/>
         </mxCell>
 
-        <mxCell id="E_dep_exec_value" value="produces" style="dashed=1;endArrow=open;endFill=0;html=1;" edge="1" parent="1" source="Executor" target="Value">
+        <mxCell id="E_dep_execint_tree" value="execute" style="dashed=1;endArrow=open;endFill=0;html=1;" edge="1" parent="1" source="IF_Execute" target="Ext_SyntaxTree">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="E_dep_execint_expr" value="evaluate" style="dashed=1;endArrow=open;endFill=0;html=1;" edge="1" parent="1" source="IF_Execute" target="Ext_Expression">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="E_dep_exec_stmt" value="execute/hook" style="dashed=1;endArrow=open;endFill=0;html=1;" edge="1" parent="1" source="Executor" target="Ext_Statement">
           <mxGeometry relative="1" as="geometry"/>
         </mxCell>
 
         <mxCell id="E_dep_exec_error" value="throws" style="dashed=1;endArrow=open;endFill=0;html=1;" edge="1" parent="1" source="Executor" target="ExecutorError">
           <mxGeometry relative="1" as="geometry"/>
         </mxCell>
-
         <mxCell id="E_gen_error_std" style="endArrow=block;endFill=0;html=1;" edge="1" parent="1" source="ExecutorError" target="StdException">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="E_comp_exec_class" value="1, friend" style="startArrow=diamondThin;startFill=1;endArrow=none;html=1;" edge="1" parent="1" source="Executor" target="ClassRuntime">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="E_comp_exec_module" value="1, friend" style="startArrow=diamondThin;startFill=1;endArrow=none;html=1;" edge="1" parent="1" source="Executor" target="ModuleRuntime">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="E_comp_exec_array" value="1" style="startArrow=diamondThin;startFill=1;endArrow=none;html=1;" edge="1" parent="1" source="Executor" target="ArrayRuntime">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="E_backref_class_exec" value="friend - needs environment_/invoke()" style="dashed=1;endArrow=open;endFill=0;html=1;strokeColor=#d79b00;" edge="1" parent="1" source="ClassRuntime" target="Executor">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="E_backref_module_exec" value="friend" style="dashed=1;endArrow=open;endFill=0;html=1;strokeColor=#d79b00;" edge="1" parent="1" source="ModuleRuntime" target="Executor">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="E_backref_array_exec" value="via ExecuteInterface (not a friend)" style="dashed=1;endArrow=open;endFill=0;html=1;strokeColor=#d79b00;" edge="1" parent="1" source="ArrayRuntime" target="Executor">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="E_dep_class_classdecl" style="dashed=1;endArrow=open;endFill=0;html=1;" edge="1" parent="1" source="ClassRuntime" target="Ext_ClassDecl">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="E_dep_module_import" style="dashed=1;endArrow=open;endFill=0;html=1;" edge="1" parent="1" source="ModuleRuntime" target="Ext_ImportStatement">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="E_comp_exec_env" value="1" style="startArrow=diamondThin;startFill=1;endArrow=none;html=1;" edge="1" parent="1" source="Executor" target="Environment">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="E_dep_exec_value" value="produces" style="dashed=1;endArrow=open;endFill=0;html=1;" edge="1" parent="1" source="Executor" target="Value">
           <mxGeometry relative="1" as="geometry"/>
         </mxCell>
 
@@ -253,28 +388,23 @@
         <mxCell id="E_agg_value_array" value="via shared_ptr" style="startArrow=diamondThin;startFill=0;endArrow=none;html=1;" edge="1" parent="1" source="Value" target="ArrayValue">
           <mxGeometry relative="1" as="geometry"/>
         </mxCell>
-
         <mxCell id="E_agg_value_instance" value="via shared_ptr" style="startArrow=diamondThin;startFill=0;endArrow=none;html=1;" edge="1" parent="1" source="Value" target="InstanceValue">
           <mxGeometry relative="1" as="geometry"/>
         </mxCell>
-
         <mxCell id="E_agg_value_scope" value="via shared_ptr" style="startArrow=diamondThin;startFill=0;endArrow=none;html=1;" edge="1" parent="1" source="Value" target="Scope">
           <mxGeometry relative="1" as="geometry"/>
         </mxCell>
-
-        <mxCell id="E_dep_value_func" value="raw ptr" style="dashed=1;endArrow=open;endFill=0;html=1;" edge="1" parent="1" source="Value" target="ExtFunctionDecl">
+        <mxCell id="E_dep_value_func" style="dashed=1;endArrow=open;endFill=0;html=1;" edge="1" parent="1" source="Value" target="Ext_FunctionDecl">
           <mxGeometry relative="1" as="geometry"/>
         </mxCell>
-
-        <mxCell id="E_dep_value_class" value="raw ptr" style="dashed=1;endArrow=open;endFill=0;html=1;" edge="1" parent="1" source="Value" target="ExtClassDecl">
+        <mxCell id="E_dep_value_class" style="dashed=1;endArrow=open;endFill=0;html=1;" edge="1" parent="1" source="Value" target="Ext_ClassDecl">
           <mxGeometry relative="1" as="geometry"/>
         </mxCell>
 
         <mxCell id="E_agg_instance_scope" value="fields, via shared_ptr" style="startArrow=diamondThin;startFill=0;endArrow=none;html=1;" edge="1" parent="1" source="InstanceValue" target="Scope">
           <mxGeometry relative="1" as="geometry"/>
         </mxCell>
-
-        <mxCell id="E_dep_instance_class" value="non-owning" style="dashed=1;endArrow=open;endFill=0;html=1;" edge="1" parent="1" source="InstanceValue" target="ExtClassDecl">
+        <mxCell id="E_dep_instance_class" style="dashed=1;endArrow=open;endFill=0;html=1;" edge="1" parent="1" source="InstanceValue" target="Ext_ClassDecl">
           <mxGeometry relative="1" as="geometry"/>
         </mxCell>
 
