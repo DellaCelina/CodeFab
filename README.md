@@ -1,4 +1,4 @@
-# CodeFab
+﻿# CodeFab
 ---
 ## Introduce
 2026 CRS 과정 5차수 team3 CodeFab team project입니다.
@@ -28,106 +28,6 @@ Prompt Shell(REPL)입니다.
   추가로 하루 1개의 칭찬 comment 를 남기면 좋겠다.
   rebase 후 merge 로 정책을 바꾸면 좋겠다. 해보고 불편하면 정책을 재검토하자.
 - 설명 추가로 commit 부분 외에 실제 코드 변경 부분에도 "+" 아이콘을 이용해 부연설명을 할 수 있다.
-
-# 아키텍처
-
-CodeFab은 소스코드를 입력받아 실행 결과를 만들어내는 파이프라인 구조의 인터프리터입니다.
-소스코드가 공장의 컨베이어 벨트를 거치듯, 아래 4개의 Unit(컴포넌트)을 순서대로 통과합니다.
-
-```
-소스코드(string)
-      │
-      ▼
-┌─────────────┐   Token 리스트   ┌─────────────┐   SyntaxTree   ┌─────────────┐   (검사 완료)   ┌─────────────┐
-│  Tokenizer  │ ───────────────▶ │  Assembler  │ ─────────────▶ │   Checker   │ ──────────────▶ │  Executor   │
-└─────────────┘                  └─────────────┘                └─────────────┘                  └─────────────┘
-      ▲                                                                                                  │
-      │                                                                                                  ▼
-      └──────────────────────────────── RunPromptShell(REPL) ◀───────────────────────────── 실행 결과 / 출력
-```
-
-- **Tokenizer**: 소스코드 문자열을 의미 있는 최소 단위인 `Token`으로 분해한다.
-- **Assembler**: `Token` 목록을 문법 규칙에 따라 가공하여 실행 가능한 트리 구조(`SyntaxTree`,
-  `Statement`/`Expression` 노드)로 조립한다.
-- **Checker**: 조립된 `SyntaxTree`를 실행하기 전에 DFS로 순회하며 의미상 오류(변수 중복 선언,
-  선언 시 자기 참조 등)를 검사한다.
-- **Executor**: 검사를 통과한 `SyntaxTree`를 DFS로 순회하며 실제로 실행하고, 변수 저장소
-  (`Environment`/`Scope`)를 운용하며 결과값(`Value`)을 계산한다.
-- **Shell**: 위 4개 Unit을 조합해 한 줄씩 입력받아 tokenize → assemble → check → execute
-  파이프라인을 구동하는 Prompt Shell(REPL)이다. `main.cpp`가 각 Unit의 구체 클래스를
-  생성해 `RunPromptShell`에 주입하는 composition root 역할을 한다.
-
-## 폴더 구조
-
-실제 소스 폴더 구조는 위 4개 Unit + Shell, 그리고 통합 테스트 스크립트 모음인
-IntegrationTest를 반영합니다.
-
-```
-CodeFab/
-├── Tokenizer/       # 소스코드 -> Token 분해
-│   ├── Token.h              Token, TokenType 정의
-│   ├── TokenizeInterface.h  TokenizeInterface 추상 클래스 + AssemblyError, IncompleteInputError
-│   ├── Tokenizer.h / .cpp   TokenizeInterface 구현체
-│   └── TokenizerTest.cpp
-│
-├── Assembler/       # Token -> SyntaxTree(문법 트리) 조립, import 파일 재귀 컴파일
-│   ├── SyntaxTree.h            SyntaxNode/SyntaxTree 및 모든 Statement/Expression 노드 정의
-│   ├── AssemblerInterface.h    AssemblerInterface 추상 클래스 + AssemblerError
-│   ├── Assembler.h / .cpp      AssemblerInterface 구현체 (재귀 하향 파서)
-│   ├── SourceReaderInterface.h import 대상 파일을 읽어 토큰화하는 추상 클래스
-│   ├── FileSourceReader.h / .cpp  SourceReaderInterface의 실제 파일 시스템 구현체
-│   └── AssemblerTest.cpp
-│
-├── Checker/         # SyntaxTree 실행 전 의미 오류 검사 및 실행 전 최적화
-│   ├── CheckerInterface.h    CheckerInterface 추상 클래스 + CheckerError
-│   ├── Checker.h / .cpp      CheckerInterface 구현체 (DFS 기반 의미 분석, 정적 바인딩)
-│   ├── OptimizerInterface.h  OptimizerInterface 추상 클래스
-│   ├── Optimizer.h / .cpp    OptimizerInterface 구현체 (상수 연산 폴딩)
-│   ├── CheckerTest.cpp, OptimizerTest.cpp
-│   └── README.md
-│
-├── Executor/        # SyntaxTree 실행
-│   ├── ExecuteInterface.h    ExecuteInterface 추상 클래스 + ExecutorError
-│   ├── Executor.h / .cpp     ExecuteInterface 구현체 (DFS 기반 트리 실행)
-│   ├── Environment.h / .cpp  Scope 스택 관리 (변수 정의/대입/조회, 정적 바인딩 조회)
-│   ├── Scope.h / .cpp        하나의 블록 스코프(이름 -> Value 테이블)
-│   ├── Value.h / .cpp        런타임 값(Nil/Boolean/Number/String/Function/Class/Instance/Array/Module)
-│   ├── ArrayValue.h          정적 배열 런타임 값
-│   ├── InstanceValue.h       클래스 인스턴스 런타임 값
-│   ├── ExecutorTest.cpp, ExecutorVariableTest.cpp, ExecutorControlFlowTest.cpp,
-│   │   ExecutorFunctionTest.cpp, ExecutorClassTest.cpp, ExecutorArrayTest.cpp,
-│   │   ExecutorImportTest.cpp, EnvironmentTest.cpp
-│   └── README.md
-│
-├── Shell/           # 4개 Unit을 조합하는 REPL/파일/디버그 모드와 진입점
-│   ├── RunPromptShell.h / .cpp  4개 *Interface에만 의존하는 REPL 루프
-│   ├── FileRunMode.h / .cpp     소스 파일을 한 번에 읽어 실행하는 파일 모드
-│   ├── DebugMode.h / .cpp       Stmt 단위 stepping을 지원하는 디버그 모드
-│   ├── Debugger.h / .cpp        디버그 모드의 명령 처리기(step/break/watch 등)
-│   ├── CommandLineArgs.h / .cpp argv 파싱으로 실행 모드를 선택
-│   ├── RunPromptShellTest.cpp, FileRunModeTest.cpp, DebugModeTest.cpp,
-│   │   DebuggerTest.cpp, CommandLineArgsTest.cpp
-│   └── main.cpp                 각 Unit의 구체 클래스를 생성해 주입하는 composition root
-│
-└── IntegrationTest/ # 4-Unit 파이프라인 전체를 검증하는 통합 테스트 스크립트 모음
-    ├── 01_arithmetic_precedence.txt ~ 15_error_division_by_zero.txt  기능별/오류별 스크립트
-    ├── DebugIntegrationTest.cpp
-    └── README.md
-```
-
-각 폴더는 하나의 Unit(책임)에 대응하며, 폴더 간 의존은 아래 방향으로만 흐릅니다.
-
-```
-Tokenizer ──▶ Assembler ──┬─▶ Checker  ──┐
-                           └─▶ Executor ─┼─▶ Shell ──▶ main
-                                         ┘
-```
-
-- `Assembler`는 `Tokenizer`의 `Token.h`만 참조한다.
-- `Checker`, `Executor`는 `Assembler`의 `SyntaxTree.h`만 참조한다 (서로를 참조하지 않는다).
-- `Shell`은 4개 Unit의 구체 클래스가 아니라 `*Interface.h` 4개(추상 클래스)에만 의존한다.
-  구체 클래스(`Tokenizer`, `Assembler`, `Checker`, `Executor`)와의 결합은 `main.cpp`에서만
-  이루어진다.
 
 ## Naming Rule
 
@@ -496,23 +396,103 @@ Shell은 위 예외들을 그대로 노출하는 것 외에, 아래 상황에서
 | `debug` 모드 실행 시도(아직 미구현) | `이 모드는 아직 구현되지 않았습니다. --help로 사용 가능한 모드를 확인하세요.` |
 | CLI 인자 오류(`run`/`debug`에 경로 누락, 알 수 없는 모드) | `run 모드는 실행할 파일 경로가 필요합니다. 사용법: CodeFab run <path>` 등 |
 
-## 앞으로 구현될 기능 (ImplementTodo.md 기준)
+# 아키텍처
 
-`ImplementTodo.md`에 5인 담당제로 정리된, 이번 라운드에 진행 중인 작업입니다.
+CodeFab은 소스코드를 입력받아 실행 결과를 만들어내는 파이프라인 구조의 인터프리터입니다.
+소스코드가 공장의 컨베이어 벨트를 거치듯, 아래 4개의 Unit(컴포넌트)을 순서대로 통과합니다.
 
-- **상속 완성**: Checker의 `checkClass`/`checkSuper`(자기 상속·비클래스 상속·`Super`
-  사용 위치 검사), Executor의 `findMethod`/`resolveSuperclass`(메서드 오버라이딩,
-  `Super.method(...)` 호출, `instanceof`의 부모 클래스 판정 확장).
-- **Checker/Optimizer 책임 분리**: 상수 폴딩(현재는 `evaluate()` 호출만 확인하고 실제
-  치환은 하지 않음)을 `Checker`에서 떼어내 별도 `Optimizer`(`OptimizerInterface`,
-  계약은 이미 있음)로 옮기고 실제로 트리를 리터럴로 치환한다.
-- **Visitor 패턴 전환**: `SyntaxNodeVisitor`/`accept()`는 이미 모든 노드에 정의되어
-  있으나, `Executor`는 아직 `typeid`/`dynamic_cast` 기반 분기(`statementHandlers_`/
-  `expressionHandlers_` 맵)로 동작한다 - 이를 `visit(...)` 오버라이드로 전환.
-- **버그 수정**: `Assembler`의 `makeBinaryExpression` default 분기가 과거
-  `OrExpression`으로 암묵 처리되던 문제(이미 수정됨, 새 연산자 추가 시 회귀 방지),
-  import 대상 파일에 `Class` 선언 허용(이미 반영됨).
-- **통합 테스트 보강**: 클래스 메서드 재귀 호출, module import(스코프별 독립성/동시
-  import), 상속 시나리오(현재 `DISABLED_` 상태) 등.
-- **Debug 모드**: `DebugMode`/`Debugger`(breakpoint/step/next/watch/inspect)는
-  Architecture.md에 설계만 있고 아직 코드가 없다.
+```
+소스코드(string)
+      │
+      ▼
+┌─────────────┐   Token 리스트   ┌─────────────┐   SyntaxTree   ┌─────────────┐   (검사 완료)   ┌─────────────┐
+│  Tokenizer  │ ───────────────▶ │  Assembler  │ ─────────────▶ │   Checker   │ ──────────────▶ │  Executor   │
+└─────────────┘                  └─────────────┘                └─────────────┘                  └─────────────┘
+      ▲                                                                                                  │
+      │                                                                                                  ▼
+      └──────────────────────────────── RunPromptShell(REPL) ◀───────────────────────────── 실행 결과 / 출력
+```
+
+- **Tokenizer**: 소스코드 문자열을 의미 있는 최소 단위인 `Token`으로 분해한다.
+- **Assembler**: `Token` 목록을 문법 규칙에 따라 가공하여 실행 가능한 트리 구조(`SyntaxTree`,
+  `Statement`/`Expression` 노드)로 조립한다.
+- **Checker**: 조립된 `SyntaxTree`를 실행하기 전에 DFS로 순회하며 의미상 오류(변수 중복 선언,
+  선언 시 자기 참조 등)를 검사한다.
+- **Executor**: 검사를 통과한 `SyntaxTree`를 DFS로 순회하며 실제로 실행하고, 변수 저장소
+  (`Environment`/`Scope`)를 운용하며 결과값(`Value`)을 계산한다.
+- **Shell**: 위 4개 Unit을 조합해 한 줄씩 입력받아 tokenize → assemble → check → execute
+  파이프라인을 구동하는 Prompt Shell(REPL)이다. `main.cpp`가 각 Unit의 구체 클래스를
+  생성해 `RunPromptShell`에 주입하는 composition root 역할을 한다.
+
+## 폴더 구조
+
+실제 소스 폴더 구조는 위 4개 Unit + Shell, 그리고 통합 테스트 스크립트 모음인
+IntegrationTest를 반영합니다.
+
+```
+CodeFab/
+├── Tokenizer/       # 소스코드 -> Token 분해
+│   ├── Token.h              Token, TokenType 정의
+│   ├── TokenizeInterface.h  TokenizeInterface 추상 클래스 + AssemblyError, IncompleteInputError
+│   ├── Tokenizer.h / .cpp   TokenizeInterface 구현체
+│   └── TokenizerTest.cpp
+│
+├── Assembler/       # Token -> SyntaxTree(문법 트리) 조립, import 파일 재귀 컴파일
+│   ├── SyntaxTree.h            SyntaxNode/SyntaxTree 및 모든 Statement/Expression 노드 정의
+│   ├── AssemblerInterface.h    AssemblerInterface 추상 클래스 + AssemblerError
+│   ├── Assembler.h / .cpp      AssemblerInterface 구현체 (재귀 하향 파서)
+│   ├── SourceReaderInterface.h import 대상 파일을 읽어 토큰화하는 추상 클래스
+│   ├── FileSourceReader.h / .cpp  SourceReaderInterface의 실제 파일 시스템 구현체
+│   └── AssemblerTest.cpp
+│
+├── Checker/         # SyntaxTree 실행 전 의미 오류 검사 및 실행 전 최적화
+│   ├── CheckerInterface.h    CheckerInterface 추상 클래스 + CheckerError
+│   ├── Checker.h / .cpp      CheckerInterface 구현체 (DFS 기반 의미 분석, 정적 바인딩)
+│   ├── OptimizerInterface.h  OptimizerInterface 추상 클래스
+│   ├── Optimizer.h / .cpp    OptimizerInterface 구현체 (상수 연산 폴딩)
+│   ├── CheckerTest.cpp, OptimizerTest.cpp
+│   └── README.md
+│
+├── Executor/        # SyntaxTree 실행
+│   ├── ExecuteInterface.h    ExecuteInterface 추상 클래스 + ExecutorError
+│   ├── Executor.h / .cpp     ExecuteInterface 구현체 (DFS 기반 트리 실행)
+│   ├── Environment.h / .cpp  Scope 스택 관리 (변수 정의/대입/조회, 정적 바인딩 조회)
+│   ├── Scope.h / .cpp        하나의 블록 스코프(이름 -> Value 테이블)
+│   ├── Value.h / .cpp        런타임 값(Nil/Boolean/Number/String/Function/Class/Instance/Array/Module)
+│   ├── ArrayValue.h          정적 배열 런타임 값
+│   ├── InstanceValue.h       클래스 인스턴스 런타임 값
+│   ├── ExecutorTest.cpp, ExecutorVariableTest.cpp, ExecutorControlFlowTest.cpp,
+│   │   ExecutorFunctionTest.cpp, ExecutorClassTest.cpp, ExecutorArrayTest.cpp,
+│   │   ExecutorImportTest.cpp, EnvironmentTest.cpp
+│   └── README.md
+│
+├── Shell/           # 4개 Unit을 조합하는 REPL/파일/디버그 모드와 진입점
+│   ├── RunPromptShell.h / .cpp  4개 *Interface에만 의존하는 REPL 루프
+│   ├── FileRunMode.h / .cpp     소스 파일을 한 번에 읽어 실행하는 파일 모드
+│   ├── DebugMode.h / .cpp       Stmt 단위 stepping을 지원하는 디버그 모드
+│   ├── Debugger.h / .cpp        디버그 모드의 명령 처리기(step/break/watch 등)
+│   ├── CommandLineArgs.h / .cpp argv 파싱으로 실행 모드를 선택
+│   ├── RunPromptShellTest.cpp, FileRunModeTest.cpp, DebugModeTest.cpp,
+│   │   DebuggerTest.cpp, CommandLineArgsTest.cpp
+│   └── main.cpp                 각 Unit의 구체 클래스를 생성해 주입하는 composition root
+│
+└── IntegrationTest/ # 4-Unit 파이프라인 전체를 검증하는 통합 테스트 스크립트 모음
+    ├── 01_arithmetic_precedence.txt ~ 15_error_division_by_zero.txt  기능별/오류별 스크립트
+    ├── DebugIntegrationTest.cpp
+    └── README.md
+```
+
+각 폴더는 하나의 Unit(책임)에 대응하며, 폴더 간 의존은 아래 방향으로만 흐릅니다.
+
+```
+Tokenizer ──▶ Assembler ──┬─▶ Checker  ──┐
+                           └─▶ Executor ─┼─▶ Shell ──▶ main
+                                         ┘
+```
+
+- `Assembler`는 `Tokenizer`의 `Token.h`만 참조한다.
+- `Checker`, `Executor`는 `Assembler`의 `SyntaxTree.h`만 참조한다 (서로를 참조하지 않는다).
+- `Shell`은 4개 Unit의 구체 클래스가 아니라 `*Interface.h` 4개(추상 클래스)에만 의존한다.
+  구체 클래스(`Tokenizer`, `Assembler`, `Checker`, `Executor`)와의 결합은 `main.cpp`에서만
+  이루어진다.
+
