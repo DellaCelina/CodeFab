@@ -18,11 +18,11 @@ private:
     std::vector<Token> tokens;
 
     void reset(const std::string& src);
-    bool isAtEnd();
+    bool isAtEnd() const;
     char advance();
     bool match(char expected);
-    char peek();
-    char peekNext();
+    char peek() const;
+    char peekNext() const;
     void addToken(TokenType type);
     void addToken(TokenType type, std::string value);
     void scanToken();
