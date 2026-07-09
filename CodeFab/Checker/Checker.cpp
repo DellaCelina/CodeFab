@@ -1,6 +1,6 @@
 ﻿#include "Checker.h"
 
-Checker::Checker(ExecuteInterface& executor) : executor_(executor) {
+Checker::Checker() {
     enterScope(); // 세션 전체에 걸쳐 유지되는 전역 스코프
 }
 
@@ -373,7 +373,7 @@ void Checker::visit(ImportStatement& node) {
     exitScope();
 }
 
-bool Checker::check(SyntaxTree& tree) {
+void Checker::check(SyntaxTree& tree) {
     // scopes를 제외한 나머지는 이번 호출(REPL 한 줄) 한정 상태라 매번 초기화한다.
     currentlyDeclaring.clear();
     functionDepth = 0;
@@ -386,6 +386,4 @@ bool Checker::check(SyntaxTree& tree) {
         throw std::logic_error("Checker::check: tree root is not a Statement");
     }
     checkStatement(root);
-
-    return true;
 }

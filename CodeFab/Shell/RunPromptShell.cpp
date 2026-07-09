@@ -70,12 +70,9 @@ void RunPromptShell::run(std::istream& in, std::ostream& out) {
         try {
             std::vector<Token> tokens = tokenizer_.tokenize(buffer);
             SyntaxTree tree = assembler_.assemble(tokens);
-            if (checker_.check(tree)) {
-                executor_.execute(tree);
-                sessionTrees.push_back(std::move(tree));
-            } else {
-                out << "코드 검사에 실패했습니다.\n";
-            }
+            checker_.check(tree);
+            executor_.execute(tree);
+            sessionTrees.push_back(std::move(tree));
         } catch (const std::exception& e) {
             // AssemblyError/AssemblerError/CheckerError/ExecutorError 모두 각자의
             // 인터페이스 헤더(TokenizeInterface.h/AssemblerInterface.h/

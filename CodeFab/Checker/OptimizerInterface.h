@@ -8,7 +8,7 @@
 // 구현체(예: Checker/Optimizer.h/.cpp)로 옮기는 작업은 Checker 담당자의 몫이다 -
 // ImplementTodo.md 참고.
 //
-// - optimize(tree)는 반드시 CheckerInterface::check(tree)가 true를 반환한(의미
+// - optimize(tree)는 반드시 CheckerInterface::check(tree)가 예외 없이 통과한(의미
 //   오류가 없는) SyntaxTree에 대해서만 호출되어야 한다. 오류 검사와 책임이 분리되어
 //   있으므로, 최적화를 적용하지 못하는 경우(예: "1 + (3 / 0)"처럼 상수처럼 보이지만
 //   런타임에 0으로 나누기 오류가 나야 하는 식)는 예외를 던지지 않고 그냥 원본

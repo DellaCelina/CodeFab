@@ -1,8 +1,5 @@
-﻿#include <sstream>
-
-#include "gmock/gmock.h"
+﻿#include "gmock/gmock.h"
 #include "Checker.h"
-#include "../Executor/Executor.h"
 
 // tokenizer/assembler 없이 checker만 독립적으로 검증하기 위해 트리를 직접 구성한다.
 
@@ -16,13 +13,11 @@ static std::vector<Token> testTokens(TokenType type, const std::string& origin, 
     return { Token{ type, origin, line } };
 }
 
-// 대부분의 테스트가 공유하는 준비물: 빈 트리 하나, 실제 Executor, 그 위의 Checker.
+// 대부분의 테스트가 공유하는 준비물: 빈 트리 하나와 그 위의 Checker.
 class CheckerTest : public ::testing::Test {
 protected:
     SyntaxTree tree;
-    std::ostringstream executorOutput;
-    Executor executor{ executorOutput };
-    Checker checker{ executor };
+    Checker checker;
 };
 
 // print 1 + 2 * 3;   // expect: 7
@@ -48,7 +43,7 @@ TEST_F(CheckerTest, PrintExpressionWithNoErrorsPasses) {
     tree.add(std::move(block));
     tree.setRoot(rootRaw);
 
-    EXPECT_TRUE(checker.check(tree));
+    EXPECT_NO_THROW(checker.check(tree));
 }
 
 // { var a = 10; var a = 12; }   // 2번째 var a 에서 중복 선언 에러 (p.72)
@@ -131,7 +126,7 @@ TEST_F(CheckerTest, VariableDeclaredInEarlierCallIsVisibleToLaterCall) {
     declareTree.add(std::move(declA));
     declareTree.setRoot(declareRoot);
 
-    ASSERT_TRUE(checker.check(declareTree));
+    ASSERT_NO_THROW(checker.check(declareTree));
 
     SyntaxTree printTree;
     auto idA = std::make_unique<IdentifierExpression>(testTokens(TokenType::IDENTIFIER, "a", 2), "a");
@@ -141,7 +136,7 @@ TEST_F(CheckerTest, VariableDeclaredInEarlierCallIsVisibleToLaterCall) {
     printTree.add(std::move(printA));
     printTree.setRoot(printRoot);
 
-    EXPECT_TRUE(checker.check(printTree));
+    EXPECT_NO_THROW(checker.check(printTree));
 }
 
 // print notDefined;   (선언된 적 없는 변수 - 세션 전체에 걸쳐도 여전히 에러여야 한다)
@@ -369,7 +364,7 @@ TEST_F(CheckerTest, ForLoopVariableDoesNotLeakIntoEnclosingScope) {
     tree.add(std::move(outerBlock));
     tree.setRoot(rootRaw);
 
-    EXPECT_TRUE(checker.check(tree));
+    EXPECT_NO_THROW(checker.check(tree));
 }
 
 // ===========================================================================
@@ -437,7 +432,7 @@ TEST_F(CheckerTest, RecursiveFunctionCallPasses) {
     tree.add(std::move(funcDecl));
     tree.setRoot(root);
 
-    EXPECT_TRUE(checker.check(tree));
+    EXPECT_NO_THROW(checker.check(tree));
 }
 
 // ===========================================================================
@@ -481,7 +476,7 @@ TEST_F(CheckerTest, ThisInsideMethodPasses) {
     tree.add(std::move(classDecl));
     tree.setRoot(root);
 
-    EXPECT_TRUE(checker.check(tree));
+    EXPECT_NO_THROW(checker.check(tree));
 }
 
 // Class C { init() { return 1; } }   (init은 값 있는 return 금지)
@@ -530,7 +525,7 @@ TEST_F(CheckerTest, InitMethodWithBareReturnPasses) {
     tree.add(std::move(classDecl));
     tree.setRoot(root);
 
-    EXPECT_TRUE(checker.check(tree));
+    EXPECT_NO_THROW(checker.check(tree));
 }
 
 // ===========================================================================
@@ -655,7 +650,7 @@ TEST_F(CheckerTest, ImportSameAliasInSiblingScopesPasses) {
     tree.add(std::move(rootBlock));
     tree.setRoot(root);
 
-    EXPECT_TRUE(checker.check(tree));
+    EXPECT_NO_THROW(checker.check(tree));
 }
 
 // { import "sum.txt" alias sum; } import "sum.txt" alias sum;
@@ -681,7 +676,7 @@ TEST_F(CheckerTest, ImportSameAliasAfterBlockEndsPasses) {
     tree.add(std::move(rootBlock));
     tree.setRoot(root);
 
-    EXPECT_TRUE(checker.check(tree));
+    EXPECT_NO_THROW(checker.check(tree));
 }
 
 // { var sum = 1; import "sum.txt" alias sum; }   (alias가 기존 변수 이름과 충돌, PDF p.28)
@@ -740,7 +735,7 @@ TEST_F(CheckerTest, ResolverAssignsDepthZeroForSameScopeVariable) {
     tree.add(std::move(block));
     tree.setRoot(root);
 
-    ASSERT_TRUE(checker.check(tree));
+    ASSERT_NO_THROW(checker.check(tree));
 
     ASSERT_TRUE(usageRaw->depth.has_value());
     EXPECT_EQ(0, usageRaw->depth.value());
@@ -772,7 +767,7 @@ TEST_F(CheckerTest, ResolverAssignsDepthOneForOuterScopeVariable) {
     tree.add(std::move(outerBlock));
     tree.setRoot(root);
 
-    ASSERT_TRUE(checker.check(tree));
+    ASSERT_NO_THROW(checker.check(tree));
 
     ASSERT_TRUE(usageRaw->depth.has_value());
     EXPECT_EQ(1, usageRaw->depth.value());
@@ -893,7 +888,7 @@ TEST_F(CheckerTest, ClassInheritingFromDeclaredClassPasses) {
     tree.add(std::move(block));
     tree.setRoot(root);
 
-    EXPECT_TRUE(checker.check(tree));
+    EXPECT_NO_THROW(checker.check(tree));
 }
 
 // print Super;   (클래스 밖) -> Super는 클래스 메서드 밖에서 쓸 수 없다.
@@ -972,7 +967,7 @@ TEST_F(CheckerTest, SuperInsideMethodWithSuperclassPasses) {
     tree.add(std::move(block));
     tree.setRoot(root);
 
-    EXPECT_TRUE(checker.check(tree));
+    EXPECT_NO_THROW(checker.check(tree));
 }
 
 // ===========================================================================

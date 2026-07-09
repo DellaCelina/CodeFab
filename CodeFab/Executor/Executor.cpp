@@ -514,9 +514,14 @@ const ClassDeclareStatement* Executor::resolveSuperclass(const ClassDeclareState
         return nullptr;
     }
     const IdentifierExpression* superclass = klass->superclass;
-    auto value = superclass->depth
-        ? environment_.lookupAt(*superclass->depth, superclass->name)
-        : environment_.lookup(superclass->name);
+    // depth는 Checker가 클래스 선언을 검사하던 시점(항상 클래스가 선언된 스코프)의
+    // 스코프 깊이를 캐싱한 것이다. 반면 resolveSuperclass는 메서드 호출 스택
+    // 한가운데(예: Super.method() 안에서 다시 Super를 참조하는 다단계 상속, 또는
+    // REPL에서 다른 줄에 걸쳐 호출되는 생성자)에서도 호출되므로, 그 시점의 실제
+    // 스코프 깊이가 캐싱된 depth와 전혀 다를 수 있다 - lookupAt을 쓰면 엉뚱한
+    // 스코프를 가리켜 "클래스가 아닙니다" 오류로 이어진다. 그래서 항상 전체
+    // 스코프를 훑는 동적 조회(lookup)만 사용한다(InstanceOfExpression과 동일한 이유).
+    auto value = environment_.lookup(superclass->name);
     if (!value || !value->isClass()) {
         throw ExecutorError("'{}'은(는) 클래스가 아닙니다.", superclass->name);
     }

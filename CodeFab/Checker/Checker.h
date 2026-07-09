@@ -4,7 +4,6 @@
 #include <vector>
 
 #include "../Assembler/SyntaxTree.h"
-#include "../Executor/ExecuteInterface.h"
 #include "CheckerInterface.h"
 
 using namespace std;
@@ -16,12 +15,10 @@ class Checker : public CheckerInterface, public SyntaxNodeVisitor {
 
 public:
     // scopes는 REPL 세션 내내 유지된다(Executor의 Environment와 동일).
-    // TODO.md #10로 ConstantFolder는 Optimizer로 옮겨졌지만, 생성자 시그니처는
-    // Shell 쪽 배선을 바꾸지 않기 위해 그대로 유지한다(executor_는 현재 미사용).
-    explicit Checker(ExecuteInterface& executor);
+    Checker();
 
-    // 의미 오류 발견 시 CheckerError를 throw, 통과하면 true 반환.
-    bool check(SyntaxTree& tree) override;
+    // 의미 오류 발견 시 CheckerError를 throw, 통과하면 정상 반환.
+    void check(SyntaxTree& tree) override;
 
     // SyntaxNodeVisitor: 노드 하나당 visit() 하나.
     void visit(IdentifierExpression& node) override;
@@ -67,7 +64,6 @@ public:
     void visit(ImportStatement& node) override;
 
 private:
-    ExecuteInterface& executor_;
     vector<unordered_set<string>> scopes; // 블록 진입 시 push, 종료 시 pop
     vector<unordered_set<string>> classNames_; // scopes와 나란히 push/pop, Class로 선언된 이름만
     string currentlyDeclaring; // 자기 참조 검사용: 지금 초기화식을 검사 중인 변수 이름

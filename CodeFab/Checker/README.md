@@ -3,7 +3,7 @@
 Tokenizer → Assembler → **Checker** → (Optimizer) → Executor 파이프라인에서, Assembler가
 만든 `SyntaxTree`를 실행 전에 훑어 의미 오류(변수 중복 선언, 자기 참조, 선언되지 않은
 변수, 함수/클래스/import 관련 규칙 위반 등)를 찾는다. 오류가 있으면 `CheckerError`를
-throw하고, 없으면 `true`를 반환한다.
+throw하고, 없으면 그대로 반환한다.
 
 ## 파일 구성
 
@@ -55,7 +55,7 @@ throw하고, 없으면 `true`를 반환한다.
 ## Optimizer(ConstantFolder)와의 책임 분리
 
 원래 Checker 안에 있던 상수 폴딩 로직(`foldConstantIfPossible`)을 `Optimizer`로
-분리했다. `Optimizer::optimize(tree)`는 **`Checker::check(tree)`가 `true`를 반환한
+분리했다. `Optimizer::optimize(tree)`는 **`Checker::check(tree)`가 예외 없이 통과한
 트리에 대해서만** 호출되어야 하며(`OptimizerInterface.h` 계약), 통과 못하는 경우(예:
 `1 / 0`처럼 상수처럼 보이지만 런타임에 0으로 나누기 오류가 나야 하는 식)는 예외를
 던지지 않고 원본 서브트리를 그대로 둔다.
@@ -69,8 +69,8 @@ throw하고, 없으면 `true`를 반환한다.
   - 다만 그 아래에 중첩된 `BinaryExpression`/`UnaryExpression`의 non-const 자식
     슬롯은 여전히 실제로 치환된다(`OptimizerTest.cpp`의
     `ReplacesNestedBinaryExpressionWithFoldedLiteral` 참고).
-- `Checker`는 여전히 `ExecuteInterface&`를 생성자로 받는다 - 지금은 내부적으로 쓰지
-  않지만, Shell 쪽 배선(생성자 시그니처)을 바꾸지 않기 위해 유지했다.
+- `Checker`는 더 이상 `ExecuteInterface&`에 의존하지 않는다 - 상수 계산은 `Optimizer`가
+  전담하므로 `Checker`의 생성자는 인자를 받지 않는다.
 
 ## 알려진 제한사항 (코드의 `TODO(refactor)` 참고)
 
