@@ -23,12 +23,18 @@ throw하고, 없으면 `true`를 반환한다.
   선언한 변수가 계속 "선언된 것"으로 인식된다. `classNames_`가 `scopes`와 나란히
   push/pop되며, 그중 `Class`로 선언된 이름만 따로 기억한다(상속 대상이 클래스인지
   판별하는 데 쓰임).
-- **디스패치**: `checkStatement`/`checkExpression`은 `dynamic_cast` if-else 체인이
-  아니라 `type_index -> handler` 테이블(`registerDefaultHandlers()`가 채움)로 노드
-  타입을 구분한다(Executor와 동일한 패턴). 새 노드 타입이 추가되면
-  `registerDefaultHandlers()`에 한 줄만 추가하면 된다. `BinaryExpression`/
-  `UnaryExpression`처럼 여러 구체 하위 타입이 같은 처리를 공유하는 경우, 같은 람다를
-  각 하위 타입 typeid로 반복 등록한다(type_index는 정확한 타입만 매칭되기 때문).
+- **디스패치**: `Checker`는 `SyntaxNodeVisitor`를 구현하는 **Visitor 패턴**으로
+  노드를 구분한다(Executor와 동일한 패턴, TODO.md #11). `checkStatement`/
+  `checkExpression`은 각각 `stmt->accept(*this)`/`expr->accept(*this)`만 호출하는
+  얇은 진입점이고, 실제 분기는 `accept()`가 정확한 타입의 `visit()` 오버라이드를
+  직접 호출해서 이뤄진다. `SyntaxNodeVisitor`의 모든 `visit()`이 순수 가상 함수라,
+  새 노드 타입이 추가되면 `visit()`을 안 구현한 클래스는 **컴파일이 안 된다** -
+  이전 `type_index` 맵 방식은 등록을 빠뜨려도 조용히 무시됐다(실제로 `AndExpression`/
+  `OrExpression`/`ModExpression` 핸들러가 빠져 있던 걸 이번 전환 때 발견해서 고쳤다).
+  `BinaryExpression`의 12개 구체 하위 타입은 전부 "양쪽을 재귀 검사"만 동일하게
+  하므로 `checkBinary(BinaryExpression&)` 공유 헬퍼에 위임한다. `IfStatement::
+  elseBranch`/`ReturnStatement::value`처럼 nullable한 필드는 (Executor와 동일하게)
+  `checkStatement`/`checkExpression` 호출부가 null 체크를 하고 넘긴다.
 - **검사 종류**:
   - 변수: 같은 스코프 중복 선언, 초기화식에서의 자기 참조, 선언되지 않은 변수 사용.
   - if/for: `thenBranch`/`elseBranch`/`loop` 내부 블록까지 재귀 검사. for의 `init`은
@@ -74,9 +80,6 @@ throw하고, 없으면 `true`를 반환한다.
 - **클래스 내 메서드 이름 중복**: 검사하지 않는다(필수 요구사항 아님).
 - **`instanceof` 대상 클래스**: `className`이 `Token`이라 정적으로 선언 여부를
   확인하지 않는다(런타임에 Executor가 확인).
-- **Visitor 패턴 미적용**: `SyntaxNode::accept()`가 추가됐지만, Checker는 이번
-  라운드 리팩토링 범위가 아니라 여전히 `dynamic_cast`/`type_index` 기반으로 동작한다
-  (Executor부터 전환 진행 중).
 
 ## 변경 이력
 
@@ -102,3 +105,10 @@ throw하고, 없으면 `true`를 반환한다.
    - Checker/Optimizer 책임 분리 - `foldConstantIfPossible`을 `Optimizer`로 이전하고,
      완화된 non-const 필드를 활용해 **실제 트리 치환**을 완성. 상수 폴딩 테스트를
      `OptimizerTest.cpp`로 이동.
+9. **`type_index` 디스패치 → Visitor 패턴 전환** (ImplementTodo.md §4 할 일 4,
+   Executor 전환 방식을 그대로 따라감) - `Checker`가 `SyntaxNodeVisitor`를 구현하도록
+   바꾸고, `registerDefaultHandlers()`/`statementHandlers_`/`expressionHandlers_`를
+   제거. 이 과정에서 `AndExpression`/`OrExpression`/`ModExpression`에 핸들러가
+   빠져 있던 걸 발견해 함께 고치고(and/or/% 안의 미선언 변수를 잡는 회귀 테스트
+   추가), `check()`가 트리 루트 검증에 실패하면 `std::logic_error`를 던지도록
+   Executor와 동일하게 정리.
