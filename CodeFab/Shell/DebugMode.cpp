@@ -17,13 +17,13 @@ bool DebugMode::run(const std::string& filePath, std::istream& in, std::ostream&
     // FileRunMode.cpp와 동일한 검증: filePath는 항상 파일 1개(단일 파일)여야
     // 한다.
     if (std::filesystem::exists(filePath) && !std::filesystem::is_regular_file(filePath)) {
-        out << "path는 파일 1개(단일 파일)여야 합니다: " << filePath << "\n";
+        out << "Error: path must be a single file: " << filePath << "\n";
         return false;
     }
 
     std::ifstream file(filePath);
     if (!file) {
-        out << "파일을 열 수 없습니다: " << filePath << "\n";
+        out << "Error: cannot open file: " << filePath << "\n";
         return false;
     }
 

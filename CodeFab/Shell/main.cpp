@@ -46,18 +46,18 @@ int main(int argc, char** argv) {
 
     switch (args.mode) {
         case ShellMode::Repl: {
-            std::cout << "[모드: REPL], To Exit: type 'exit'\n";
+            std::cout << "[mode: REPL] type 'exit' to quit.\n";
             RunPromptShell shell(tokenizer, assembler, checker, executor);
             shell.run(std::cin, std::cout);
             return 0;
         }
         case ShellMode::Run: {
-            std::cout << "[모드: RUN]\n";
+            std::cout << "[mode: RUN]\n";
             FileRunMode mode(tokenizer, assembler, checker, executor);
             return mode.run(args.path, std::cout) ? 0 : 1;
         }
         case ShellMode::Debug: {
-            std::cout << "[모드: DEBUG]\n";
+            std::cout << "[mode: DEBUG]\n";
             DebugMode mode(tokenizer, assembler, checker, executor);
             return mode.run(args.path, std::cin, std::cout) ? 0 : 1;
         }
