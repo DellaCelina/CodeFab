@@ -514,6 +514,22 @@ struct ThisExpression : public Expression {
     }
 };
 
+// Super. This와 마찬가지로 필드 없이 키워드만 담는 노드다 - "Super.move(dist)"는
+// 별도의 전용 노드로 표현하지 않고, 기존 postfix 체인(§Assembler)이
+// FieldAccessExpression(object=SuperExpression, name="move")/CallExpression으로
+// 그대로 조립하게 둔다(This가 IdentifierExpression과 같은 경로를 타는 것과
+// 동일한 재사용 원칙). Executor는 callee의 object가 SuperExpression인지를 보고
+// 메서드 탐색 시작점만 superclass로 옮기면 된다 - Architecture.md §4.5,
+// TODO.md #5 참고. (우변이 항상 메서드 호출이어야 하는지, 필드 접근도 허용할지는
+// 아직 팀 결정 전이므로 이 노드 자체는 그 결정에 영향받지 않는 형태로 남겨둔다.)
+struct SuperExpression : public Expression {
+    using Expression::Expression;
+
+    bool operator==(const SyntaxNode& op) const override {
+        return dynamic_cast<const SuperExpression*>(&op) != nullptr && SyntaxNode::operator==(op);
+    }
+};
+
 // Array(3) 전용 문법. ARRAY가 예약어라 일반 CallExpression으로 파싱하지 않고
 // 리터럴 파싱과 같은 층위에서 이 노드를 만든다.
 struct ArrayExpression : public Expression {
@@ -639,14 +655,19 @@ struct ReturnStatement : public Statement {
     }
 };
 
-// Class Robot { ... }. 상속(Super, ":")은 3일차 1차 구현 범위에서 제외되어 있다 -
-// 나중에 추가할 때는 superclass 필드만 덧붙이면 된다 (Architecture.md §4.5 참고).
+// Class Robot { ... } 또는 Class SpeedRobot : Robot { ... }. superclass는
+// 상속이 없으면 nullptr이다(기존 코드/테스트는 superclass 인자를 생략해도
+// 그대로 컴파일된다 - 기본값 nullptr). 상속 문법(COLON IDENTIFIER)의 실제
+// 파싱/의미검사/실행 규칙은 아직 미확정이며 ImplementTodo.md/TODO.md #5에서
+// 담당자별로 진행한다 - Architecture.md §4.5 참고.
 struct ClassDeclareStatement : public Statement {
     const Token name;
     const std::vector<MethodDeclareStatement*> methods;
+    IdentifierExpression* const superclass;
 
-    ClassDeclareStatement(const std::vector<Token>& tokens, const Token& name, const std::vector<MethodDeclareStatement*>& methods)
-        : Statement(tokens), name(name), methods(methods) {}
+    ClassDeclareStatement(const std::vector<Token>& tokens, const Token& name, const std::vector<MethodDeclareStatement*>& methods,
+        IdentifierExpression* superclass = nullptr)
+        : Statement(tokens), name(name), methods(methods), superclass(superclass) {}
 
     bool operator==(const SyntaxNode& op) const override {
         auto node = dynamic_cast<const ClassDeclareStatement*>(&op);
@@ -658,6 +679,10 @@ struct ClassDeclareStatement : public Statement {
             if (!methods[i]->operator==(*node->methods[i]))
                 return false;
         }
+        if ((superclass == nullptr) != (node->superclass == nullptr))
+            return false;
+        if (superclass && !superclass->operator==(*node->superclass))
+            return false;
         return SyntaxNode::operator==(op) && name == node->name;
     }
 };
