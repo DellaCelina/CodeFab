@@ -59,39 +59,60 @@ CodeFab은 소스코드를 입력받아 실행 결과를 만들어내는 파이�
 
 ## 폴더 구조
 
-실제 소스 폴더 구조는 위 4개 Unit + Shell을 그대로 반영합니다.
+실제 소스 폴더 구조는 위 4개 Unit + Shell, 그리고 통합 테스트 스크립트 모음인
+IntegrationTest를 반영합니다.
 
 ```
 CodeFab/
-├── Tokenizer/     # 소스코드 -> Token 분해
+├── Tokenizer/       # 소스코드 -> Token 분해
 │   ├── Token.h              Token, TokenType 정의
 │   ├── TokenizeInterface.h  TokenizeInterface 추상 클래스 + AssemblyError, IncompleteInputError
 │   ├── Tokenizer.h / .cpp   TokenizeInterface 구현체
 │   └── TokenizerTest.cpp
 │
-├── Assembler/     # Token -> SyntaxTree(문법 트리) 조립
-│   ├── SyntaxTree.h          SyntaxNode/SyntaxTree 및 모든 Statement/Expression 노드 정의
-│   ├── AssemblerInterface.h  AssemblerInterface 추상 클래스 + AssemblerError
-│   ├── Assembler.h / .cpp    AssemblerInterface 구현체 (재귀 하향 파서)
+├── Assembler/       # Token -> SyntaxTree(문법 트리) 조립, import 파일 재귀 컴파일
+│   ├── SyntaxTree.h            SyntaxNode/SyntaxTree 및 모든 Statement/Expression 노드 정의
+│   ├── AssemblerInterface.h    AssemblerInterface 추상 클래스 + AssemblerError
+│   ├── Assembler.h / .cpp      AssemblerInterface 구현체 (재귀 하향 파서)
+│   ├── SourceReaderInterface.h import 대상 파일을 읽어 토큰화하는 추상 클래스
+│   ├── FileSourceReader.h / .cpp  SourceReaderInterface의 실제 파일 시스템 구현체
 │   └── AssemblerTest.cpp
 │
-├── Checker/       # SyntaxTree 실행 전 의미 오류 검사
-│   ├── CheckerInterface.h  CheckerInterface 추상 클래스 + CheckerError
-│   ├── Checker.h / .cpp    CheckerInterface 구현체 (DFS 기반 의미 분석)
-│   └── CheckerTest.cpp
+├── Checker/         # SyntaxTree 실행 전 의미 오류 검사 및 실행 전 최적화
+│   ├── CheckerInterface.h    CheckerInterface 추상 클래스 + CheckerError
+│   ├── Checker.h / .cpp      CheckerInterface 구현체 (DFS 기반 의미 분석, 정적 바인딩)
+│   ├── OptimizerInterface.h  OptimizerInterface 추상 클래스
+│   ├── Optimizer.h / .cpp    OptimizerInterface 구현체 (상수 연산 폴딩)
+│   ├── CheckerTest.cpp, OptimizerTest.cpp
+│   └── README.md
 │
-├── Executor/      # SyntaxTree 실행
-│   ├── ExecuteInterface.h  ExecuteInterface 추상 클래스 + ExecutorError
-│   ├── Executor.h / .cpp   ExecuteInterface 구현체 (DFS 기반 트리 실행)
-│   ├── Environment.h / .cpp  Scope 스택 관리 (변수 정의/대입/조회)
-│   ├── Scope.h / .cpp         하나의 블록 스코프(이름 -> Value 테이블)
-│   ├── Value.h / .cpp          런타임 값(Nil/Boolean/Number/String)
-│   └── ExecutorTest.cpp, ExecutorVariableTest.cpp, ExecutorControlFlowTest.cpp, EnvironmentTest.cpp
+├── Executor/        # SyntaxTree 실행
+│   ├── ExecuteInterface.h    ExecuteInterface 추상 클래스 + ExecutorError
+│   ├── Executor.h / .cpp     ExecuteInterface 구현체 (DFS 기반 트리 실행)
+│   ├── Environment.h / .cpp  Scope 스택 관리 (변수 정의/대입/조회, 정적 바인딩 조회)
+│   ├── Scope.h / .cpp        하나의 블록 스코프(이름 -> Value 테이블)
+│   ├── Value.h / .cpp        런타임 값(Nil/Boolean/Number/String/Function/Class/Instance/Array/Module)
+│   ├── ArrayValue.h          정적 배열 런타임 값
+│   ├── InstanceValue.h       클래스 인스턴스 런타임 값
+│   ├── ExecutorTest.cpp, ExecutorVariableTest.cpp, ExecutorControlFlowTest.cpp,
+│   │   ExecutorFunctionTest.cpp, ExecutorClassTest.cpp, ExecutorArrayTest.cpp,
+│   │   ExecutorImportTest.cpp, EnvironmentTest.cpp
+│   └── README.md
 │
-└── Shell/         # 4개 Unit을 조합하는 Prompt Shell(REPL)과 진입점
-    ├── RunPromptShell.h / .cpp  4개 *Interface에만 의존하는 REPL 루프
-    ├── RunPromptShellTest.cpp   모킹 테스트 + 전체 파이프라인 통합 테스트
-    └── main.cpp                 각 Unit의 구체 클래스를 생성해 주입하는 composition root
+├── Shell/           # 4개 Unit을 조합하는 REPL/파일/디버그 모드와 진입점
+│   ├── RunPromptShell.h / .cpp  4개 *Interface에만 의존하는 REPL 루프
+│   ├── FileRunMode.h / .cpp     소스 파일을 한 번에 읽어 실행하는 파일 모드
+│   ├── DebugMode.h / .cpp       Stmt 단위 stepping을 지원하는 디버그 모드
+│   ├── Debugger.h / .cpp        디버그 모드의 명령 처리기(step/break/watch 등)
+│   ├── CommandLineArgs.h / .cpp argv 파싱으로 실행 모드를 선택
+│   ├── RunPromptShellTest.cpp, FileRunModeTest.cpp, DebugModeTest.cpp,
+│   │   DebuggerTest.cpp, CommandLineArgsTest.cpp
+│   └── main.cpp                 각 Unit의 구체 클래스를 생성해 주입하는 composition root
+│
+└── IntegrationTest/ # 4-Unit 파이프라인 전체를 검증하는 통합 테스트 스크립트 모음
+    ├── 01_arithmetic_precedence.txt ~ 15_error_division_by_zero.txt  기능별/오류별 스크립트
+    ├── DebugIntegrationTest.cpp
+    └── README.md
 ```
 
 각 폴더는 하나의 Unit(책임)에 대응하며, 폴더 간 의존은 아래 방향으로만 흐릅니다.
