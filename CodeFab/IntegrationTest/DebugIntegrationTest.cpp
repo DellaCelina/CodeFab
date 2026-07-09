@@ -853,7 +853,6 @@ TEST_F(RunPromptShellIntegrationTest, InstanceOf_NonInstanceOperand_PrintsFalse)
     EXPECT_EQ(out.str(), ">>> >>> >>> ");
 }
 
-<<<<<<< HEAD
 // --- 8. Library import ---
 // AssemblerImportTest.cpp/ExecutorImportTest.cpp는 각각 단일 Unit만 검증하므로,
 // 여기서는 실제 파일 시스템(FileSourceReader)까지 포함한 4-Unit 전체 파이프라인으로
