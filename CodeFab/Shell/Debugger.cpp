@@ -59,20 +59,30 @@ void Debugger::printBreakpoints() const {
 }
 
 void Debugger::printInspect() const {
-    // 안쪽(가장 최근에 push된) 스코프부터 바깥쪽(전역) 순서로 보여준다 - 지금
-    // 멈춰 있는 지점에서 가장 가까운 변수가 먼저 보이는 게 디버깅에 더 유용하다.
+    // scopes_.front()가 전역, 그 뒤(back() 방향)가 지역(로컬) 스코프다
+    // (Environment.h 참고). 안쪽(가장 최근에 push된) 스코프부터 바깥쪽 순서로
+    // 로컬 변수를 먼저 보여준 뒤, 전역 변수를 따로 묶어서 보여준다.
     const auto& scopes = executor_.environment().scopes();
-    for (auto it = scopes.rbegin(); it != scopes.rend(); ++it) {
+
+    out_ << "--- 현재 스코프 변수 ---\n";
+
+    out_ << "[로컬]\n";
+    for (auto it = scopes.rbegin(); it != scopes.rend() - 1; ++it) {
         for (const auto& [name, value] : it->variables()) {
-            out_ << "[INSPECT] " << name << " = " << value.toString() << "\n";
+            out_ << name << " = " << value.toString() << "\n";
         }
+    }
+
+    out_ << "[전역]\n";
+    for (const auto& [name, value] : scopes.front().variables()) {
+        out_ << name << " = " << value.toString() << "\n";
     }
 }
 
 void Debugger::promptAndHandleCommand(Statement* stmt, int depth) {
     std::string line;
     while (true) {
-        out_ << "(debug) ";
+        out_ << "> ";
         if (!std::getline(in_, line)) {
             // 입력이 끝나면 더 묻지 않고 나머지를 그냥 실행한다.
             mode_ = Mode::Continue;
@@ -122,6 +132,10 @@ void Debugger::promptAndHandleCommand(Statement* stmt, int depth) {
                 if (std::find(watches_.begin(), watches_.end(), name) == watches_.end()) {
                     watches_.push_back(name);
                 }
+                // watch를 등록한 즉시 현재 값을 보여준다 - 다음 정지까지
+                // 기다리지 않는다.
+                auto value = executor_.environment().lookup(name);
+                out_ << "[WATCH] " << name << " = " << (value ? value->toString() : "undefined") << "\n";
             }
             continue;
         }

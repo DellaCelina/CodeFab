@@ -196,7 +196,7 @@ TEST_F(DebugModeIntegrationTest, ContinueImmediately_RunsWholeScriptAndReturnsTr
 
     EXPECT_TRUE(result);
     EXPECT_EQ(programOutput.str(), "3\n");
-    EXPECT_EQ(out.str(), "[DEBUG] 1번째 줄에서 정지\n(debug) ");
+    EXPECT_EQ(out.str(), "[DEBUG] 1번째 줄에서 정지\n> ");
 }
 
 TEST_F(DebugModeIntegrationTest, Breakpoint_StopsAtTargetLineThenFinishesOnContinue) {
@@ -210,9 +210,9 @@ TEST_F(DebugModeIntegrationTest, Breakpoint_StopsAtTargetLineThenFinishesOnConti
     EXPECT_EQ(programOutput.str(), "1\n2\n3\n");
     EXPECT_EQ(out.str(),
               "[DEBUG] 1번째 줄에서 정지\n"
-              "(debug) [BREAK] 3번째 줄에 브레이크포인트를 설정했습니다.\n"
-              "(debug) [DEBUG] 3번째 줄에서 정지\n"
-              "(debug) ");
+              "> [BREAK] 3번째 줄에 브레이크포인트를 설정했습니다.\n"
+              "> [DEBUG] 3번째 줄에서 정지\n"
+              "> ");
 }
 
 TEST_F(DebugModeIntegrationTest, WatchAcrossSteps_ShowsUndefinedBeforeDeclarationAndValueAfter) {
@@ -224,15 +224,19 @@ TEST_F(DebugModeIntegrationTest, WatchAcrossSteps_ShowsUndefinedBeforeDeclaratio
 
     EXPECT_TRUE(result);
     EXPECT_EQ(programOutput.str(), "3\n");
+    // "watch a"는 등록하는 즉시 현재 값을 보여준다(이 시점엔 아직 a가
+    // 정의되기 전이라 undefined) - 이후 매 정지마다 printWatches가 자동으로
+    // 최신 값을 다시 보여준다.
     EXPECT_EQ(out.str(),
               "[DEBUG] 1번째 줄에서 정지\n"
-              "(debug) (debug) "
+              "> [WATCH] a = undefined\n"
+              "> "
               "[DEBUG] 1번째 줄에서 정지\n"
               "[WATCH] a = undefined\n"
-              "(debug) "
+              "> "
               "[DEBUG] 2번째 줄에서 정지\n"
               "[WATCH] a = 3\n"
-              "(debug) ");
+              "> ");
 }
 
 TEST_F(DebugModeIntegrationTest, MissingSemicolon_ReportsSyntaxErrorWithoutStartingDebugger) {
