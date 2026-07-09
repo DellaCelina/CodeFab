@@ -40,11 +40,17 @@ std::optional<Value> Environment::lookup(const std::string& name) const {
 }
 
 std::optional<Value> Environment::lookupAt(int distance, const std::string& name) const {
+    if (distance < 0 || static_cast<size_t>(distance) >= scopes_.size()) {
+        throw std::out_of_range("Environment::lookupAt: distance out of range.");
+    }
     size_t index = scopes_.size() - 1 - static_cast<size_t>(distance);
-    return scopes_[index].get(name);
+    return scopes_.at(index).get(name);
 }
 
 bool Environment::assignAt(int distance, const std::string& name, const Value& value) {
+    if (distance < 0 || static_cast<size_t>(distance) >= scopes_.size()) {
+        throw std::out_of_range("Environment::assignAt: distance out of range.");
+    }
     size_t index = scopes_.size() - 1 - static_cast<size_t>(distance);
-    return scopes_[index].assign(name, value);
+    return scopes_.at(index).assign(name, value);
 }
