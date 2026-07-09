@@ -1203,6 +1203,164 @@ TEST(AssemblerImportTest, FileNotFoundThrowsTest) {
     EXPECT_THROW(assembler.assemble(tokens), AssemblerError);
 }
 
+TEST(AssemblerImportTest, ClassDeclarationInsideImportDoesNotThrowTest) {
+    // math.cf: Class Adder { init() { } }
+    std::vector<Token> classTokens = {
+        { TokenType::CLASS, "Class", 0},
+        { TokenType::IDENTIFIER, "Adder", 0},
+        { TokenType::LEFT_BRACE, "{", 0},
+        { TokenType::IDENTIFIER, "init", 0},
+        { TokenType::LEFT_PAREN, "(", 0},
+        { TokenType::RIGHT_PAREN, ")", 0},
+        { TokenType::LEFT_BRACE, "{", 0},
+        { TokenType::RIGHT_BRACE, "}", 0},
+        { TokenType::RIGHT_BRACE, "}", 0},
+    };
+    FakeSourceReader fakeReader;
+    fakeReader.files["math.cf"] = classTokens;
+    Assembler assembler(fakeReader);
+
+    // import "math.cf" alias math;
+    std::vector<Token> tokens = {
+        { TokenType::IMPORT, "import", 0},
+        { TokenType::STRING, "math.cf", 0},
+        { TokenType::ALIAS, "alias", 0},
+        { TokenType::IDENTIFIER, "math", 0},
+        { TokenType::SEMICOLON, ";", 0},
+    };
+
+    auto tree = assembler.assemble(tokens);
+    auto root = tree.getRoot();
+
+    MethodDeclareStatement initMethod({ classTokens[5], classTokens[6], classTokens[7] },
+        classTokens[3], {}, {});
+    ClassDeclareStatement declareAdder({ classTokens[0], classTokens[2], classTokens[8] },
+        classTokens[1], { &initMethod });
+    ImportStatement golden({ tokens[0], tokens[4] }, tokens[3], { &declareAdder });
+
+    EXPECT_EQ(*root, golden);
+}
+
+TEST(AssemblerImportTest, ImportThenFieldAccessCallTest) {
+    // sum.txt: Func func() { return 1; }
+    std::vector<Token> sumTokens = {
+        { TokenType::FUNC, "Func", 0},
+        { TokenType::IDENTIFIER, "func", 0},
+        { TokenType::LEFT_PAREN, "(", 0},
+        { TokenType::RIGHT_PAREN, ")", 0},
+        { TokenType::LEFT_BRACE, "{", 0},
+        { TokenType::RETURN, "return", 0},
+        { TokenType::NUMBER, "1", 0},
+        { TokenType::SEMICOLON, ";", 0},
+        { TokenType::RIGHT_BRACE, "}", 0},
+    };
+    FakeSourceReader fakeReader;
+    fakeReader.files["sum.txt"] = sumTokens;
+    Assembler assembler(fakeReader);
+
+    // import "sum.txt" alias sum; sum.func();
+    std::vector<Token> tokens = {
+        { TokenType::IMPORT, "import", 0},
+        { TokenType::STRING, "sum.txt", 0},
+        { TokenType::ALIAS, "alias", 0},
+        { TokenType::IDENTIFIER, "sum", 0},
+        { TokenType::SEMICOLON, ";", 0},
+        { TokenType::IDENTIFIER, "sum", 1},
+        { TokenType::DOT, ".", 1},
+        { TokenType::IDENTIFIER, "func", 1},
+        { TokenType::LEFT_PAREN, "(", 1},
+        { TokenType::RIGHT_PAREN, ")", 1},
+        { TokenType::SEMICOLON, ";", 1},
+    };
+
+    // assemble()은 최상위 statement 하나만 파싱하므로, import와 그 뒤의 접근
+    // statement를 한 번에 검증하려면 BlockStatement로 감싼다.
+    std::vector<Token> wrapped = { { TokenType::LEFT_BRACE, "{", 0} };
+    wrapped.insert(wrapped.end(), tokens.begin(), tokens.end());
+    wrapped.push_back({ TokenType::RIGHT_BRACE, "}", 1 });
+
+    auto tree = assembler.assemble(wrapped);
+    auto root = tree.getRoot();
+
+    NumberExpression one({ sumTokens[6] }, 1);
+    ReturnStatement ret({ sumTokens[5], sumTokens[7] }, &one);
+    FunctionDeclareStatement funcDecl({ sumTokens[0], sumTokens[3], sumTokens[4], sumTokens[8] },
+        sumTokens[1], {}, { &ret });
+    ImportStatement importStmt({ tokens[0], tokens[4] }, tokens[3], { &funcDecl });
+
+    IdentifierExpression sumId({ tokens[5] }, "sum");
+    FieldAccessExpression fieldAccess({ tokens[6] }, &sumId, tokens[7]);
+    CallExpression call({ tokens[8], tokens[9] }, &fieldAccess, {});
+    ExpressionStatement callStmt({ tokens[10] }, &call);
+
+    BlockStatement golden({ wrapped.front(), wrapped.back() }, { &importStmt, &callStmt });
+
+    EXPECT_EQ(*root, golden);
+}
+
+TEST_F(AssemblerTester, ClassDeclareStatementWithSuperclassTest) {
+    // Class B : A { }
+    std::vector<Token> tokens = {
+        { TokenType::CLASS, "Class", 0},
+        { TokenType::IDENTIFIER, "B", 0},
+        { TokenType::COLON, ":", 0},
+        { TokenType::IDENTIFIER, "A", 0},
+        { TokenType::LEFT_BRACE, "{", 0},
+        { TokenType::RIGHT_BRACE, "}", 0},
+    };
+
+    auto tree = assembler.assemble(tokens);
+    auto root = tree.getRoot();
+
+    IdentifierExpression superclass({ tokens[3] }, "A");
+    ClassDeclareStatement golden({ tokens[0], tokens[4], tokens[5] }, tokens[1], {}, &superclass);
+
+    EXPECT_EQ(*root, golden);
+}
+
+TEST_F(AssemblerTester, SuperFieldAccessCallTest) {
+    // Super.move(3);
+    std::vector<Token> tokens = {
+        { TokenType::SUPER, "Super", 0},
+        { TokenType::DOT, ".", 0},
+        { TokenType::IDENTIFIER, "move", 0},
+        { TokenType::LEFT_PAREN, "(", 0},
+        { TokenType::NUMBER, "3", 0},
+        { TokenType::RIGHT_PAREN, ")", 0},
+        { TokenType::SEMICOLON, ";", 0},
+    };
+
+    auto tree = assembler.assemble(tokens);
+    auto root = tree.getRoot();
+
+    SuperExpression superExpr({ tokens[0] });
+    FieldAccessExpression fieldAccess({ tokens[1] }, &superExpr, tokens[2]);
+    NumberExpression three({ tokens[4] }, 3);
+    CallExpression call({ tokens[3], tokens[5] }, &fieldAccess, { &three });
+    ExpressionStatement golden({ tokens[6] }, &call);
+
+    EXPECT_EQ(*root, golden);
+}
+
+TEST_F(AssemblerTester, SuperFieldAccessWithoutCallTest) {
+    // Super.field;
+    std::vector<Token> tokens = {
+        { TokenType::SUPER, "Super", 0},
+        { TokenType::DOT, ".", 0},
+        { TokenType::IDENTIFIER, "field", 0},
+        { TokenType::SEMICOLON, ";", 0},
+    };
+
+    auto tree = assembler.assemble(tokens);
+    auto root = tree.getRoot();
+
+    SuperExpression superExpr({ tokens[0] });
+    FieldAccessExpression fieldAccess({ tokens[1] }, &superExpr, tokens[2]);
+    ExpressionStatement golden({ tokens[3] }, &fieldAccess);
+
+    EXPECT_EQ(*root, golden);
+}
+
 TEST(AssemblerImportTest, NonDeclarationInsideImportThrowsTest) {
     // bad.cf: print 1;   (선언이 아닌 문장은 import 대상으로 허용하지 않음)
     std::vector<Token> badTokens = {
