@@ -153,6 +153,48 @@ import해서 이름을 등록하는" 경로를 준비해 뒀는데, 그 앞단�
       분기 제거(도달 불가능한 죽은 코드 정리)
 - [ ] 결정된 내용을 `ExecutorImportTest.cpp`/`AssemblerImportTest`에 회귀 테스트로 추가
 
+## 11. Executor: RTTI(`typeid`/`dynamic_cast`) 대신 Visitor 패턴으로 리팩토링
+
+**현재 상태**: `SyntaxNode`(`SyntaxTree.h:14` 부근)의 가상 멤버는 소멸자와
+`operator==`뿐이고, `accept()`/`Visit` 계열 메서드가 전혀 없다. 그 결과:
+
+- `Executor.cpp`는 `std::type_index(typeid(*stmt))`/`typeid(*expr)`를 키로 하는
+  `statementHandlers_`/`expressionHandlers_` 맵으로 1차 분기한 뒤, 핸들러 내부에서
+  다시 `static_cast`/`dynamic_cast`로 구체 타입을 확정하는 방식으로 동작한다
+  (`Executor.cpp:161,171,178,305` 등에서 `dynamic_cast` 사용).
+- `Checker.h:40`에는 "SyntaxNode에 accept()가 없어 dynamic_cast로 타입 분기한다"는
+  주석이 이미 명시적으로 남아 있어, RTTI 기반 분기가 임시방편이라는 인식은 팀 내에
+  이미 있었던 것으로 보인다.
+
+RTTI 기반 분기는 새 노드 타입이 추가될 때 `typeid` 키 등록을 빠뜨려도 컴파일
+에러 없이 조용히 "처리 안 됨" 상태로 넘어갈 수 있고, 분기 로직이 맵 초기화 코드와
+캐스팅 코드 두 군데로 흩어져 있어 노드 하나를 다루는 코드가 한눈에 보이지 않는다.
+
+**해야 할 일**:
+- [ ] `SyntaxTree.h`에 `SyntaxNodeVisitor` 인터페이스를 정의하고, `Statement`/
+      `Expression` 계열의 각 구체 노드(`DeclareStatement`, `FunctionDeclareStatement`,
+      `ClassDeclareStatement`, `ImportStatement`, `IfStatement`, `ForStatement`,
+      `BlockStatement`, `ReturnStatement`, `PrintStatement`, `ExpressionStatement`,
+      `BinaryExpression` 계열, `CallExpression`, `FieldAccessExpression`,
+      `IdentifierExpression`, `ArrayExpression`, `InstanceOfExpression` 등 전부)에
+      대응하는 `visit(...)` 오버로드를 선언
+- [ ] `SyntaxNode`(및 `Statement`/`Expression` 중간 기반 클래스)에 순수 가상
+      `accept(SyntaxNodeVisitor&)`를 추가하고, 각 구체 노드가 자기 타입을 인자로
+      `visitor.visit(*this)`를 호출하도록 구현(더블 디스패치)
+- [ ] `Executor`가 `SyntaxNodeVisitor`를 상속하도록 변경하고, 기존
+      `statementHandlers_`/`expressionHandlers_` 맵과 그 안의 람다들을 각 `visit(...)`
+      오버라이드 메서드로 옮겨 구현
+- [ ] `execute(Statement*)`/`evaluate(Expression*)` 진입점을 `node->accept(*this)`
+      호출로 교체하고, 반환값이 필요한 `evaluate` 쪽은 현재 값을 담아둘 멤버 변수
+      (또는 방문 결과를 리턴하는 별도 매커니즘)를 어떻게 둘지 설계
+- [ ] 남아있는 `dynamic_cast` 분기(예: 값 타입 판별용이 아니라 노드 타입 판별용으로
+      쓰인 것들)를 visitor 진입 이후에는 제거할 수 있는지 확인
+- [ ] `Checker`는 이번 리팩토링 범위에서 제외하고 Executor만 우선 전환하되, `Checker.h:40`
+      주석에 "Executor는 Visitor로 전환됨, Checker는 아직 dynamic_cast 사용 중"이라고
+      현재 상태를 남겨 향후 동일 리팩토링 필요성을 표시
+- [ ] Architecture.md/Implement.md의 Executor 관련 서술을 RTTI 기반 설명에서 Visitor
+      패턴 기반으로 갱신
+
 ## 10. Checker와 Optimizer(상수 폴딩)를 SRP에 맞게 분리하는 리팩토링 (PR 논의 정리)
 
 **배경**: Architecture.md의 상수 폴딩(§6.2) 설계 PR([#24](https://github.com/DellaCelina/CodeFab/pull/24))
