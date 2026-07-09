@@ -1,0 +1,7 @@
+Class Empty {
+}
+
+var e = Empty();
+print "instance created";
+print e.missing;
+print "unreachable";

@@ -1,0 +1,41 @@
+[시나리오 05] 클래스 상속 + Super 메서드 호출 + 상속된 init 복합 시나리오
+==========================================================================
+
+참고 요구사항
+  - 3일차 PDF: class 관련 요구사항 - 상속(Class B : A { ... }),
+    메서드 오버라이딩, Super 호출(Super.move(dist))
+  - 3일차 PDF: 생성자(init) - SpeedRobot이 자신만의 init을 정의하지 않아도
+    부모(Robot)의 init을 그대로 물려받아 생성 시 자동 호출되는지 확인
+
+실행 방법 (Release 빌드, repo 루트에서 실행)
+  CodeFab\x64\Release\CodeFab.exe run scenario05_class_inheritance_super.txt
+
+검증 목적
+  1) SpeedRobot : Robot 으로 선언한 자식 클래스의 인스턴스를 생성할 때,
+     자식에 init이 없으므로 부모(Robot)의 init(name)이 그대로 호출되어
+     This.name이 초기화되는지 확인한다 (Executor::findMethod가 상속 체인을
+     따라 올라가며 메서드를 찾는 로직 검증).
+  2) 자식 클래스가 move(dist)를 오버라이딩했을 때, 자식의 move가 호출되고
+     그 안에서 Super.move(dist)로 부모의 원본 move 구현을 호출할 수 있는지
+     확인한다. 이때 Super.move 내부의 This는 여전히 자식 인스턴스를
+     가리켜야 한다.
+
+예상 표준출력 (순서대로)
+  [모드: RUN]
+  BasicBot
+  3
+  FastBot
+  9
+  Speeeed!
+
+각 줄 설명
+  - BasicBot / 3        : 부모 클래스(Robot)만 사용한 normal.move(3) 결과
+  - FastBot / 9         : fast.move(9) -> SpeedRobot.move가 Super.move(9)를
+                          호출해 Robot.move의 print 2줄이 그대로 출력됨
+                          (This는 fast 인스턴스를 유지하므로 이름은 FastBot)
+  - Speeeed!            : Super.move 호출이 끝난 뒤 SpeedRobot.move 자신의
+                          나머지 코드가 실행됨
+
+성공 판정 기준
+  - 종료 코드 0
+  - 위 5개 줄이 순서대로 정확히 출력됨

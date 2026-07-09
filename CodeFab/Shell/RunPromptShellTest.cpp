@@ -9,6 +9,7 @@
 #include "../Assembler/Assembler.h"
 #include "../Assembler/FileSourceReader.h"
 #include "../Checker/Checker.h"
+#include "../Checker/Optimizer.h"
 #include "../Executor/Executor.h"
 #include "../Tokenizer/Tokenizer.h"
 
@@ -35,8 +36,9 @@ protected:
     std::ostringstream programOutput;  // Executor가 print 결과를 쓰는 곳 (out과는 별개)
     Executor executor{programOutput};
     Checker checker;
+    Optimizer optimizer{executor};
 
-    RunPromptShell shell{tokenizer, assembler, checker, executor};
+    RunPromptShell shell{tokenizer, assembler, checker, optimizer, executor};
 
     void run(const std::string& input, std::ostringstream& out) {
         std::istringstream in(input);

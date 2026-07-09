@@ -15,9 +15,9 @@
 //   서브트리를 그대로 둔다 - Architecture.md §6.2 참고.
 // - Optimizer 구현체도 Checker와 마찬가지로 ExecuteInterface&(evaluate() 호출용)에
 //   의존하는 것을 권장한다(DIP 유지) - TODO.md #10 "제안된 방향" 참고.
-// - Shell 담당자는 main.cpp에서 Optimizer를 생성한 뒤, checker_.check(tree)가
-//   성공한 직후 executor_.execute(tree) 이전에 optimizer_.optimize(tree)를 호출하도록
-//   RunPromptShell/FileRunMode/DebugMode 파이프라인에 끼워 넣는다.
+// - Shell(main.cpp)이 Optimizer를 생성해 RunPromptShell/FileRunMode/DebugMode에 주입하고,
+//   각 파이프라인은 checker_.check(tree)가 성공한 직후 executor_.execute(tree) 이전에
+//   optimizer_.optimize(tree)를 호출한다(Shell/README.md "핵심 설계" 참고).
 class OptimizerInterface {
 public:
     virtual ~OptimizerInterface() = default;

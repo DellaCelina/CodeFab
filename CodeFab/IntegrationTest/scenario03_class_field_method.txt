@@ -1,0 +1,21 @@
+Class Robot {
+    move(dist) {
+        This.position = This.position + dist;
+    }
+    report() {
+        print This.position;
+    }
+}
+
+var r = Robot();
+r.position = 0;
+r.name = "SpeedRobot";
+r.speed = 10;
+
+r.move(5);
+r.move(3);
+r.report();
+
+print r.name;
+r.speed = r.speed + 5;
+print r.speed;

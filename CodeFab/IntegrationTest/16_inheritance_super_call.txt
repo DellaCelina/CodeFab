@@ -1,0 +1,22 @@
+Class Robot {
+    init(name) {
+        This.name = name;
+    }
+    move(dist) {
+        print This.name;
+        print dist;
+    }
+}
+
+Class SpeedRobot : Robot {
+    move(dist) {
+        Super.move(dist);
+        print "Speeeed!";
+    }
+}
+
+var normal = Robot("BasicBot");
+normal.move(3);
+
+var fast = SpeedRobot("FastBot");
+fast.move(9);

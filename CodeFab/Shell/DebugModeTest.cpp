@@ -15,6 +15,7 @@
 #include "../Assembler/SyntaxTree.h"
 #include "../Checker/Checker.h"
 #include "../Checker/CheckerInterface.h"
+#include "../Checker/Optimizer.h"
 #include "../Executor/Executor.h"
 #include "../Tokenizer/Token.h"
 #include "../Tokenizer/TokenizeInterface.h"
@@ -59,8 +60,9 @@ protected:
     NiceMock<MockChecker> checker;
     std::ostringstream programOutput;
     Executor executor{ programOutput };
+    Optimizer optimizer{ executor };
 
-    DebugMode mode{ tokenizer, assembler, checker, executor };
+    DebugMode mode{ tokenizer, assembler, checker, optimizer, executor };
 
     std::filesystem::path tempPath =
         std::filesystem::temp_directory_path() / "DebugModeTest_temp.fab";
@@ -157,8 +159,9 @@ protected:
     std::ostringstream programOutput;
     Executor executor{ programOutput };
     Checker checker;
+    Optimizer optimizer{ executor };
 
-    DebugMode mode{ tokenizer, assembler, checker, executor };
+    DebugMode mode{ tokenizer, assembler, checker, optimizer, executor };
 
     std::filesystem::path tempPath =
         std::filesystem::temp_directory_path() / "DebugModeIntegrationTest_temp.fab";

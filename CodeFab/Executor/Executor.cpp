@@ -22,7 +22,7 @@ auto guardScopeAccess(Func&& func) {
     try {
         return func();
     } catch (const std::out_of_range& e) {
-        throw ExecutorError("내부 오류: {}", e.what());
+        throw ExecutorError("internal error: {}", e.what());
     }
 }
 
@@ -32,45 +32,10 @@ auto guardScopeAccess(Func&& func) {
 struct ReturnSignal {
     Value value;
 };
-
-// import 대상 파일의 최상위 선언 하나가 등록하는 이름을 알아낸다. moduleScope로
-// 옮길 값을 찾을 때 쓴다 - Scope에 "내용을 훑는" API를 새로 추가하지 않고도,
-// 어떤 이름이 선언될지는 노드 자체에서 이미 알 수 있기 때문이다.
-std::string declaredNameOf(Statement* decl) {
-    if (auto* var = dynamic_cast<DeclareStatement*>(decl)) {
-        return var->identifier->name;
-    }
-    if (auto* func = dynamic_cast<FunctionDeclareStatement*>(decl)) {
-        return func->name.origin;
-    }
-    if (auto* klass = dynamic_cast<ClassDeclareStatement*>(decl)) {
-        return klass->name.origin;
-    }
-    throw ExecutorError("unsupported declaration type in import.");
-}
-
-// Pushes a new scope on construction and guarantees it's popped when the
-// block ends, whether that's normal control flow or an exception unwinding
-// through it (e.g. a statement inside the block throwing).
-class ScopeGuard {
-public:
-    explicit ScopeGuard(Environment& environment) : environment_(environment) {
-        environment_.pushScope();
-    }
-
-    ~ScopeGuard() {
-        environment_.popScope();
-    }
-
-    ScopeGuard(const ScopeGuard&) = delete;
-    ScopeGuard& operator=(const ScopeGuard&) = delete;
-
-private:
-    Environment& environment_;
-};
 }  // namespace
 
-Executor::Executor(std::ostream& out) : out_(out) {}
+Executor::Executor(std::ostream& out)
+    : out_(out), classRuntime_(*this), moduleRuntime_(*this), arrayRuntime_(*this) {}
 
 void Executor::execute(SyntaxTree& tree) {
     auto* root = dynamic_cast<Statement*>(tree.getRoot());
@@ -215,7 +180,7 @@ void Executor::visit(AssignExpression& node) {
     }
 
     if (auto* indexTarget = dynamic_cast<IndexExpression*>(node.target)) {
-        auto [array, i] = resolveArrayIndex(indexTarget->collection, indexTarget->index);
+        auto [array, i] = arrayRuntime_.resolveIndex(indexTarget->collection, indexTarget->index);
         Value value = evaluate(node.value);
         array->items[i] = value;
         lastValue_ = value;
@@ -361,7 +326,7 @@ void Executor::visit(CallExpression& node) {
         return;
     }
     if (callee.isClass()) {
-        lastValue_ = instantiate(callee.asClass(), args);
+        lastValue_ = classRuntime_.instantiate(callee.asClass(), args);
         return;
     }
     throw ExecutorError("[line {}] callee is not callable.", node.getLine());
@@ -372,18 +337,7 @@ void Executor::visit(ClassDeclareStatement& node) {
 }
 
 void Executor::visit(ImportStatement& node) {
-    auto moduleScope = std::make_shared<Scope>();
-
-    {
-        ScopeGuard guard(environment_);  // declarations 실행용 임시 프레임.
-        for (Statement* decl : node.declarations) {
-            execute(decl);
-            std::string name = declaredNameOf(decl);
-            moduleScope->define(name, *environment_.lookup(name));
-        }
-    }  // 임시 프레임은 여기서 pop된다 - alias는 바깥(호출 시점) 스코프에 등록한다.
-
-    environment_.define(node.alias.origin, Value(moduleScope));
+    moduleRuntime_.runImport(node);
 }
 
 void Executor::visit(FieldAccessExpression& node) {
@@ -408,17 +362,11 @@ void Executor::visit(FieldAccessExpression& node) {
 }
 
 void Executor::visit(ArrayExpression& node) {
-    Value size = evaluate(node.sizeExpr);
-    if (!size.isNumber()) {
-        throw ExecutorError("[line {}] array size must be a number.", node.getLine());
-    }
-    auto array = std::make_shared<ArrayValue>();
-    array->items.resize(static_cast<size_t>(size.asNumber()));  // 전부 Nil로 채워짐.
-    lastValue_ = Value(array);
+    lastValue_ = arrayRuntime_.create(node.sizeExpr);
 }
 
 void Executor::visit(IndexExpression& node) {
-    auto [array, i] = resolveArrayIndex(node.collection, node.index);
+    auto [array, i] = arrayRuntime_.resolveIndex(node.collection, node.index);
     lastValue_ = array->items[i];
 }
 
@@ -432,14 +380,7 @@ void Executor::visit(InstanceOfExpression& node) {
     if (!classValue || !classValue->isClass()) {
         throw ExecutorError("[line {}] '{}' is not a class.", node.getLine(), node.className.origin);
     }
-    // 자기 자신뿐 아니라 superclass 체인 어딘가와 일치해도 true.
-    for (const ClassDeclareStatement* k = object.asInstance()->klass; k != nullptr; k = resolveSuperclass(k)) {
-        if (k == classValue->asClass()) {
-            lastValue_ = Value(true);
-            return;
-        }
-    }
-    lastValue_ = Value(false);
+    lastValue_ = Value(classRuntime_.isInstanceOf(object.asInstance()->klass, classValue->asClass()));
 }
 
 void Executor::visit(ThisExpression& node) {
@@ -499,114 +440,16 @@ Value Executor::callMethodDecl(const MethodDeclareStatement* method, const std::
     return invoke(method->name, method->params, method->body, args, boundThis);
 }
 
-Value Executor::instantiate(const ClassDeclareStatement* klass, const std::vector<Value>& args) {
-    auto instance = std::make_shared<InstanceValue>();
-    instance->klass = klass;
-    instance->fields = std::make_shared<Scope>();
-    Value instanceValue(instance);
-
-    if (MethodDeclareStatement* init = findMethod(klass, "init")) {
-        callMethodDecl(init, args, instanceValue);  // 반환값은 버린다.
-    }
-    return instanceValue;
-}
-
-MethodDeclareStatement* Executor::findMethod(const ClassDeclareStatement* klass, const std::string& name) {
-    for (const ClassDeclareStatement* k = klass; k != nullptr; k = resolveSuperclass(k)) {
-        for (MethodDeclareStatement* method : k->methods) {
-            if (method->name.origin == name) {
-                return method;
-            }
-        }
-    }
-    return nullptr;
-}
-
-const ClassDeclareStatement* Executor::resolveSuperclass(const ClassDeclareStatement* klass) {
-    if (klass->superclass == nullptr) {
-        return nullptr;
-    }
-    const IdentifierExpression* superclass = klass->superclass;
-    // depth는 Checker가 클래스 선언을 검사하던 시점(항상 클래스가 선언된 스코프)의
-    // 스코프 깊이를 캐싱한 것이다. 반면 resolveSuperclass는 메서드 호출 스택
-    // 한가운데(예: Super.method() 안에서 다시 Super를 참조하는 다단계 상속, 또는
-    // REPL에서 다른 줄에 걸쳐 호출되는 생성자)에서도 호출되므로, 그 시점의 실제
-    // 스코프 깊이가 캐싱된 depth와 전혀 다를 수 있다 - lookupAt을 쓰면 엉뚱한
-    // 스코프를 가리켜 "클래스가 아닙니다" 오류로 이어진다. 그래서 항상 전체
-    // 스코프를 훑는 동적 조회(lookup)만 사용한다(InstanceOfExpression과 동일한 이유).
-    auto value = environment_.lookup(superclass->name);
-    if (!value || !value->isClass()) {
-        throw ExecutorError("[line {}] '{}' is not a class.", superclass->getLine(), superclass->name);
-    }
-    return value->asClass();
-}
-
 Value Executor::callMethod(FieldAccessExpression* fieldAccess, const std::vector<Expression*>& argExprs) {
+    // Super.method(...)는 object를 "값으로" 평가하지 않는다 - 탐색 시작점을
+    // superclass로 옮기는 것 자체가 목적이라 ClassRuntime이 직접 처리한다.
     if (dynamic_cast<SuperExpression*>(fieldAccess->object)) {
-        // Super.method(...): this는 그대로 유지한 채, 메서드 탐색 시작점만
-        // this가 속한 클래스가 아니라 superclass로 강제 이동한다.
-        auto thisValue = environment_.lookup("this");
-        if (!thisValue || !thisValue->isInstance()) {
-            throw ExecutorError("[line {}] cannot use 'Super' outside a class method.", fieldAccess->getLine());
-        }
-        const ClassDeclareStatement* startClass = resolveSuperclass(thisValue->asInstance()->klass);
-        MethodDeclareStatement* method = startClass ? findMethod(startClass, fieldAccess->name.origin) : nullptr;
-        if (!method) {
-            throw ExecutorError("[line {}] method '{}' does not exist in superclass.", fieldAccess->getLine(), fieldAccess->name.origin);
-        }
-        std::vector<Value> args;
-        args.reserve(argExprs.size());
-        for (Expression* arg : argExprs) {
-            args.push_back(evaluate(arg));
-        }
-        return callMethodDecl(method, args, *thisValue);
+        return classRuntime_.callSuperMethod(fieldAccess, argExprs);
     }
 
     Value object = evaluate(fieldAccess->object);
-
     if (object.isModule()) {
-        // alias.add(...): 모듈 스코프에서 이름을 찾아 함수처럼 호출한다.
-        auto member = object.asModule()->get(fieldAccess->name.origin);
-        if (!member || !member->isFunction()) {
-            throw ExecutorError("[line {}] '{}' is not a function in module.", fieldAccess->getLine(), fieldAccess->name.origin);
-        }
-        std::vector<Value> moduleArgs;
-        moduleArgs.reserve(argExprs.size());
-        for (Expression* arg : argExprs) {
-            moduleArgs.push_back(evaluate(arg));
-        }
-        return callFunction(member->asFunction(), moduleArgs);
+        return moduleRuntime_.callMember(object, fieldAccess, argExprs);
     }
-
-    if (!object.isInstance()) {
-        throw ExecutorError("[line {}] cannot call method on a non-instance.", fieldAccess->getLine());
-    }
-    auto& instance = object.asInstance();
-    MethodDeclareStatement* method = findMethod(instance->klass, fieldAccess->name.origin);
-    if (!method) {
-        throw ExecutorError("[line {}] method '{}' does not exist.", fieldAccess->getLine(), fieldAccess->name.origin);
-    }
-    std::vector<Value> args;
-    args.reserve(argExprs.size());
-    for (Expression* arg : argExprs) {
-        args.push_back(evaluate(arg));
-    }
-    return callMethodDecl(method, args, object);
-}
-
-std::pair<std::shared_ptr<ArrayValue>, size_t> Executor::resolveArrayIndex(Expression* collectionExpr, Expression* indexExpr) {
-    Value collection = evaluate(collectionExpr);
-    if (!collection.isArray()) {
-        throw ExecutorError("[line {}] index access is only supported on arrays.", collectionExpr->getLine());
-    }
-    Value indexValue = evaluate(indexExpr);
-    if (!indexValue.isNumber()) {
-        throw ExecutorError("[line {}] array index must be a number.", collectionExpr->getLine());
-    }
-    auto array = collection.asArray();
-    auto i = static_cast<size_t>(indexValue.asNumber());
-    if (i >= array->items.size()) {
-        throw ExecutorError("[line {}] array index out of bounds.", collectionExpr->getLine());
-    }
-    return { array, i };
+    return classRuntime_.callInstanceMethod(object, fieldAccess, argExprs);
 }

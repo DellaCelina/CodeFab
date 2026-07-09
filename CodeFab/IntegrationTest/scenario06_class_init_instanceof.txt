@@ -1,0 +1,31 @@
+Class Robot {
+    init(name, speed) {
+        This.name = name;
+        This.speed = speed;
+    }
+}
+
+Class SpeedRobot : Robot {
+    init(name) {
+        Super.init(name, 999);
+    }
+}
+
+Class Cat {
+}
+
+var r1 = Robot("AndOr", 10);
+var r2 = Robot("Zeta", 20);
+var w = SpeedRobot("Sam");
+
+print r1.name;
+print r1.speed;
+print r2.name;
+print w.name;
+print w.speed;
+
+print (w instanceof SpeedRobot);
+print (w instanceof Robot);
+print (r1 instanceof SpeedRobot);
+print (r1 instanceof Cat);
+print (1 instanceof Robot);
