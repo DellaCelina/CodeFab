@@ -1,4 +1,4 @@
-﻿#include "Checker.h"
+#include "Checker.h"
 
 Checker::Checker() {
     enterScope(); // 세션 전체에 걸쳐 유지되는 전역 스코프
@@ -49,7 +49,7 @@ bool Checker::isClassDeclaredInAnyScope(const string& name) const {
 }
 
 void Checker::reportError(int line, const string& message) {
-    throw CheckerError("[{}번째 줄] {}", line, message);
+    throw CheckerError("[line {}] {}", line, message);
 }
 
 void Checker::checkStatement(Statement* stmt) {
@@ -70,7 +70,7 @@ void Checker::checkFunctionBody(const string& name, const vector<Token>& params,
     unordered_set<string> paramNames;
     for (const Token& param : params) {
         if (!paramNames.insert(param.origin).second) {
-            reportError(line, "'" + name + "'의 파라미터 이름 '" + param.origin + "'이(가) 중복됩니다.");
+            reportError(line, "duplicate parameter name '" + param.origin + "' in '" + name + "'.");
         }
     }
 
@@ -122,11 +122,11 @@ void Checker::resolveIdentifier(IdentifierExpression& id) const {
 
 void Checker::visit(IdentifierExpression& node) {
     if (!currentlyDeclaring.empty() && node.name == currentlyDeclaring) {
-        reportError(node.getLine(), "자신의 초기화식에서 지역변수를 읽을 수 없습니다.");
+        reportError(node.getLine(), "cannot read local variable in its own initializer.");
     }
 
     if (!isDeclaredInAnyScope(node.name)) {
-        reportError(node.getLine(), "'" + node.name + "'에러: 선언되지 않은 변수입니다.");
+        reportError(node.getLine(), "'" + node.name + "' is not declared.");
     }
 
     // 함수/메서드 본문 안에서는 정적 바인딩을 건너뛴다: Environment는 함수 호출마다
@@ -153,8 +153,7 @@ void Checker::visit(DeclareStatement& node) {
     const string& name = node.identifier->name;
 
     if (isDeclaredInCurrentScope(name)) {
-        reportError(node.getLine(),
-            "'" + name + "'에러: 이미 해당 변수는 현재 스코프에서 사용중입니다.");
+        reportError(node.getLine(), "'" + name + "' is already declared in this scope.");
     }
 
     // 초기화식 검사 중에는 아직 이름을 등록하지 않고, currentlyDeclaring에 기억해두어
@@ -255,16 +254,16 @@ void Checker::visit(FieldAccessExpression& node) {
 
 void Checker::visit(ThisExpression& node) {
     if (classMethodDepth == 0) {
-        reportError(node.getLine(), "클래스 메서드 밖에서 This를 사용할 수 없습니다.");
+        reportError(node.getLine(), "cannot use 'This' outside a class method.");
     }
     // this는 checkFunctionBody가 메서드 스코프에 미리 declare해두므로 여기선 추가 처리가 없다.
 }
 
 void Checker::visit(SuperExpression& node) {
     if (classMethodDepth == 0) {
-        reportError(node.getLine(), "클래스 메서드 밖에서 Super를 사용할 수 없습니다.");
+        reportError(node.getLine(), "cannot use 'Super' outside a class method.");
     } else if (!hasSuperclass_) {
-        reportError(node.getLine(), "부모 클래스가 없는 클래스에서 Super를 사용할 수 없습니다.");
+        reportError(node.getLine(), "cannot use 'Super' in a class with no superclass.");
     }
 }
 
@@ -285,7 +284,7 @@ void Checker::visit(InstanceOfExpression& node) {
 void Checker::visit(FunctionDeclareStatement& node) {
     const string& name = node.name.origin;
     if (isDeclaredInCurrentScope(name)) {
-        reportError(node.getLine(), "'" + name + "'에러: 이미 해당 이름은 현재 스코프에서 사용중입니다.");
+        reportError(node.getLine(), "'" + name + "' is already declared in this scope.");
     }
     // 바디 검사 전에 이름을 등록해 재귀 호출이 미선언 변수 오류로 잡히지 않게 한다.
     declare(name);
@@ -300,10 +299,10 @@ void Checker::visit(MethodDeclareStatement&) {
 
 void Checker::visit(ReturnStatement& node) {
     if (functionDepth == 0) {
-        reportError(node.getLine(), "함수(메서드) 밖에서 return을 사용할 수 없습니다.");
+        reportError(node.getLine(), "cannot use 'return' outside a function.");
     }
     if (inInitMethod && node.value != nullptr) {
-        reportError(node.getLine(), "init 메서드는 값을 반환할 수 없습니다.");
+        reportError(node.getLine(), "'init' method cannot return a value.");
     }
     if (node.value) {
         checkExpression(node.value);
@@ -313,7 +312,7 @@ void Checker::visit(ReturnStatement& node) {
 void Checker::visit(ClassDeclareStatement& node) {
     const string& name = node.name.origin;
     if (isDeclaredInCurrentScope(name)) {
-        reportError(node.getLine(), "'" + name + "'에러: 이미 해당 이름은 현재 스코프에서 사용중입니다.");
+        reportError(node.getLine(), "'" + name + "' is already declared in this scope.");
     }
     declare(name);
     declareClass(name);
@@ -321,11 +320,11 @@ void Checker::visit(ClassDeclareStatement& node) {
     if (node.superclass != nullptr) {
         const string& superName = node.superclass->name;
         if (superName == name) {
-            reportError(node.getLine(), "'" + name + "' 클래스는 자기 자신을 상속할 수 없습니다.");
+            reportError(node.getLine(), "class '" + name + "' cannot inherit from itself.");
         }
         checkExpression(node.superclass); // 존재 여부 검사 + depth 캐싱(resolveIdentifier)까지 재사용
         if (!isClassDeclaredInAnyScope(superName)) {
-            reportError(node.getLine(), "'" + superName + "'은(는) 클래스가 아니므로 상속할 수 없습니다.");
+            reportError(node.getLine(), "'" + superName + "' is not a class and cannot be used as a superclass.");
         }
     }
 
@@ -342,7 +341,7 @@ void Checker::visit(ClassDeclareStatement& node) {
 
 void Checker::visit(ImportStatement& node) {
     if (forDepth > 0) {
-        reportError(node.getLine(), "반복문(for) 안에서는 import를 사용할 수 없습니다.");
+        reportError(node.getLine(), "cannot use 'import' inside a for loop.");
     }
 
     const string& alias = node.alias.origin;
@@ -350,10 +349,10 @@ void Checker::visit(ImportStatement& node) {
     // TODO(refactor): ImportStatement에 원본 path가 없어 "동일 alias"로 대체 검사 중이다.
     // 서로 다른 alias로 같은 파일을 두 번 import하는 경우는 걸러내지 못한다.
     if (isDeclaredInCurrentScope(alias)) {
-        reportError(node.getLine(), "'" + alias + "'에러: 이미 해당 이름은 현재 스코프에서 사용중입니다.");
+        reportError(node.getLine(), "'" + alias + "' is already declared in this scope.");
     }
     else if (isDeclaredInAnyScope(alias)) {
-        reportError(node.getLine(), "'" + alias + "'에러: 상위 스코프에서 이미 사용중인 이름입니다.");
+        reportError(node.getLine(), "'" + alias + "' is already declared in an upper scope.");
     }
 
     declare(alias);
