@@ -1,8 +1,5 @@
 ﻿#pragma once
-#include <functional>
 #include <string>
-#include <typeindex>
-#include <unordered_map>
 #include <unordered_set>
 #include <vector>
 
@@ -12,8 +9,10 @@
 
 using namespace std;
 
-
-class Checker : public CheckerInterface {
+// Executor와 동일하게 Visitor 패턴(SyntaxNodeVisitor, TODO.md #11)으로 디스패치한다.
+// accept()가 매칭되는 visit() 오버라이드를 호출하므로, 새 노드 타입의 visit()을
+// 빼먹으면 (이전의 type_index 맵처럼 조용히 무시되는 게 아니라) 컴파일 에러가 난다.
+class Checker : public CheckerInterface, public SyntaxNodeVisitor {
 
 public:
     // scopes는 REPL 세션 내내 유지된다(Executor의 Environment와 동일).
@@ -23,6 +22,49 @@ public:
 
     // 의미 오류 발견 시 CheckerError를 throw, 통과하면 true 반환.
     bool check(SyntaxTree& tree) override;
+
+    // SyntaxNodeVisitor: 노드 하나당 visit() 하나.
+    void visit(IdentifierExpression& node) override;
+    void visit(PrintStatement& node) override;
+    void visit(ExpressionStatement& node) override;
+    void visit(DeclareStatement& node) override;
+    void visit(BlockStatement& node) override;
+    void visit(IfStatement& node) override;
+    void visit(ForStatement& node) override;
+    void visit(NumberExpression& node) override;
+    void visit(StringExpression& node) override;
+    void visit(BooleanExpression& node) override;
+    void visit(AddExpression& node) override;
+    void visit(MultExpression& node) override;
+    void visit(SubExpression& node) override;
+    void visit(DivideExpression& node) override;
+    void visit(ModExpression& node) override;
+    void visit(AndExpression& node) override;
+    void visit(OrExpression& node) override;
+    void visit(EqualExpression& node) override;
+    void visit(NotEqualExpression& node) override;
+    void visit(LessExpression& node) override;
+    void visit(LessEqualExpression& node) override;
+    void visit(GreaterExpression& node) override;
+    void visit(GreaterEqualExpression& node) override;
+    void visit(AssignExpression& node) override;
+    void visit(NegativeExpression& node) override;
+    void visit(NotExpression& node) override;
+    void visit(CallExpression& node) override;
+    void visit(FieldAccessExpression& node) override;
+    void visit(ThisExpression& node) override;
+    void visit(SuperExpression& node) override;
+    void visit(ArrayExpression& node) override;
+    void visit(IndexExpression& node) override;
+    void visit(InstanceOfExpression& node) override;
+    void visit(FunctionDeclareStatement& node) override;
+    // MethodDeclareStatement는 클래스 바디 전용 선언이라 accept()로 직접 방문되지
+    // 않는다(visit(ClassDeclareStatement&)가 checkFunctionBody로 바로 처리) -
+    // Executor의 동일 노드 처리와 같은 이유.
+    void visit(MethodDeclareStatement& node) override;
+    void visit(ReturnStatement& node) override;
+    void visit(ClassDeclareStatement& node) override;
+    void visit(ImportStatement& node) override;
 
 private:
     ExecuteInterface& executor_;
@@ -46,39 +88,20 @@ private:
 
     [[noreturn]] void reportError(int line, const string& message);
 
-    // SyntaxNode에 accept()가 추가됐고(TODO.md #11, Visitor 패턴 적용 결정),
-    // Executor는 이미 SyntaxNodeVisitor로 전환됐다(ImplementTodo.md §4 할 일 4).
-    // Checker는 이번 라운드 리팩토링 범위가 아니라 여전히 type_index 맵으로 타입
-    // 분기한다 - Executor 전환 방식(람다 -> visit() 오버라이드)을 참고해 별도로
-    // 진행한다.
-    void registerDefaultHandlers();
-
-    // 핸들러 없는 타입(리터럴 등)은 조용히 지나간다.
+    // accept()/visit() 이중 디스패치 진입점. nullptr은 호출부가 미리 걸러낸다
+    // (IfStatement::elseBranch, ReturnStatement::value처럼 nullable한 필드가
+    // 대상일 때) - Executor의 execute()/evaluate()와 동일한 관례.
     void checkStatement(Statement* stmt);
     void checkExpression(Expression* expr);
 
-    void checkBlock(BlockStatement* block);
-    void checkDeclare(DeclareStatement* decl);
-    void checkPrint(PrintStatement* stmt);
-    void checkIf(IfStatement* ifStmt);
-    void checkFor(ForStatement* forStmt);
-    void checkIdentifier(IdentifierExpression* id);
-    void checkBinary(BinaryExpression* bin);
-    void checkSuper(SuperExpression* superExpr);
-
-    void checkFunctionDeclare(FunctionDeclareStatement* funcDecl);
+    // BinaryExpression 하위 12개 타입이 전부 "양쪽을 재귀 검사"만 동일하게 하므로
+    // 공유 헬퍼로 둔다.
+    void checkBinary(BinaryExpression& bin);
 
     // FunctionDeclareStatement/MethodDeclareStatement가 필드 모양이 같아 공용으로 처리한다.
     void checkFunctionBody(const string& name, const vector<Token>& params,
         const vector<Statement*>& body, int line, bool isMethod, bool isInit);
-    void checkClass(ClassDeclareStatement* classDecl);
-    void checkReturn(ReturnStatement* ret);
-    void checkImport(ImportStatement* importStmt);
-    void checkThis(ThisExpression* thisExpr);
 
-    // 정적 바인딩: 몇 단계 위 스코프에서 선언됐는지 세어 id->depth에 기록한다.
-    void resolveIdentifier(IdentifierExpression* id) const;
-
-    unordered_map<type_index, function<void(Statement*)>> statementHandlers_;
-    unordered_map<type_index, function<void(Expression*)>> expressionHandlers_;
+    // 정적 바인딩: 몇 단계 위 스코프에서 선언됐는지 세어 id.depth에 기록한다.
+    void resolveIdentifier(IdentifierExpression& id) const;
 };
