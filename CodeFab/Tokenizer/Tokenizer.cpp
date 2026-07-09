@@ -23,7 +23,6 @@ static const std::unordered_map<std::string, TokenType> KEYWORDS = {
     { "or",         TokenType::OR         },
 };
 
-
 void Tokenizer::reset(const std::string& src) {
     source  = src;
     start   = 0;
@@ -32,7 +31,7 @@ void Tokenizer::reset(const std::string& src) {
     tokens.clear();
 }
 
-std::vector<Token> Tokenizer::scanTokens(const std::string& src) {
+std::vector<Token> Tokenizer::tokenize(const std::string& src) {
     reset(src);
 
     while (!isAtEnd()) {
@@ -41,10 +40,6 @@ std::vector<Token> Tokenizer::scanTokens(const std::string& src) {
     }
 
     return tokens;
-}
-
-std::vector<Token> Tokenizer::tokenize(const std::string& src) {
-    return scanTokens(src);
 }
 
 bool Tokenizer::isAtEnd() {
@@ -120,7 +115,6 @@ void Tokenizer::scanToken() {
             scanString();
             break;
         default:
-
             scanDefault(c);
             break;
     }
@@ -135,7 +129,6 @@ void Tokenizer::scanString() {
         throw IncompleteInputError("문자열이 종결되지 않았습니다.");
 
     advance(); // 닫는 '"' 소비
-    // 따옴표를 제거한 실제 문자열 값을 origin에 저장
     std::string value = source.substr(start + 1, current - start - 2);
     tokens.push_back({ TokenType::STRING, value, line });
 }
@@ -147,7 +140,6 @@ void Tokenizer::scanDefault(char c) {
 }
 
 void Tokenizer::scanNumber() {
-
     while (isDigit(peek())) advance();
 
     if (peek() == '.' && isDigit(peekNext())) {
@@ -158,7 +150,7 @@ void Tokenizer::scanNumber() {
 }
 
 void Tokenizer::scanIdentifier() {
-   while (isAlphaNumeric(peek())) advance();
+    while (isAlphaNumeric(peek())) advance();
 
     std::string text = source.substr(start, current - start);
     auto it = KEYWORDS.find(text);
