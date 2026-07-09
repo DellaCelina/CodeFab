@@ -47,3 +47,25 @@ public:
 private:
     std::vector<Scope> scopes_;
 };
+
+// Pushes a new scope on construction and guarantees it's popped when the
+// block ends, whether that's normal control flow or an exception unwinding
+// through it (e.g. a statement inside the block throwing). Shared by
+// Executor and its Runtime helpers (ClassRuntime/ModuleRuntime/ArrayRuntime)
+// wherever a temporary scope frame is needed.
+class ScopeGuard {
+public:
+    explicit ScopeGuard(Environment& environment) : environment_(environment) {
+        environment_.pushScope();
+    }
+
+    ~ScopeGuard() {
+        environment_.popScope();
+    }
+
+    ScopeGuard(const ScopeGuard&) = delete;
+    ScopeGuard& operator=(const ScopeGuard&) = delete;
+
+private:
+    Environment& environment_;
+};

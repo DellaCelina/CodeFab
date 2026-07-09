@@ -7,8 +7,11 @@
 #include <utility>
 #include <vector>
 
+#include "ArrayRuntime.h"
+#include "ClassRuntime.h"
 #include "Environment.h"
 #include "ExecuteInterface.h"
+#include "ModuleRuntime.h"
 #include "../Assembler/SyntaxTree.h"
 #include "Value.h"
 
@@ -19,7 +22,16 @@
 // so the compiler enforces that every concrete node type is handled - unlike
 // a dynamic_cast/type_index chain, forgetting a node type is a compile error
 // instead of a silent runtime fallback.
+//
+// 클래스 인스턴스화/메서드 탐색(ClassRuntime), import 실행/모듈 멤버 호출
+// (ModuleRuntime), 배열 생성/인덱싱(ArrayRuntime)은 각각 서로 다른 이유로
+// 바뀌는 책임이라 별도 협력 객체로 분리했다(전체리팩토링리스트 #3, God Object
+// 분리). Executor는 이 셋에게 접근을 허용하는 friend이고, visit()들은 대부분
+// "어떤 Runtime에 위임할지 결정"만 하는 얇은 라우팅 역할만 한다.
 class Executor : public ExecuteInterface, public SyntaxNodeVisitor {
+    friend class ClassRuntime;
+    friend class ModuleRuntime;
+
 public:
     // `out` defaults to std::cout but can be swapped for e.g. an
     // ostringstream in tests to capture what print statements write.
@@ -116,31 +128,17 @@ private:
     // 클래스 메서드 호출 (this 있음) - invoke()를 그대로 재사용한다.
     Value callMethodDecl(const MethodDeclareStatement* method, const std::vector<Value>& args, Value boundThis);
 
-    // klass를 인스턴스화한다: 필드 저장소를 만들고, init 메서드가 있으면
-    // 호출한다(반환값은 버리고 항상 새 인스턴스를 반환).
-    Value instantiate(const ClassDeclareStatement* klass, const std::vector<Value>& args);
-
-    // callee가 FieldAccessExpression인 CallExpression(메서드 호출) 처리.
+    // callee가 FieldAccessExpression인 CallExpression(메서드 호출) 처리 - 대상이
+    // Super/모듈/인스턴스 중 무엇인지만 가려서 해당 Runtime에 위임한다.
     Value callMethod(FieldAccessExpression* fieldAccess, const std::vector<Expression*>& argExprs);
-
-    // klass부터 시작해 superclass 체인을 따라 올라가며 name과 일치하는 메서드를
-    // 찾는다(자식 클래스부터 먼저 찾으므로 오버라이딩이 자연히 해결됨). 없으면
-    // nullptr.
-    MethodDeclareStatement* findMethod(const ClassDeclareStatement* klass, const std::string& name);
-
-    // klass->superclass(IdentifierExpression*)를 실제 ClassDeclareStatement*로
-    // 조회한다. superclass가 없으면 nullptr.
-    const ClassDeclareStatement* resolveSuperclass(const ClassDeclareStatement* klass);
-
-    // collectionExpr/indexExpr을 평가해 (배열, 검증된 인덱스)를 반환한다. 배열이
-    // 아니거나 인덱스가 숫자가 아니거나 범위를 벗어나면 ExecutorError. 배열
-    // 자체(shared_ptr)를 값으로 반환해서, 호출부가 collectionExpr을 다시
-    // 평가하는 동안에만 살아있는 임시 Value에 원소 참조가 매달리는 일이 없게 한다.
-    std::pair<std::shared_ptr<ArrayValue>, size_t> resolveArrayIndex(Expression* collectionExpr, Expression* indexExpr);
 
     std::ostream& out_;
     Environment environment_;
     StatementHook statementHook_;
     int statementDepth_ = 0;
     Value lastValue_;  // visit(Expression&)이 결과를 여기 담아두고 evaluate()가 꺼내 간다.
+
+    ClassRuntime classRuntime_;
+    ModuleRuntime moduleRuntime_;
+    ArrayRuntime arrayRuntime_;
 };

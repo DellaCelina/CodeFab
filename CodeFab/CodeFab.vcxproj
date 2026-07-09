@@ -163,6 +163,9 @@
     <ClCompile Include="Executor\Environment.cpp" />
     <ClCompile Include="Executor\Scope.cpp" />
     <ClCompile Include="Executor\EnvironmentTest.cpp" />
+    <ClCompile Include="Executor\ClassRuntime.cpp" />
+    <ClCompile Include="Executor\ModuleRuntime.cpp" />
+    <ClCompile Include="Executor\ArrayRuntime.cpp" />
     <ClCompile Include="Shell\main.cpp" />
     <ClCompile Include="Shell\RunPromptShell.cpp" />
     <ClCompile Include="Shell\RunPromptShellTest.cpp" />
@@ -196,6 +199,9 @@
     <ClInclude Include="Executor\ArrayValue.h" />
     <ClInclude Include="Executor\Environment.h" />
     <ClInclude Include="Executor\Scope.h" />
+    <ClInclude Include="Executor\ClassRuntime.h" />
+    <ClInclude Include="Executor\ModuleRuntime.h" />
+    <ClInclude Include="Executor\ArrayRuntime.h" />
     <ClInclude Include="Shell\RunPromptShell.h" />
     <ClInclude Include="Shell\CommandLineArgs.h" />
     <ClInclude Include="Shell\FileRunMode.h" />
