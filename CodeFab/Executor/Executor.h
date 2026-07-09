@@ -74,6 +74,15 @@ private:
     // callee가 FieldAccessExpression인 CallExpression(메서드 호출) 처리.
     Value callMethod(FieldAccessExpression* fieldAccess, const std::vector<Expression*>& argExprs);
 
+    // klass부터 시작해 superclass 체인을 따라 올라가며 name과 일치하는 메서드를
+    // 찾는다(자식 클래스부터 먼저 찾으므로 오버라이딩이 자연히 해결됨). 없으면
+    // nullptr.
+    MethodDeclareStatement* findMethod(const ClassDeclareStatement* klass, const std::string& name);
+
+    // klass->superclass(IdentifierExpression*)를 실제 ClassDeclareStatement*로
+    // 조회한다. superclass가 없으면 nullptr.
+    const ClassDeclareStatement* resolveSuperclass(const ClassDeclareStatement* klass);
+
     // collectionExpr/indexExpr을 평가해 (배열, 검증된 인덱스)를 반환한다. 배열이
     // 아니거나 인덱스가 숫자가 아니거나 범위를 벗어나면 ExecutorError. 배열
     // 자체(shared_ptr)를 값으로 반환해서, 호출부가 collectionExpr을 다시

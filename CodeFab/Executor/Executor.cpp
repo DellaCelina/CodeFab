@@ -390,7 +390,13 @@ void Executor::registerDefaultHandlers() {
         if (!classValue || !classValue->isClass()) {
             throw ExecutorError("'{}'은(는) 클래스가 아닙니다.", instOf->className.origin);
         }
-        return Value(object.asInstance()->klass == classValue->asClass());
+        // 자기 자신뿐 아니라 superclass 체인 어딘가와 일치해도 true.
+        for (const ClassDeclareStatement* k = object.asInstance()->klass; k != nullptr; k = resolveSuperclass(k)) {
+            if (k == classValue->asClass()) {
+                return Value(true);
+            }
+        }
+        return Value(false);
     };
 
     expressionHandlers_[std::type_index(typeid(ThisExpression))] = [this](Expression*) {
@@ -399,6 +405,18 @@ void Executor::registerDefaultHandlers() {
         auto value = environment_.lookup("this");
         if (!value) {
             throw ExecutorError("클래스 외부에서 This를 사용했습니다.");
+        }
+        return *value;
+    };
+
+    expressionHandlers_[std::type_index(typeid(SuperExpression))] = [this](Expression*) {
+        // Super.field는 This.field와 완전히 동일하게 동작한다 - 필드 저장소가
+        // 클래스 계층과 무관하게 인스턴스당 하나(instance->fields)이기 때문이다.
+        // Super.method(...) 호출은 이 핸들러를 타지 않고 callMethod가 먼저
+        // 가로챈다(메서드 탐색 시작점을 superclass로 옮겨야 하므로).
+        auto value = environment_.lookup("this");
+        if (!value) {
+            throw ExecutorError("클래스 외부에서 Super를 사용했습니다.");
         }
         return *value;
     };
@@ -477,16 +495,58 @@ Value Executor::instantiate(const ClassDeclareStatement* klass, const std::vecto
     instance->fields = std::make_shared<Scope>();
     Value instanceValue(instance);
 
-    for (MethodDeclareStatement* method : klass->methods) {
-        if (method->name.origin == "init") {
-            callMethodDecl(method, args, instanceValue);  // 반환값은 버린다.
-            break;
-        }
+    if (MethodDeclareStatement* init = findMethod(klass, "init")) {
+        callMethodDecl(init, args, instanceValue);  // 반환값은 버린다.
     }
     return instanceValue;
 }
 
+MethodDeclareStatement* Executor::findMethod(const ClassDeclareStatement* klass, const std::string& name) {
+    for (const ClassDeclareStatement* k = klass; k != nullptr; k = resolveSuperclass(k)) {
+        for (MethodDeclareStatement* method : k->methods) {
+            if (method->name.origin == name) {
+                return method;
+            }
+        }
+    }
+    return nullptr;
+}
+
+const ClassDeclareStatement* Executor::resolveSuperclass(const ClassDeclareStatement* klass) {
+    if (klass->superclass == nullptr) {
+        return nullptr;
+    }
+    const IdentifierExpression* superclass = klass->superclass;
+    auto value = superclass->depth
+        ? environment_.lookupAt(*superclass->depth, superclass->name)
+        : environment_.lookup(superclass->name);
+    if (!value || !value->isClass()) {
+        throw ExecutorError("'{}'은(는) 클래스가 아닙니다.", superclass->name);
+    }
+    return value->asClass();
+}
+
 Value Executor::callMethod(FieldAccessExpression* fieldAccess, const std::vector<Expression*>& argExprs) {
+    if (dynamic_cast<SuperExpression*>(fieldAccess->object)) {
+        // Super.method(...): this는 그대로 유지한 채, 메서드 탐색 시작점만
+        // this가 속한 클래스가 아니라 superclass로 강제 이동한다.
+        auto thisValue = environment_.lookup("this");
+        if (!thisValue || !thisValue->isInstance()) {
+            throw ExecutorError("클래스 외부에서 Super를 사용했습니다.");
+        }
+        const ClassDeclareStatement* startClass = resolveSuperclass(thisValue->asInstance()->klass);
+        MethodDeclareStatement* method = startClass ? findMethod(startClass, fieldAccess->name.origin) : nullptr;
+        if (!method) {
+            throw ExecutorError("'{}' 메서드가 부모 클래스에 존재하지 않습니다.", fieldAccess->name.origin);
+        }
+        std::vector<Value> args;
+        args.reserve(argExprs.size());
+        for (Expression* arg : argExprs) {
+            args.push_back(evaluate(arg));
+        }
+        return callMethodDecl(method, args, *thisValue);
+    }
+
     Value object = evaluate(fieldAccess->object);
 
     if (object.isModule()) {
@@ -507,13 +567,7 @@ Value Executor::callMethod(FieldAccessExpression* fieldAccess, const std::vector
         throw ExecutorError("인스턴스가 아닌 대상의 메서드를 호출했습니다.");
     }
     auto& instance = object.asInstance();
-    MethodDeclareStatement* method = nullptr;
-    for (MethodDeclareStatement* candidate : instance->klass->methods) {
-        if (candidate->name.origin == fieldAccess->name.origin) {
-            method = candidate;
-            break;
-        }
-    }
+    MethodDeclareStatement* method = findMethod(instance->klass, fieldAccess->name.origin);
     if (!method) {
         throw ExecutorError("'{}' 메서드가 존재하지 않습니다.", fieldAccess->name.origin);
     }
