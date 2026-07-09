@@ -119,6 +119,62 @@ TEST_F(OptimizerMockTest, DoesNotCallEvaluateWhenOperandIsVariable) {
     optimizer.optimize(tree);
 }
 
+// print 1 + (-3);   -> NegativeExpression(3)이 AddExpression::right(비-const) 자리에
+// 있으므로 단항 폴딩(foldUnary)으로 -3 리터럴로 치환되고, 그 결과 add 자신도
+// (리터럴, 리터럴)이 되어 다시 폴딩된다 - Visitor로 옮긴 뒤에도 NegativeExpression/
+// AddExpression 각각의 visit()이 정상적으로 디스패치되는지 확인한다.
+TEST_F(OptimizerTest, FoldsUnaryNegationNestedInsideBinaryExpression) {
+    auto lit1 = std::make_unique<NumberExpression>(testTokens(TokenType::NUMBER, "1", 1), 1.0);
+    auto lit3 = std::make_unique<NumberExpression>(testTokens(TokenType::NUMBER, "3", 1), 3.0);
+    auto neg = std::make_unique<NegativeExpression>(testTokens(TokenType::MINUS, "-", 1), lit3.get());
+    auto add = std::make_unique<AddExpression>(testTokens(TokenType::PLUS, "+", 1), lit1.get(), neg.get());
+    auto printStmt = std::make_unique<PrintStatement>(testTokens(TokenType::PRINT, "print", 1), add.get());
+
+    SyntaxNode* root = printStmt.get();
+    AddExpression* addRaw = add.get();
+    tree.add(std::move(lit1));
+    tree.add(std::move(lit3));
+    tree.add(std::move(neg));
+    tree.add(std::move(add));
+    tree.add(std::move(printStmt));
+    tree.setRoot(root);
+
+    optimizer.optimize(tree);
+
+    auto* foldedRight = dynamic_cast<NumberExpression*>(addRaw->right);
+    ASSERT_NE(nullptr, foldedRight) << "-3이 리터럴로 치환돼야 합니다.";
+    EXPECT_EQ(-3.0, foldedRight->value);
+}
+
+// if (true) { print 1 + 2; }   -> IfStatement/BlockStatement를 거쳐 재귀적으로
+// 방문해도 그 안의 AddExpression이 여전히 폴딩 대상으로 잡히는지 확인한다(Visitor
+// 디스패치가 문/블록 계층을 타고 내려가는지 검증).
+TEST_F(OptimizerMockTest, FoldsBinaryExpressionNestedInsideIfBranchBlock) {
+    auto cond = std::make_unique<BooleanExpression>(testTokens(TokenType::TRUE, "true", 1), true);
+    auto lit1 = std::make_unique<NumberExpression>(testTokens(TokenType::NUMBER, "1", 1), 1.0);
+    auto lit2 = std::make_unique<NumberExpression>(testTokens(TokenType::NUMBER, "2", 1), 2.0);
+    auto add = std::make_unique<AddExpression>(testTokens(TokenType::PLUS, "+", 1), lit1.get(), lit2.get());
+    auto printStmt = std::make_unique<PrintStatement>(testTokens(TokenType::PRINT, "print", 1), add.get());
+    std::vector<Statement*> thenStmts{ printStmt.get() };
+    auto thenBlock = std::make_unique<BlockStatement>(testTokens(1), thenStmts);
+    auto ifStmt = std::make_unique<IfStatement>(testTokens(TokenType::IF, "if", 1), cond.get(), thenBlock.get());
+
+    SyntaxNode* root = ifStmt.get();
+    AddExpression* addRaw = add.get();
+    tree.add(std::move(cond));
+    tree.add(std::move(lit1));
+    tree.add(std::move(lit2));
+    tree.add(std::move(add));
+    tree.add(std::move(printStmt));
+    tree.add(std::move(thenBlock));
+    tree.add(std::move(ifStmt));
+    tree.setRoot(root);
+
+    EXPECT_CALL(executor, evaluate(static_cast<Expression*>(addRaw))).Times(1).WillOnce(testing::Return(Value(3.0)));
+
+    optimizer.optimize(tree);
+}
+
 // print 1 / 0;   -> evaluate()가 ExecutorError를 던지면 폴딩을 건너뛰고 원본을 그대로 둔다
 // (컴파일 타임에 대신 오류를 내면 안 되고, Executor가 런타임에 오류를 내야 한다).
 TEST_F(OptimizerTest, SkipsFoldingWhenEvaluateThrowsAndKeepsOriginalTree) {
