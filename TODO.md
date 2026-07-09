@@ -576,4 +576,29 @@ args.push_back(evaluate(arg)); }` 패턴이 그대로 반복된다.
 **해야 할 일**:
 - [ ] `std::vector<Value> evaluateArgs(const std::vector<Expression*>& argExprs)`
       헬퍼로 통합하고 세 호출부를 교체
+
+## 6. Shell의 모드 분기(`switch`)가 Debug 모드 구현 시 계속 커질 구조
+
+**증상**: `main.cpp:46-62`가 `ShellMode::Repl`/`Run`/`Debug`를 `switch`로 분기해서
+`RunPromptShell`/`FileRunMode`를 직접 생성/호출한다. 지금은 `Debug` 분기가 "아직
+구현되지 않았습니다" 오류만 출력하는 스텁이라 눈에 잘 안 띄지만, breakpoint/step/
+watch/inspect(Architecture.md §9.3)가 실제로 들어가면 이 분기 안에 로직이 계속
+쌓일 가능성이 크다. 또한 `RunPromptShell::run(istream&, ostream&)`과
+`FileRunMode::run(const std::string& path, ostream&) -> bool`이 시그니처조차 서로
+달라서, `main.cpp`가 각 모드별로 다르게 호출하는 코드를 그대로 갖고 있어야 한다.
+
+**제안하는 해법**: `ShellMode`별로 공통 인터페이스(예: `int run()`)를 갖는 실행기를
+두고, `main.cpp`는 모드에 맞는 구현체를 생성해 호출만 하도록 정리한다(Strategy
+패턴). `RunPromptShell`/`FileRunMode`/(추후) `DebugMode`가 이 인터페이스를 구현하면
+`main.cpp`의 `switch` 안 로직이 "구현체 생성"으로만 줄어들고, Debug 모드 추가가 이
+분기 자체를 건드리지 않고 끝난다.
+
+**해야 할 일**:
+- [ ] `RunPromptShell`/`FileRunMode`가 공유할 실행 인터페이스(가칭 `ShellRunner`)를
+      설계(생성자 인자로 필요한 `*Interface&` 의존성은 그대로 주입받고, 실행 진입점
+      시그니처만 통일)
+- [ ] `RunPromptShell`/`FileRunMode`가 이 인터페이스를 구현하도록 변경
+- [ ] `main.cpp`의 `switch`를 "모드에 맞는 구현체 생성 후 `run()` 호출"로 단순화
+- [ ] Debug 모드 구현 시 `DebugMode`도 같은 인터페이스로 추가(이번 항목의 전제
+      조건일 뿐, Debug 모드 자체 구현은 별도 범위)
 </content>
