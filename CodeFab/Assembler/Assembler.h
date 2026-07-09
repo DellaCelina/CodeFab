@@ -15,6 +15,7 @@ public:
     explicit Assembler(SourceReaderInterface& sourceReader);
 
     SyntaxTree assemble(const std::vector<Token>& tokens) override;
+    std::vector<Statement*> assembleAll(const std::vector<Token>& tokens, SyntaxTree& tree) override;
 
 private:
     SourceReaderInterface& sourceReader_;

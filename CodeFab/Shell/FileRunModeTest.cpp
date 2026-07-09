@@ -42,6 +42,7 @@ public:
 class MockAssembler : public AssemblerInterface {
 public:
     MOCK_METHOD(SyntaxTree, assemble, (const std::vector<Token>& tokens), (override));
+    MOCK_METHOD(std::vector<Statement*>, assembleAll, (const std::vector<Token>& tokens, SyntaxTree& tree), (override));
 };
 
 class MockChecker : public CheckerInterface {

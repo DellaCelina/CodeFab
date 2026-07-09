@@ -525,3 +525,8 @@ SyntaxTree Assembler::assemble(const Tokens& tokens) {
     tree.setRoot(parser.parseStatement());
     return std::move(tree);
 }
+
+std::vector<Statement*> Assembler::assembleAll(const Tokens& tokens, SyntaxTree& tree) {
+    Parser parser(tokens, tree, kDefaultOperatorPriority, kDefaultUnaryOperator, sourceReader_, importStack_);
+    return parser.parseProgram();
+}
