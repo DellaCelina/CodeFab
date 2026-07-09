@@ -571,10 +571,11 @@ private:
   - alias 이름이 같은 스코프의 다른 선언과 충돌하면 일반 변수 중복 선언과 동일하게 처리.
 - Executor는 `ImportStatement` 실행 시:
   1. `auto moduleScope = std::make_shared<Scope>();`
-  2. `declarations`의 각 `Statement`를 **그 스코프를 대상으로** 실행한다(함수 호출 시
-     새 스코프를 push하는 것과 동일한 메커니즘 — `environment.pushScope()`로
-     `moduleScope`를 얹고 실행 후 pop하되, `moduleScope` 자체는 `shared_ptr`로 계속
-     살아있게 한다).
+  2. `ScopeGuard`로 임시 프레임을 열고, `declarations`의 각 `Statement`를 실행한 직후
+     `declaredNameOf(decl)`로 이름을 얻어 `moduleScope->define(name, *environment_.lookup(name))`
+     으로 즉시 복사한다. var이든 Func이든 Class든 모두 `moduleScope` 하나에 나란히
+     들어가므로 `moduleScope->get(name)` 한 번으로 끝난다(Class처럼 "필드 → 없으면
+     메서드 목록"의 2단계 폴백이 필요 없음). `ScopeGuard` 소멸 시 임시 프레임이 pop된다.
   3. `environment.define(alias, Value(moduleScope))` — `Module` 타입 값으로 alias를
      현재 스코프에 등록한다.
 - `FieldAccessExpression`/`CallExpression`이 object를 평가한 결과가 `Module`이면,
