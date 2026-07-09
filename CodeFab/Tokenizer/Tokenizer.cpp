@@ -126,7 +126,7 @@ void Tokenizer::scanString() {
         advance();
     }
     if (isAtEnd())
-        throw IncompleteInputError("문자열이 종결되지 않았습니다.");
+        throw AssemblyError("[{}번째 줄] 문자열이 종결되지 않았습니다.", line);
 
     advance(); // 닫는 '"' 소비
     std::string value = source.substr(start + 1, current - start - 2);

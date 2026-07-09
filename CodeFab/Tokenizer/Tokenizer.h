@@ -6,9 +6,8 @@
 
 class Tokenizer : public TokenizeInterface {
 public:
-    // TokenizeInterface 구현: scanTokens() 중 발견한 문법 오류를 AssemblyError로
-    // 변환해서 던진다 (줄 번호를 메시지에 담는다). 미종결 문자열의 경우에는
-    // scanTokens()가 직접 IncompleteInputError를 던진다.
+    // TokenizeInterface 구현: 인식 불가능한 문자 또는 종결되지 않은 문자열을
+    // 만나면 AssemblyError를 던진다 (줄 번호를 메시지에 담는다).
     std::vector<Token> tokenize(const std::string& source) override;
 
 private:
