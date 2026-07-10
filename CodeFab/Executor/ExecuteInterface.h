@@ -37,13 +37,8 @@ public:
 
     virtual void execute(SyntaxTree& tree) = 0;
 
-    // 표현식 하나만 평가해 값을 반환한다. RunPromptShell의 파이프라인에서는
-    // 쓰이지 않지만, Checker의 상수 연산 최적화(Architecture.md §6.2)가 산술
-    // 규칙을 다시 구현하지 않고 이 메서드를 그대로 호출해서 리터럴만으로 이뤄진
-    // 서브트리의 값을 계산한다.
+    // Optimizer가 상수 폴딩 시 산술 규칙을 직접 구현하지 않고 이 메서드로 계산한다.
     virtual Value evaluate(Expression* expr) = 0;
 
-    // 현재 변수 저장소를 읽기 전용으로 노출한다. 디버그 모드(Shell, Architecture.md
-    // §9.3)가 statement 실행이 멈춘 시점마다 watch 대상 변수를 조회하는 데 쓴다.
     virtual const Environment& environment() const = 0;
 };

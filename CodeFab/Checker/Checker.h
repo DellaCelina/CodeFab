@@ -8,9 +8,7 @@
 
 using namespace std;
 
-// Executor와 동일하게 Visitor 패턴(SyntaxNodeVisitor, TODO.md #11)으로 디스패치한다.
-// accept()가 매칭되는 visit() 오버라이드를 호출하므로, 새 노드 타입의 visit()을
-// 빼먹으면 (이전의 type_index 맵처럼 조용히 무시되는 게 아니라) 컴파일 에러가 난다.
+// Visitor 패턴으로 디스패치한다. visit() 누락은 컴파일 오류로 잡힌다.
 class Checker : public CheckerInterface, public SyntaxNodeVisitor {
 
 public:

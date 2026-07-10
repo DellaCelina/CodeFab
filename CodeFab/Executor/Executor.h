@@ -15,55 +15,25 @@
 #include "../Assembler/SyntaxTree.h"
 #include "Value.h"
 
-// Executes a SyntaxTree via recursive DFS.
-//
-// Dispatch is done through the Visitor pattern (SyntaxNodeVisitor, TODO.md
-// #11): each node's accept() calls back into the matching visit() override,
-// so the compiler enforces that every concrete node type is handled - unlike
-// a dynamic_cast/type_index chain, forgetting a node type is a compile error
-// instead of a silent runtime fallback.
-//
-// 클래스 인스턴스화/메서드 탐색(ClassRuntime), import 실행/모듈 멤버 호출
-// (ModuleRuntime), 배열 생성/인덱싱(ArrayRuntime)은 각각 서로 다른 이유로
-// 바뀌는 책임이라 별도 협력 객체로 분리했다(전체리팩토링리스트 #3, God Object
-// 분리). Executor는 이 셋에게 접근을 허용하는 friend이고, visit()들은 대부분
-// "어떤 Runtime에 위임할지 결정"만 하는 얇은 라우팅 역할만 한다.
+// SyntaxTree를 Visitor 패턴으로 실행한다. visit() 누락은 컴파일 오류로 잡힌다.
+// 클래스/모듈/배열 관련 책임은 ClassRuntime/ModuleRuntime/ArrayRuntime에 위임한다.
 class Executor : public ExecuteInterface, public SyntaxNodeVisitor {
     friend class ClassRuntime;
     friend class ModuleRuntime;
 
 public:
-    // `out` defaults to std::cout but can be swapped for e.g. an
-    // ostringstream in tests to capture what print statements write.
+    // out 기본값은 std::cout. 테스트에서는 ostringstream으로 교체해 출력을 캡처한다.
     explicit Executor(std::ostream& out = std::cout);
 
-    // ExecuteInterface: entry point, executes a whole program starting from
-    // the tree's root. The root is always a Statement (a program is a
-    // statement), so it's downcast once here.
     void execute(SyntaxTree& tree) override;
-
-    // Executes a single statement node via accept()/visit() double dispatch.
     void execute(Statement* stmt);
 
-    // Evaluates a single expression node via accept()/visit() double
-    // dispatch and returns its Value. visit(Expression&) 오버라이드들이
-    // 결과를 lastValue_에 담아두고, 여기서 그 값을 꺼내 온다.
     Value evaluate(Expression* expr) override;
 
-    // ExecuteInterface: 현재 변수 저장소를 읽기 전용으로 노출한다 (디버그 모드의
-    // watch/inspect 용, Architecture.md §9.3).
     const Environment& environment() const override;
 
-    // 디버그 모드(Shell) 전용 훅. Statement 하나를 실제로 실행하기 직전에 매번
-    // 호출된다. 두 번째 인자는 현재 실행 깊이(최상위 statement = 1, 그 statement가
-    // Block/If/For의 바디이거나 함수/메서드 호출 안이면 그보다 큰 값)다 - 디버그
-    // 모드의 "next"(현재 줄 안의 하위 statement는 건너뛰고, 같거나 더 얕은 깊이로
-    // 돌아왔을 때만 멈추는 step-over) 명령을 구현하려면 depth 정보가 반드시
-    // 필요하다(Implement.md §5 "할 일 3"이 이 필요성을 미리 언급해뒀다). depth는
-    // execute(Statement*)가 재귀 호출될 때마다 증가/감소하는 내부 카운터를 그대로
-    // 넘겨준다. RunPromptShell/FileRunMode는 이 훅을 설정하지 않으므로 기존 동작에
-    // 영향이 없다. ExecuteInterface에는 포함하지 않는다 - 디버그 모드만 이 구체
-    // 타입(Executor)에 직접 의존해서 쓴다 (Architecture.md §9.3 참고).
+    // 디버그 모드 전용. Statement 실행 직전에 호출되며, depth는 최상위=1 기준의
+    // 재귀 깊이다. RunPromptShell/FileRunMode는 이 훅을 설정하지 않는다.
     using StatementHook = std::function<void(Statement*, int depth)>;
     void setStatementHook(StatementHook hook);
 

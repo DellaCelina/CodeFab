@@ -10,14 +10,10 @@ using Tokens = std::vector<Token>;
 
 namespace {
 
-// Binary operator precedence table, lowest to highest. parseExpression(level) consumes
-// operators at operatorPriority[level], recursing into level + 1 for its operands; once
-// level runs past the table, it falls through to unary/primary parsing.
-// EQUAL (assignment) sits at the lowest level and is right-associative: its right
-// operand recurses back into the SAME level instead of level + 1.
-// INSTANCEOF is handled specially inside parseExpression() (its right-hand side is a
-// class-name Token, not a recursively-parsed Expression), but shares the comparison
-// level's precedence slot.
+// 이항 연산자 우선순위 테이블(낮음→높음). parseExpression(level)은 해당 레벨의
+// 연산자를 소비하고 피연산자는 level+1로 재귀한다.
+// EQUAL(대입)은 최저 우선순위이며 우결합이라 우변을 같은 level로 재귀한다.
+// INSTANCEOF는 우변이 Token(클래스 이름)이라 parseExpression() 내부에서 별도 처리한다.
 using OperatorsPriority = std::vector<std::vector<TokenType>>;
 
 const OperatorsPriority kDefaultOperatorPriority = {
@@ -30,12 +26,12 @@ const OperatorsPriority kDefaultOperatorPriority = {
     { TokenType::STAR, TokenType::SLASH, TokenType::PERCENT },
 };
 
-// Prefix operators parseUnary() recognizes, e.g. -x, !x.
+// parseUnary()가 인식하는 전위 연산자(예: -x, !x).
 using UnaryOperators = std::vector<TokenType>;
 
 const UnaryOperators kDefaultUnaryOperator = { TokenType::MINUS, TokenType::BANG };
 
-// Grammar (lowest to highest precedence):
+// 문법 (낮은 우선순위 → 높은 우선순위):
 //   statement      -> printStmt | declareStmt | blockStmt | ifStmt | forStmt
 //                    | funcDeclStmt | classDeclStmt | returnStmt | importStmt | exprStmt
 //   printStmt      -> PRINT expression(0) SEMICOLON
@@ -241,7 +237,6 @@ private:
         std::vector<MethodDeclareStatement*> methods;
         // 클래스 바디는 일반 statement가 아니라 메서드 선언만 허용되는 별도
         // 문법 위치이므로 parseStatement()가 아니라 곧바로 parseMethod()만
-        // 호출한다 - Implement.md §2 "구현 순서 제안" 4번 참고.
         for (auto t = currentToken(); t && t->type != TokenType::RIGHT_BRACE; t = currentToken()) {
             methods.push_back(parseMethod());
         }
@@ -262,9 +257,7 @@ private:
         return addNode<ReturnStatement>(Tokens{ returnToken, semicolonToken }, value);
     }
 
-    // import "path" alias name; - 파일을 읽고(SourceReaderInterface) 재귀적으로
-    // 다시 파싱해서(같은 tree를 공유하는 새 Parser) 그 파일의 최상위 선언들을
-    // 뽑아낸다. Architecture.md §7.2 참고.
+    // 파일을 읽고 재귀 파싱해 최상위 선언들을 뽑아낸다.
     ImportStatement* parseImport() {
         Token importToken = popToken();
         Token pathToken = popExpectedToken(TokenType::STRING, "Expect a file path string after 'import'.");
@@ -306,9 +299,7 @@ private:
 
     // ---- Expressions ----
 
-    // Consumes operators at operatorPriority[level], recursing into level + 1 for its
-    // operands; past the end of the table, falls to parseUnary(). EQUAL is right-associative,
-    // so its right operand recurses back into the same level instead of level + 1.
+    // 해당 level의 연산자를 소비하고 피연산자는 level+1로 재귀한다. EQUAL은 우결합이라 우변을 같은 level로 재귀한다.
     Expression* parseExpression(size_t level) {
         if (level >= operatorPriority.size())
             return parseUnary();
@@ -345,10 +336,7 @@ private:
         return parseCall();
     }
 
-    // primary()가 만든 표현식 뒤에 이어지는 "(", ".", "["을 반복적으로 처리해
-    // 함수 호출/메서드 호출/필드 접근/인덱스 접근을 좌결합으로 파싱한다
-    // (add(1,2), r.move(5), arr[i], r.list[0]() 같은 조합 모두 이 루프 하나로
-    // 처리된다) - Architecture.md §3.1 참고.
+    // primary() 뒤에 이어지는 "(", ".", "["을 반복 처리해 함수 호출/필드 접근/인덱스 접근을 좌결합으로 파싱한다.
     Expression* parseCall() {
         Expression* expr = parsePrimary();
         while (auto token = currentToken()) {
@@ -436,8 +424,7 @@ private:
         return std::find(unaryOperator.begin(), unaryOperator.end(), type) != unaryOperator.end();
     }
 
-    // Attaches the offending token's origin/line to a parse error message, when the
-    // token that caused the error is known.
+    // 오류를 유발한 토큰의 위치 정보를 메시지에 붙인다.
     static AssemblerError makeParseError(const std::string& message, const Token& token) {
         return AssemblerError("[line {}] {} (near '{}')", token.line, message, token.origin);
     }
@@ -445,9 +432,7 @@ private:
     Expression* makeBinaryExpression(const Token& opToken, Expression* left, Expression* right) {
         switch (opToken.type) {
             case TokenType::EQUAL: {
-                // 대입 대상은 IdentifierExpression(a = 3), FieldAccessExpression
-                // (r.speed = 3), IndexExpression(arr[i] = 3) 중 하나만 허용한다 -
-                // Architecture.md §2.2 "AssignExpression 대상 일반화" 참고.
+                // 대입 대상은 IdentifierExpression, FieldAccessExpression, IndexExpression만 허용한다.
                 if (!dynamic_cast<IdentifierExpression*>(left) && !dynamic_cast<FieldAccessExpression*>(left)
                     && !dynamic_cast<IndexExpression*>(left)) {
                     throw makeParseError("Invalid assignment target.", opToken);

@@ -25,8 +25,6 @@ bool Debugger::shouldStop(Statement* stmt, int depth) const {
         return true;
     }
     if (mode_ == Mode::Next) {
-        // 같거나 더 얕은 깊이로 돌아왔을 때만 멈춘다 - 그래야 "next"를 친
-        // 줄이 Block/If/For였어도 그 안의 하위 statement에서는 멈추지 않는다.
         return depth <= nextTargetDepth_;
     }
     // Mode::Continue: breakpoint 줄에 해당할 때만 멈춘다.
@@ -39,8 +37,6 @@ bool Debugger::shouldStop(Statement* stmt, int depth) const {
 }
 
 void Debugger::printCurrentSourceLine(int line) const {
-    // sourceLines_가 비어있으면(Debugger 생성 시 넘기지 않은 경우) 아무것도
-    // 표시하지 않는다 - line 정보 자체는 유효해도 보여줄 원본 텍스트가 없다.
     if (line < 1 || static_cast<size_t>(line) > sourceLines_.size()) {
         return;
     }
@@ -72,9 +68,6 @@ void Debugger::printBreakpoints() const {
 }
 
 void Debugger::printInspect() const {
-    // scopes_.front()가 전역, 그 뒤(back() 방향)가 지역(로컬) 스코프다
-    // (Environment.h 참고). 안쪽(가장 최근에 push된) 스코프부터 바깥쪽 순서로
-    // 로컬 변수를 먼저 보여준 뒤, 전역 변수를 따로 묶어서 보여준다.
     const auto& scopes = executor_.environment().scopes();
 
     out_ << "--- current scope variables ---\n";
@@ -107,7 +100,6 @@ void Debugger::promptAndHandleCommand(Statement* stmt, int depth) {
     while (true) {
         out_ << "> ";
         if (!std::getline(in_, line)) {
-            // 입력이 끝나면 더 묻지 않고 나머지를 그냥 실행한다.
             mode_ = Mode::Continue;
             return;
         }

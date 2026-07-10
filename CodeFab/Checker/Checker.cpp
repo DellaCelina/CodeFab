@@ -277,7 +277,6 @@ void Checker::visit(IndexExpression& node) {
 }
 
 void Checker::visit(InstanceOfExpression& node) {
-    // TODO(refactor): node.className은 Token이라 정적으로 선언 여부를 확인하지 않는다.
     checkExpression(node.object);
 }
 
@@ -328,7 +327,6 @@ void Checker::visit(ClassDeclareStatement& node) {
         }
     }
 
-    // TODO(refactor): 같은 클래스 안에서 메서드 이름이 중복돼도 지금은 검사하지 않는다.
     bool previousHasSuper = hasSuperclass_;
     hasSuperclass_ = node.superclass != nullptr;
     for (MethodDeclareStatement* method : node.methods) {
@@ -346,8 +344,6 @@ void Checker::visit(ImportStatement& node) {
 
     const string& alias = node.alias.origin;
 
-    // TODO(refactor): ImportStatement에 원본 path가 없어 "동일 alias"로 대체 검사 중이다.
-    // 서로 다른 alias로 같은 파일을 두 번 import하는 경우는 걸러내지 못한다.
     if (isDeclaredInCurrentScope(alias)) {
         reportError(node.getLine(), "'" + alias + "' is already declared in this scope.");
     }

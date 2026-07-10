@@ -9,9 +9,7 @@
 #include "../Executor/ExecuteInterface.h"
 #include "../Tokenizer/TokenizeInterface.h"
 
-// CodeFab Prompt Shell.
-// 5개의 Unit 인터페이스에 의존하여 한 줄씩 입력받아
-// tokenize -> assemble -> check -> optimize -> execute 파이프라인을 구동한다.
+// 한 줄씩 입력받아 tokenize → assemble → check → optimize → execute 파이프라인을 구동한다.
 class RunPromptShell {
 public:
     RunPromptShell(TokenizeInterface& tokenizer,

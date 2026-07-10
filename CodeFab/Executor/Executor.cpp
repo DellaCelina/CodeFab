@@ -13,10 +13,7 @@ ExecutorError undefinedVariableError(const std::string& name, int line) {
     return ExecutorError("[line {}] '{}' is not defined.", line, name);
 }
 
-// Environment::lookupAt/assignAt은 depth가 스코프 범위를 벗어나면
-// std::out_of_range를 던진다 - 사용자 코드 문제가 아니라 Resolver가 계산한
-// depth가 잘못됐다는, 우리 프로그램 자체의 버그 신호다. 그래도 Executor 밖으로는
-// ExecutorError만 노출한다는 규칙(README)을 지키기 위해 여기서 다시 감싼다.
+// lookupAt/assignAt의 std::out_of_range를 ExecutorError로 감싼다.
 template <typename Func>
 auto guardScopeAccess(Func&& func) {
     try {
@@ -26,9 +23,7 @@ auto guardScopeAccess(Func&& func) {
     }
 }
 
-// return 문이 함수/메서드 호출 스택을 즉시 빠져나가기 위해 던지는 내부 전용
-// 제어 흐름 신호. Executor 밖으로 노출하지 않는다(공개 헤더에 없음) - 일반
-// ExecutorError와 섞이지 않도록 별도 타입으로 둔다.
+// return 문의 내부 제어 흐름 신호.
 struct ReturnSignal {
     Value value;
 };
@@ -46,9 +41,6 @@ void Executor::execute(SyntaxTree& tree) {
 }
 
 void Executor::execute(Statement* stmt) {
-    // 재귀 호출(Block/If/For 바디, 함수/메서드 호출 등)에도 depth가 항상
-    // 정확히 감소하도록 RAII로 처리한다 - 핸들러가 ReturnSignal/ExecutorError를
-    // 던지고 그 예외가 이 프레임을 그냥 지나가도 statementDepth_는 어긋나지 않는다.
     ++statementDepth_;
     struct DepthGuard {
         int& depth;
@@ -154,10 +146,7 @@ void Executor::visit(GreaterExpression& node) {
 }
 
 void Executor::visit(IdentifierExpression& node) {
-    // depth가 채워져 있으면(Checker의 Resolver가 계산한 정적 바인딩 결과,
-    // Architecture.md §6.1) 스코프를 훑지 않고 바로 그 스코프에서 조회한다.
-    // 아직 아무도 depth를 채우지 않는 동안에는(Resolver 미구현) 항상
-    // nullopt라서 기존과 동일하게 동적 조회로 동작한다.
+    // depth가 채워져 있으면 스코프를 훑지 않고 바로 그 스코프에서 조회한다.
     auto value = node.depth
         ? guardScopeAccess([&] { return environment_.lookupAt(*node.depth, node.name); })
         : environment_.lookup(node.name);
@@ -384,8 +373,8 @@ void Executor::visit(InstanceOfExpression& node) {
 }
 
 void Executor::visit(ThisExpression& node) {
-    // This는 항상 "this"라는 고정 이름으로 동적 조회한다 - 메서드 호출
-    // 스코프 최상단에 있어서 조회 비용이 낮고, depth 캐싱의 이점이 작다.
+    // ThisExpression은 depth 필드가 없으므로 항상 동적 조회한다.
+    // 메서드 호출 시 가장 안쪽 스코프에 바인딩되므로 즉시 찾아진다.
     auto value = environment_.lookup("this");
     if (!value) {
         throw ExecutorError("[line {}] cannot use 'This' outside a class method.", node.getLine());

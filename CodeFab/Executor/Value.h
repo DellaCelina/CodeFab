@@ -4,10 +4,7 @@
 #include <string>
 #include <variant>
 
-// AST 선언 노드를 함수/클래스 값으로 직접 재사용한다(Architecture.md §2.3) -
-// 별도의 FunctionObject/ClassObject 래퍼를 두지 않는다. Value.h는 포인터만
-// 다루므로 전방 선언만으로 충분하고, 이 노드들의 전체 정의는 필요한 .cpp에서
-// "../Assembler/SyntaxTree.h"를 include해서 얻는다.
+// 함수/클래스는 AST 선언 노드를 그대로 값으로 재사용한다. 전방 선언으로 충분하다.
 struct FunctionDeclareStatement;
 struct ClassDeclareStatement;
 
@@ -18,7 +15,7 @@ struct ArrayValue;
 // import로 들여온 모듈의 export 스코프. Executor/Scope.h 참고.
 class Scope;
 
-// Runtime value produced/consumed by the Executor.
+// Executor가 생성하고 소비하는 런타임 값.
 class Value {
 public:
     enum class Type { Nil, Boolean, Number, String, Function, Class, Instance, Array, Module };
@@ -54,7 +51,7 @@ public:
     const std::shared_ptr<ArrayValue>& asArray() const;
     const std::shared_ptr<Scope>& asModule() const;
 
-    // Truthiness for conditions: nil and false are falsy, everything else truthy.
+    // nil과 false는 거짓, 나머지는 참.
     bool isTruthy() const;
 
     std::string toString() const;
