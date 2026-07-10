@@ -3,6 +3,7 @@
 #include <filesystem>
 #include <fstream>
 #include <sstream>
+#include <stdexcept>
 #include <string>
 #include <vector>
 
@@ -142,6 +143,72 @@ TEST_F(DebugModeTest, CheckerThrows_ReportsMessageAndReturnsFalse) {
 
     EXPECT_FALSE(result);
     EXPECT_EQ(out.str(), "[line 2] 'a' is already declared in this scope.\n");
+}
+
+// Checker/Optimizer가 둘 다 통과했지만(Mock이라 아무 것도 하지 않음)
+// 기본 생성된 SyntaxTree()는 root가 아예 없어(getRoot() == nullptr) "{ }"로
+// 감싼 결과가 항상 BlockStatement여야 한다는 DebugMode::run()의 불변조건이
+// 깨진다 - dynamic_cast<BlockStatement*>가 nullptr이 되어 std::logic_error로
+// 이어지는 방어 분기(DebugMode.cpp)를 검증한다.
+TEST_F(DebugModeTest, AssemblerReturnsTreeWithoutBlockRoot_ReportsLogicErrorAndReturnsFalse) {
+    EXPECT_CALL(tokenizer, tokenize(_)).WillOnce(Return(std::vector<Token>{}));
+    EXPECT_CALL(assembler, assemble(_)).WillOnce(Return(ByMove(SyntaxTree())));
+
+    std::istringstream in;
+    std::ostringstream out;
+    bool result = mode.run(tempPath.string(), in, out);
+
+    EXPECT_FALSE(result);
+    EXPECT_THAT(out.str(), HasSubstr("wrapped tree root is not a BlockStatement"));
+}
+
+namespace {
+
+class MockOptimizer : public OptimizerInterface {
+public:
+    MOCK_METHOD(void, optimize, (SyntaxTree & tree), (override));
+};
+
+// DebugModeTest 픽스처는 실제 Optimizer를 쓰므로(위 클래스 주석 참고) optimize()
+// 실패 경로를 다루려면 별도로 MockOptimizer를 조립한 픽스처가 필요하다.
+class DebugModeOptimizerFailureTest : public ::testing::Test {
+protected:
+    NiceMock<MockTokenizer> tokenizer;
+    NiceMock<MockAssembler> assembler;
+    NiceMock<MockChecker> checker;
+    MockOptimizer optimizer;
+    std::ostringstream programOutput;
+    Executor executor{ programOutput };
+
+    DebugMode mode{ tokenizer, assembler, checker, optimizer, executor };
+
+    std::filesystem::path tempPath =
+        std::filesystem::temp_directory_path() / "DebugModeOptimizerFailureTest_temp.fab";
+
+    void SetUp() override {
+        std::ofstream file(tempPath);
+        file << "var a = 3;\n";
+    }
+
+    void TearDown() override {
+        std::filesystem::remove(tempPath);
+    }
+};
+
+}  // namespace
+
+TEST_F(DebugModeOptimizerFailureTest, OptimizerThrows_ReportsMessageAndReturnsFalse) {
+    EXPECT_CALL(tokenizer, tokenize(_)).WillOnce(Return(std::vector<Token>{}));
+    EXPECT_CALL(assembler, assemble(_)).WillOnce(Return(ByMove(SyntaxTree())));
+    EXPECT_CALL(optimizer, optimize(_))
+        .WillOnce(Throw(std::runtime_error("optimizer exploded")));
+
+    std::istringstream in;
+    std::ostringstream out;
+    bool result = mode.run(tempPath.string(), in, out);
+
+    EXPECT_FALSE(result);
+    EXPECT_EQ(out.str(), "optimizer exploded\n");
 }
 
 // ============================================================================

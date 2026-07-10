@@ -3,6 +3,7 @@
 #include <filesystem>
 #include <fstream>
 #include <sstream>
+#include <stdexcept>
 #include <string>
 #include <vector>
 
@@ -175,6 +176,55 @@ TEST_F(FileRunModeTest, ExecutorThrows_ReportsMessageAndReturnsFalse) {
 
     EXPECT_FALSE(result);
     EXPECT_EQ(out.str(), "0으로 나눈 오류\n");
+}
+
+// optimizer_.optimize()가 예외를 던지는 경로는 위 픽스처(실제 Optimizer가
+// MockExecutor를 감싸는 구조)로는 재현하기 어려워, OptimizerInterface 자체를
+// Mock으로 대체하는 별도 픽스처를 둔다.
+namespace {
+
+class MockOptimizer : public OptimizerInterface {
+public:
+    MOCK_METHOD(void, optimize, (SyntaxTree & tree), (override));
+};
+
+class FileRunModeOptimizerFailureTest : public ::testing::Test {
+protected:
+    NiceMock<MockTokenizer> tokenizer;
+    NiceMock<MockAssembler> assembler;
+    NiceMock<MockChecker> checker;
+    MockOptimizer optimizer;
+    NiceMock<MockExecutor> executor;
+
+    FileRunMode mode{ tokenizer, assembler, checker, optimizer, executor };
+
+    std::filesystem::path tempPath =
+        std::filesystem::temp_directory_path() / "FileRunModeOptimizerFailureTest_temp.fab";
+
+    void SetUp() override {
+        std::ofstream file(tempPath);
+        file << "var a = 3;\n";
+    }
+
+    void TearDown() override {
+        std::filesystem::remove(tempPath);
+    }
+};
+
+}  // namespace
+
+TEST_F(FileRunModeOptimizerFailureTest, OptimizerThrows_ReportsMessageAndReturnsFalse) {
+    EXPECT_CALL(tokenizer, tokenize(_)).WillOnce(Return(std::vector<Token>{}));
+    EXPECT_CALL(assembler, assemble(_)).WillOnce(Return(ByMove(SyntaxTree())));
+    EXPECT_CALL(optimizer, optimize(_))
+        .WillOnce(Throw(std::runtime_error("optimizer exploded")));
+    EXPECT_CALL(executor, execute(_)).Times(0);
+
+    std::ostringstream out;
+    bool result = mode.run(tempPath.string(), out);
+
+    EXPECT_FALSE(result);
+    EXPECT_EQ(out.str(), "optimizer exploded\n");
 }
 
 // ============================================================================

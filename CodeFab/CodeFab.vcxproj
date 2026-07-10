@@ -160,6 +160,7 @@
     <ClCompile Include="Executor\ExecutorArrayTest.cpp" />
     <ClCompile Include="Executor\ExecutorImportTest.cpp" />
     <ClCompile Include="Executor\Value.cpp" />
+    <ClCompile Include="Executor\ValueTest.cpp" />
     <ClCompile Include="Executor\Environment.cpp" />
     <ClCompile Include="Executor\Scope.cpp" />
     <ClCompile Include="Executor\EnvironmentTest.cpp" />

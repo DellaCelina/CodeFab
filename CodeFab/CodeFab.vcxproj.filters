@@ -90,6 +90,9 @@
     <ClCompile Include="Executor\Value.cpp">
       <Filter>Executor</Filter>
     </ClCompile>
+    <ClCompile Include="Executor\ValueTest.cpp">
+      <Filter>Executor</Filter>
+    </ClCompile>
     <ClCompile Include="Executor\Environment.cpp">
       <Filter>Executor</Filter>
     </ClCompile>

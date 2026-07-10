@@ -294,6 +294,90 @@ TEST_F(DebuggerTest, UnknownCommand_PrintsErrorAndKeepsPrompting) {
               "> ");
 }
 
+TEST_F(DebuggerTest, SourceLineOutOfRange_OmitsArrowLineEvenWhenSourceLinesProvided) {
+    // sourceLines_가 비어있지 않아도, 정지한 줄 번호가 그 범위를 벗어나면(예:
+    // 파일보다 sourceLines를 더 적게 넘긴 경우) "-> " 표시를 생략해야 한다 -
+    // SourceLinesNotProvided_OmitsArrowLine은 sourceLines_ 자체가 빈 경우만
+    // 다루므로, "비어있지 않지만 범위 밖" 분기는 이 테스트가 커버한다.
+    SyntaxTree tree = parseAndExecute("print 1;\nprint 2;\n");
+    auto* block = dynamic_cast<BlockStatement*>(tree.getRoot());
+    ASSERT_EQ(block->statements.size(), 2u);
+
+    setCommands("continue\n");
+    Debugger debugger(executor, commandInput, debugOutput, { "print 1;" });  // 2번째 줄 없음
+
+    debugger.onStatement(block->statements[1], /*depth=*/1);  // line 2, 범위 밖
+
+    EXPECT_EQ(debugOutput.str(), "[DEBUG] paused at line 2\n> ");
+}
+
+TEST_F(DebuggerTest, BreakpointsCommand_WithNoBreakpointsSetPrintsPlaceholderMessage) {
+    SyntaxTree tree = parseAndExecute("print 1;\n");
+    Statement* stmt = dynamic_cast<BlockStatement*>(tree.getRoot())->statements[0];
+
+    setCommands("breakpoints\ncontinue\n");
+    Debugger debugger(executor, commandInput, debugOutput);
+    debugger.onStatement(stmt, 1);
+
+    EXPECT_EQ(debugOutput.str(),
+              "[DEBUG] paused at line 1\n"
+              "> [BREAK] no breakpoints set.\n"
+              "> ");
+}
+
+TEST_F(DebuggerTest, BreakAndRemoveWithoutLineNumber_AreIgnoredAndPromptContinues) {
+    // "break"/"remove" 뒤에 줄 번호가 없으면(cmd >> lineNumber 실패) 아무 것도
+    // 출력하지 않고 조용히 다음 프롬프트로 넘어가야 한다.
+    SyntaxTree tree = parseAndExecute("print 1;\n");
+    Statement* stmt = dynamic_cast<BlockStatement*>(tree.getRoot())->statements[0];
+
+    setCommands("break\nremove\ncontinue\n");
+    Debugger debugger(executor, commandInput, debugOutput);
+    debugger.onStatement(stmt, 1);
+
+    EXPECT_EQ(debugOutput.str(), "[DEBUG] paused at line 1\n> > > ");
+}
+
+TEST_F(DebuggerTest, WatchAndUnwatchWithoutName_AreIgnoredAndPromptContinues) {
+    // "watch"/"unwatch" 뒤에 변수 이름이 없으면 아무 것도 등록/제거하지 않고
+    // 조용히 다음 프롬프트로 넘어가야 한다(값을 즉시 보여주는 동작도 없다).
+    SyntaxTree tree = parseAndExecute("print 1;\n");
+    Statement* stmt = dynamic_cast<BlockStatement*>(tree.getRoot())->statements[0];
+
+    setCommands("watch\nunwatch\ncontinue\n");
+    Debugger debugger(executor, commandInput, debugOutput);
+    debugger.onStatement(stmt, 1);
+
+    EXPECT_EQ(debugOutput.str(), "[DEBUG] paused at line 1\n> > > ");
+}
+
+TEST_F(DebuggerTest, InspectCommand_NoGlobalVariablesPrintsEmptyGlobalPlaceholder) {
+    // 전역 변수를 하나도 선언하지 않고, 지역 변수만 있는 상태에서 inspect ->
+    // [LOCAL]엔 실제 값이, [GLOBAL]엔 빈 플레이스홀더가 나와야 한다(anyGlobal ==
+    // false 분기).
+    std::vector<Token> tokens = tokenizer.tokenize("{var l = 2;\nprint l;\n}");
+    SyntaxTree tree = assembler.assemble(tokens);
+    auto* block = dynamic_cast<BlockStatement*>(tree.getRoot());
+    ASSERT_EQ(block->statements.size(), 2u);
+
+    setCommands("step\nstep\ninspect\ncontinue\n");
+    Debugger debugger(executor, commandInput, debugOutput);
+    executor.setStatementHook([&debugger](Statement* stmt, int depth) {
+        debugger.onStatement(stmt, depth);
+    });
+    executor.execute(tree);
+    executor.setStatementHook(nullptr);
+
+    EXPECT_EQ(debugOutput.str(),
+              "[DEBUG] paused at line 1\n"
+              "> [DEBUG] paused at line 1\n"
+              "> [DEBUG] paused at line 2\n"
+              "> --- current scope variables ---\n"
+              "[LOCAL] l = 2 (number)\n"
+              "[GLOBAL]\n"
+              "> ");
+}
+
 TEST_F(DebuggerTest, NoMoreInput_DefaultsToContinueInsteadOfBlocking) {
     // 입력 스트림이 끝나면(EOF) 무한정 프롬프트를 다시 띄우지 않고 continue로
     // 처리해서 나머지 실행을 그냥 계속하게 한다.

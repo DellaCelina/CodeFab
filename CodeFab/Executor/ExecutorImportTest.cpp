@@ -197,6 +197,43 @@ TEST(ExecutorImportTest, AccessingMissingMember_ThrowsExecutorError) {
     EXPECT_THROW(executor.evaluate(&missing), ExecutorError);
 }
 
+TEST(ExecutorImportTest, ClassDeclaration_AccessibleThroughAlias) {
+    // import "shapes.cf" alias shapes;  // shapes.cf: Class Robot { }
+    // print shapes.Robot; // expect: <class Robot> (declaredNameOf의
+    // ClassDeclareStatement 분기 - ModuleRuntime.cpp).
+    std::ostringstream out;
+    Executor executor(out);
+
+    ClassDeclareStatement robotDecl({}, Token{ TokenType::IDENTIFIER, "Robot", 0 }, {});
+    std::vector<Statement*> declarations{ &robotDecl };
+    ImportStatement importStmt({}, Token{ TokenType::IDENTIFIER, "shapes", 0 }, declarations);
+
+    executor.execute(&importStmt);
+
+    IdentifierExpression shapesRef({}, "shapes");
+    FieldAccessExpression robotAccess({}, &shapesRef, Token{ TokenType::IDENTIFIER, "Robot", 0 });
+    PrintStatement printResult({}, &robotAccess);
+
+    executor.execute(&printResult);
+
+    EXPECT_EQ(out.str(), "<class Robot>\n");
+}
+
+TEST(ExecutorImportTest, UnsupportedDeclarationType_ThrowsExecutorError) {
+    // import 대상 파일에 var/Func/Class 선언 외의 문장(예: print문)이 섞여
+    // 있으면 declaredNameOf가 이름을 뽑아낼 수 없어 ExecutorError를 던져야
+    // 한다(ModuleRuntime.cpp).
+    std::ostringstream out;
+    Executor executor(out);
+
+    NumberExpression one({}, 1);
+    PrintStatement printOne({}, &one);
+    std::vector<Statement*> declarations{ &printOne };
+    ImportStatement importStmt({}, Token{ TokenType::IDENTIFIER, "bad", 0 }, declarations);
+
+    EXPECT_THROW(executor.execute(&importStmt), ExecutorError);
+}
+
 TEST(ExecutorImportTest, CallingMissingFunction_ThrowsExecutorError) {
     std::ostringstream out;
     Executor executor(out);
