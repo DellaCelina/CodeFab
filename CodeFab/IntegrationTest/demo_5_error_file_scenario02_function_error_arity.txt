@@ -1,0 +1,9 @@
+Func add(a, b) {
+    return a + b;
+}
+
+print "start";
+
+var result = add(1);
+
+print result;

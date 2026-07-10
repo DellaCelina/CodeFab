@@ -1,0 +1,11 @@
+import "scenario10_import_module_lib.txt" alias mathlib;
+
+print mathlib.add(3, 4);
+print mathlib.mul(3, 4);
+print mathlib.version;
+
+Func useModule(x) {
+    return mathlib.add(x, mathlib.version);
+}
+
+print useModule(10);
