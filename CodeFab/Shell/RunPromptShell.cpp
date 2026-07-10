@@ -76,6 +76,7 @@ void RunPromptShell::run(std::istream& in, std::ostream& out) {
             for (SyntaxNode* statement : statements) {
                 tree.setRoot(statement);
                 checker_.check(tree);
+                optimizer_.optimize(tree);
                 executor_.execute(tree);
             }
             sessionTrees.push_back(std::move(tree));
