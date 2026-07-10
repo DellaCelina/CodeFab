@@ -7,8 +7,7 @@
 
 #include "../Tokenizer/Token.h"
 
-// 전방 선언(TODO.md #11 Visitor 패턴). SyntaxNodeVisitor가 각 구체 노드 타입을
-// 참조하려면 정의보다 먼저 선언이 필요하다.
+// SyntaxNodeVisitor가 각 구체 노드 타입을 참조하려면 정의보다 먼저 선언이 필요하다.
 struct IdentifierExpression;
 struct PrintStatement;
 struct ExpressionStatement;
@@ -48,14 +47,9 @@ struct ReturnStatement;
 struct ClassDeclareStatement;
 struct ImportStatement;
 
-// TODO.md #11: RTTI(dynamic_cast/typeid) 기반 분기 대신 Visitor 패턴을 적용하기로
-// 팀에서 결정했다. 이 인터페이스는 계약(선언)이며, 실제로 이걸 구현해 노드별 동작을
-// 채우는 것은 각 담당자(Executor가 우선 전환, Checker는 이후)의 몫이다 - ImplementTodo.md
-// 참고. visit()가 값을 반환하지 않는 이유: Statement/Expression이 요구하는 반환
-// 타입이 다르고(Statement는 없음, Expression은 실행 결과 Value), 이 파일(Assembler
-// 소유)이 Executor/Value.h에 의존하게 만들 수는 없기 때문이다(계층 의존 방향 위반).
-// 대신 방문자가 필요한 값을 자기 내부 상태(예: Executor::lastValue_)에 채워 넣고,
-// accept() 호출부가 그 값을 꺼내 쓰는 방식을 권장한다.
+// visit()가 값을 반환하지 않는 이유: Assembler 레이어가 Executor/Value.h에
+// 의존할 수 없으므로, 방문자가 결과를 내부 상태(예: Executor::lastValue_)에
+// 담아두고 호출부가 꺼내 쓰는 방식을 사용한다.
 class SyntaxNodeVisitor {
 public:
     virtual ~SyntaxNodeVisitor() = default;
@@ -100,7 +94,7 @@ public:
     virtual void visit(ImportStatement& node) = 0;
 };
 
-// Syntax tree
+// 구문 트리 노드 기반 클래스.
 class SyntaxNode {
 public:
     SyntaxNode(const std::vector<Token>& tokens) : tokens(tokens) {}
@@ -108,9 +102,6 @@ public:
 
     virtual bool operator==(const SyntaxNode& op) const = 0;
 
-    // TODO.md #11: Visitor 패턴 진입점. Statement/Expression 중간 타입은 이 메서드를
-    // 구현하지 않으므로 계속 추상 클래스로 남고(의도된 동작 - 직접 인스턴스화되지
-    // 않아야 함), 각 리프(leaf) 구체 노드만 accept()를 구현한다.
     virtual void accept(SyntaxNodeVisitor& visitor) = 0;
 
     // checker 등에서 에러 메시지에 줄 번호를 표기하기 위해 추가.
@@ -118,10 +109,7 @@ public:
         return tokens.empty() ? -1 : tokens.front().line;
     }
 
-    // 디버그 모드의 breakpoint 매칭용(Implement.md의 Shell 담당자 안내 참고): 이
-    // 노드가 소비한 토큰들 중 하나라도 주어진 줄에 있으면 true. getLine()은 첫
-    // 토큰의 줄만 보므로, 여러 줄에 걸친 statement(예: 여러 줄짜리 if 조건문)에서
-    // breakpoint가 중간 줄에 찍힌 경우까지 잡아내려면 이 메서드를 쓴다.
+    // 여러 줄에 걸친 statement에서 중간 줄 breakpoint까지 잡으려면 이 메서드를 쓴다.
     bool containsLine(int line) const {
         for (const auto& token : tokens) {
             if (token.line == line)
@@ -140,21 +128,14 @@ inline bool SyntaxNode::operator==(const SyntaxNode& op) const {
 
 class SyntaxTree {
 public:
-    // 기존 단일-root 계약과 호환: 첫 번째 root를 돌려준다(대부분의 호출부는
-    // 여전히 "이 tree는 최상위 statement 하나"라고 가정한다).
     auto getRoot() {
         return roots.empty() ? nullptr : roots.front();
     }
 
-    // 기존 계약과 동일하게 root를 하나로 교체한다.
     void setRoot(SyntaxNode* root) {
         roots = { root };
     }
 
-    // REPL처럼 한 tree가 최상위 statement를 여러 개 담아야 하는 경우를 위한
-    // 확장 - Architecture.md 변경 없이 SyntaxTree 내부 표현만 vector로 넓힌다.
-    // AssemblerInterface::assemble()의 시그니처/계약은 그대로 두고, Assembler가
-    // 내부에서 여러 statement를 파싱했을 때 이 메서드로 차례차례 담는다.
     void addRoot(SyntaxNode* root) {
         roots.push_back(root);
     }
@@ -182,11 +163,8 @@ struct Expression : public SyntaxNode {
 struct IdentifierExpression : public Expression {
     const std::string name;
 
-    // 정적 바인딩(실행전 최적화) 결과 캐시. Checker의 Resolver가 이 식별자가 몇
-    // 단계 위 스코프에서 선언되었는지 계산해 채워 넣는다(0 = 현재 스코프). 로컬
-    // 스코프 어디에서도 못 찾으면(전역이거나 import 모듈 이름) nullopt로 남는다.
-    // 노드의 "구문적 동일성"(operator==)에는 포함되지 않는 부가 정보이므로
-    // mutable로 둔다 - Architecture.md §2.2, §6.1 참고.
+    // Checker가 채우는 스코프 거리 캐시(0 = 현재 스코프). 전역/import이면 nullopt.
+    // operator==에 포함되지 않는 부가 정보라 mutable로 선언한다.
     mutable std::optional<int> depth;
 
     IdentifierExpression(const std::vector<Token>& tokens, const std::string& name) : Expression(tokens), name(name) {}
@@ -357,10 +335,8 @@ struct BooleanExpression : public Expression {
     }
 };
 
-// TODO.md #10 (Checker/Optimizer 분리) 결정에 따라, Optimizer가 상수 폴딩 결과로
-// 이 필드들을 새 리터럴 노드로 덮어쓸 수 있어야 한다 - Architecture.md §6.2
-// "노드 불변성 완화" 참고. operator==(구문적 동일성 비교)는 이 완화의 영향을 받지
-// 않는다(여전히 포인터가 가리키는 내용만 비교).
+// Optimizer가 상수 폴딩 결과로 left/right를 새 리터럴 노드로 교체할 수 있도록
+// const가 아닌 포인터로 선언한다.
 struct BinaryExpression : public Expression {
     Expression* left;
     Expression* right;
@@ -558,11 +534,7 @@ struct GreaterEqualExpression : public BinaryExpression {
     }
 };
 
-// 대입 대상(target)은 IdentifierExpression(a = 3), FieldAccessExpression(r.x = 3,
-// 3일차 확장), IndexExpression(arr[i] = 3, 3일차 확장) 중 하나가 될 수 있다 -
-// Architecture.md §2.2 "AssignExpression 대상 일반화" 참고. 지금 Assembler는
-// IdentifierExpression만 만들어 넣지만, 필드/배열 대입 파싱이 추가되면 target
-// 필드 타입을 바꿀 필요 없이 그대로 확장된다.
+// 대입 대상(target)은 IdentifierExpression, FieldAccessExpression, IndexExpression 중 하나.
 struct AssignExpression : public Expression {
     Expression* const target;
     Expression* const value;
@@ -580,7 +552,7 @@ struct AssignExpression : public Expression {
     }
 };
 
-// BinaryExpression과 동일한 이유로 완화(TODO.md #10, Architecture.md §6.2 참고).
+// BinaryExpression과 동일한 이유로 operand를 non-const 포인터로 선언한다.
 struct UnaryExpression : public Expression {
     Expression* operand;
 
@@ -620,19 +592,8 @@ struct NotExpression : public UnaryExpression {
     }
 };
 
-// ============================================================================
-// 3일차 확장 노드 (function / class / array / import / instanceof)
-//
-// 이 노드들은 Architecture.md에서 설계된 AST 계약이다. 아직 Assembler는 이
-// 노드들을 만들어내지 않고(문법 파싱 미구현), Checker/Executor도 아직 이 노드들을
-// 처리하는 분기를 갖고 있지 않다 - 각자 Implement.md의 안내를 따라 채워 넣으면
-// 된다. 노드 자체의 필드/생성자 시그니처는 세 모듈이 공통으로 합의한 것이므로
-// 여기서 바꾸지 말고, 다른 이름/구조가 필요하면 먼저 팀과 상의한다.
-// ============================================================================
-
-// 함수 호출과 클래스 인스턴스 생성(Robot())에 동일하게 쓰인다 - 문법이 똑같이
-// "표현식을 괄호로 호출"하는 것이기 때문이다. Executor가 callee를 평가한 값의
-// 타입(Function/Class)에 따라 실제 동작을 구분한다.
+// 함수 호출과 클래스 인스턴스 생성(Robot())에 동일하게 쓰인다.
+// Executor가 callee 타입(Function/Class)에 따라 실제 동작을 구분한다.
 struct CallExpression : public Expression {
     Expression* const callee;
     const std::vector<Expression*> arguments;
@@ -656,10 +617,8 @@ struct CallExpression : public Expression {
     }
 };
 
-// r.name (필드 읽기), r.move(5)의 callee 자리(메서드 호출), alias.add(...)의
-// callee 자리(import된 모듈 접근)에 모두 쓰인다. 대입 좌변(r.name = 3)으로 쓰일
-// 때는 별도의 SetExpression 없이 AssignExpression::target이 이 노드를 그대로
-// 가리킨다.
+// 필드 읽기, 메서드 호출, import 모듈 접근에 모두 쓰인다.
+// 대입 좌변(r.name = 3)에서는 AssignExpression::target이 이 노드를 가리킨다.
 struct FieldAccessExpression : public Expression {
     Expression* const object;
     const Token name;
@@ -677,9 +636,7 @@ struct FieldAccessExpression : public Expression {
     }
 };
 
-// This. 클래스 메서드 실행 중에만 유효하며, 평가 방법은 IdentifierExpression과
-// 동일하게 다뤄서(호출 시 스코프에 "this"라는 이름으로 바인딩) 정적 바인딩
-// 최적화도 그대로 적용받을 수 있다 - Architecture.md §4.3 참고.
+// This. 클래스 메서드 실행 중에만 유효하며, 호출 시 스코프에 "this"로 바인딩된다.
 struct ThisExpression : public Expression {
     using Expression::Expression;
 
@@ -690,14 +647,8 @@ struct ThisExpression : public Expression {
     }
 };
 
-// Super. This와 마찬가지로 필드 없이 키워드만 담는 노드다 - "Super.move(dist)"는
-// 별도의 전용 노드로 표현하지 않고, 기존 postfix 체인(§Assembler)이
-// FieldAccessExpression(object=SuperExpression, name="move")/CallExpression으로
-// 그대로 조립하게 둔다(This가 IdentifierExpression과 같은 경로를 타는 것과
-// 동일한 재사용 원칙). Executor는 callee의 object가 SuperExpression인지를 보고
-// 메서드 탐색 시작점만 superclass로 옮기면 된다 - Architecture.md §4.5,
-// TODO.md #5 참고. (우변이 항상 메서드 호출이어야 하는지, 필드 접근도 허용할지는
-// 아직 팀 결정 전이므로 이 노드 자체는 그 결정에 영향받지 않는 형태로 남겨둔다.)
+// Super. "Super.move(dist)"는 FieldAccessExpression(object=SuperExpression)으로
+// 조립된다. Executor는 object가 SuperExpression인지를 보고 탐색 시작점을 superclass로 옮긴다.
 struct SuperExpression : public Expression {
     using Expression::Expression;
 
@@ -708,8 +659,7 @@ struct SuperExpression : public Expression {
     }
 };
 
-// Array(3) 전용 문법. ARRAY가 예약어라 일반 CallExpression으로 파싱하지 않고
-// 리터럴 파싱과 같은 층위에서 이 노드를 만든다.
+// Array(3) 전용 문법. ARRAY가 예약어라 리터럴과 같은 층위에서 파싱된다.
 struct ArrayExpression : public Expression {
     Expression* const sizeExpr;
 
@@ -725,8 +675,7 @@ struct ArrayExpression : public Expression {
     }
 };
 
-// arr[i] 읽기. 대입 좌변(arr[i] = 7)으로 쓰일 때는 FieldAccessExpression과
-// 마찬가지로 별도 노드 없이 AssignExpression::target이 이 노드를 그대로 가리킨다.
+// arr[i] 읽기. 대입 좌변(arr[i] = 7)에서는 AssignExpression::target이 이 노드를 가리킨다.
 struct IndexExpression : public Expression {
     Expression* const collection;
     Expression* const index;
@@ -792,12 +741,9 @@ struct FunctionDeclareStatement : public Statement {
     }
 };
 
-// move(dist) { ... }. 클래스 바디 안에서 FUNC 키워드 없이 선언되는 메서드
-// 전용 노드다(3일차 슬라이드의 실제 문법) - Architecture.md §2.2/§4.1 참고.
-// FunctionDeclareStatement와 필드 모양은 같지만, 문법이 서로 달라(하나는 FUNC로
-// 시작, 하나는 바로 식별자로 시작) Assembler가 파싱 문맥을 노드 타입으로 표현할
-// 수 있도록 별도 타입으로 둔다. 생성자도 별도 노드가 아니라 이름이 관례적으로
-// "init"인 평범한 MethodDeclareStatement다.
+// 클래스 바디 안에서 FUNC 키워드 없이 선언되는 메서드 전용 노드.
+// FunctionDeclareStatement와 필드 구조는 같지만 파싱 문맥이 달라 별도 타입으로 둔다.
+// 생성자는 이름이 "init"인 MethodDeclareStatement다.
 struct MethodDeclareStatement : public Statement {
     const Token name;
     const std::vector<Token> params;
@@ -845,11 +791,8 @@ struct ReturnStatement : public Statement {
     }
 };
 
-// Class Robot { ... } 또는 Class SpeedRobot : Robot { ... }. superclass는
-// 상속이 없으면 nullptr이다(기존 코드/테스트는 superclass 인자를 생략해도
-// 그대로 컴파일된다 - 기본값 nullptr). 상속 문법(COLON IDENTIFIER)의 실제
-// 파싱/의미검사/실행 규칙은 아직 미확정이며 ImplementTodo.md/TODO.md #5에서
-// 담당자별로 진행한다 - Architecture.md §4.5 참고.
+// Class Robot { ... } 또는 Class SpeedRobot : Robot { ... }.
+// superclass는 상속이 없으면 nullptr이다.
 struct ClassDeclareStatement : public Statement {
     const Token name;
     const std::vector<MethodDeclareStatement*> methods;
@@ -879,11 +822,8 @@ struct ClassDeclareStatement : public Statement {
     }
 };
 
-// import "path" alias name;. declarations는 대상 파일에서 뽑아낸 최상위
-// 선언들(VarDeclareStatement/FunctionDeclareStatement 등)이다. 파일을 읽고
-// 파싱하는 일은 Assembler가 이 노드를 만드는 시점에 이미 끝나 있으므로
-// Checker/Executor는 파일 시스템에 다시 접근할 필요가 없다 - Architecture.md §7
-// 참고.
+// import "path" alias name;. declarations는 대상 파일의 최상위 선언 목록이다.
+// 파싱은 Assembler가 이미 끝내므로 Checker/Executor는 파일 시스템에 접근할 필요가 없다.
 struct ImportStatement : public Statement {
     const Token alias;
     const std::vector<Statement*> declarations;

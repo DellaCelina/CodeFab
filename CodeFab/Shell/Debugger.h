@@ -9,26 +9,10 @@
 #include "../Assembler/SyntaxTree.h"
 #include "../Executor/ExecuteInterface.h"
 
-// 공장 제어 쉘의 디버그 모드용 인터랙티브 디버거(Architecture.md §9.3,
-// Implement.md §5 "할 일 3"). Executor::setStatementHook에 등록해서 넘기는
-// onStatement()가 Statement 하나가 실제로 실행되기 직전마다 호출된다 -
-// 현재 모드(step/next/continue)와 브레이크포인트에 따라 멈출지 그냥
-// 지나갈지 정하고, 멈추면 watch 값을 출력한 뒤 in_에서 명령을 읽어 처리한다.
-//
-// Executor가 실제로 제공하는 것만 사용한다(전부 실제 구현체, Mock 없음):
-// - ExecuteInterface::environment() -> watch/inspect가 값을 읽는다.
-// - Statement::getLine()/containsLine() -> 브레이크포인트 매칭.
-// - Executor::StatementHook의 depth 인자 -> "next"(현재 줄의 하위
-//   statement는 건너뛰고, 같거나 더 얕은 깊이로 돌아왔을 때만 멈추는
-//   step-over)를 정확히 구현하는 데 쓰인다.
+// setStatementHook에 등록되어 Statement 실행 직전마다 호출된다.
+// 모드(step/next/continue)와 브레이크포인트에 따라 멈추고 명령을 처리한다.
 class Debugger {
 public:
-    // sourceLines는 원본 파일을 줄 단위로 나눈 것(1번째 줄 = sourceLines[0])이다.
-    // 정지할 때 "[DEBUG] N번째 줄에서 정지" 뒤에 줄바꿈 없이 그 줄의 실제
-    // 소스를 " -> " 접두사로 이어서 같은 줄에 보여주는 데 쓴다. 비워두면(기본값) 이 줄 표시를
-    // 생략한다 - DebugMode가 아닌 다른 방식으로 Debugger를 쓰는 경우(예: 파일
-    // 내용 없이 직접 만든 SyntaxTree로 하는 단위 테스트)까지 소스 텍스트를
-    // 강제로 요구하지 않기 위함이다.
     Debugger(const ExecuteInterface& executor, std::istream& in, std::ostream& out,
              std::vector<std::string> sourceLines = {});
 

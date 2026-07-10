@@ -2,14 +2,7 @@
 #include "OptimizerInterface.h"
 #include "../Executor/ExecuteInterface.h"
 
-// TODO.md #10: Checker.cpp의 foldConstantIfPossible()에 있던 ConstantFolder 로직을
-// 이 클래스로 옮겼다. Checker(의미 오류 검사)와 책임이 분리되어, optimize()는
-// check()가 true를 반환한 트리에 대해서만 호출돼야 한다(OptimizerInterface.h 참고).
-//
-// Executor/Checker와 동일하게 Visitor 패턴(SyntaxNodeVisitor, TODO.md #11)으로
-// 순회한다. accept()가 매칭되는 visit() 오버라이드를 호출하므로, 새 노드 타입의
-// visit()을 빼먹으면 (예전의 dynamic_cast 체인처럼 조용히 무시되는 게 아니라)
-// 컴파일 에러가 난다.
+// 상수 폴딩 최적화기. check()를 통과한 트리에 대해서만 호출되어야 한다.
 class Optimizer : public OptimizerInterface, public SyntaxNodeVisitor {
 public:
     explicit Optimizer(ExecuteInterface& executor) : executor_(executor) {}
