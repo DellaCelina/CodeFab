@@ -1,5 +1,7 @@
 ﻿#include "ArrayRuntime.h"
 
+#include <cmath>
+
 #include "ArrayValue.h"
 #include "Executor.h"
 
@@ -10,8 +12,15 @@ Value ArrayRuntime::create(Expression* sizeExpr) {
     if (!size.isNumber()) {
         throw ExecutorError("[line {}] array size must be a number.", sizeExpr->getLine());
     }
+    double sizeNum = size.asNumber();
+    if (sizeNum < 0) {
+        throw ExecutorError("[line {}] array size must be non-negative.", sizeExpr->getLine());
+    }
+    if (sizeNum != std::floor(sizeNum)) {
+        throw ExecutorError("[line {}] array size must be an integer.", sizeExpr->getLine());
+    }
     auto array = std::make_shared<ArrayValue>();
-    array->items.resize(static_cast<size_t>(size.asNumber()));  // 전부 Nil로 채워짐.
+    array->items.resize(static_cast<size_t>(sizeNum));  // 전부 Nil로 채워짐.
     return Value(array);
 }
 
