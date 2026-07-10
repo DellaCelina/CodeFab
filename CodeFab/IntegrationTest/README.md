@@ -86,3 +86,12 @@ CodeFab.exe run ..\..\CodeFab\IntegrationTest\01_arithmetic_precedence.txt
   `scenario10_import_module_lib.txt`를 `import`하므로, 두 파일이 항상 함께
   있어야 하고 import 경로가 상대경로이므로 `CodeFab.exe`를 이 폴더(또는 이
   폴더를 기준으로 상대경로가 맞는 위치)에서 실행해야 한다.
+
+
+## 시연 시나리오
+| 순서 | 분류 | 모드 | 시나리오 파일명 |
+| 1 | NormalCase | REPL | scenario10_import_module_usage |
+| 2 | NormalCase | FILE | scenario01_function_scope |
+| 3 | NormalCase | DEBUG | scenario05_class_inheritance_super |
+| 4 | ErrorCase | REPL | scenario08_array_index_error |
+| 5 | ErrorCase | FILE | scenario02_function_error_arity |
