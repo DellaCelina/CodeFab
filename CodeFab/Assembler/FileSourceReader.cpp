@@ -10,7 +10,7 @@ FileSourceReader::FileSourceReader(TokenizeInterface& tokenizer) : tokenizer_(to
 std::vector<Token> FileSourceReader::read(const std::string& path) {
     std::ifstream file(path);
     if (!file) {
-        throw std::runtime_error("파일을 열 수 없습니다: " + path);
+        throw std::runtime_error("cannot open file: " + path);
     }
     std::ostringstream buffer;
     buffer << file.rdbuf();
