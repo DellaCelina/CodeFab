@@ -104,3 +104,23 @@ TEST(ExecutorArrayTest, IndexOutOfRange_ThrowsExecutorError) {
 
     EXPECT_THROW(executor.evaluate(&index), ExecutorError);
 }
+
+TEST(ExecutorArrayTest, ArraySize_Negative_ThrowsExecutorError) {
+    std::ostringstream out;
+    Executor executor(out);
+
+    NumberExpression negativeSize({}, -1);
+    ArrayExpression arrayExpr({}, &negativeSize);
+
+    EXPECT_THROW(executor.evaluate(&arrayExpr), ExecutorError);
+}
+
+TEST(ExecutorArrayTest, ArraySize_Float_ThrowsExecutorError) {
+    std::ostringstream out;
+    Executor executor(out);
+
+    NumberExpression floatSize({}, 3.7);
+    ArrayExpression arrayExpr({}, &floatSize);
+
+    EXPECT_THROW(executor.evaluate(&arrayExpr), ExecutorError);
+}
