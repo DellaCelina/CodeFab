@@ -90,6 +90,7 @@ CodeFab.exe run ..\..\CodeFab\IntegrationTest\01_arithmetic_precedence.txt
 
 ## 시연 시나리오
 | 순서 | 분류 | 모드 | 시나리오 파일명 |
+|---|---|---|---|
 | 1 | NormalCase | REPL | scenario10_import_module_usage |
 | 2 | NormalCase | FILE | scenario01_function_scope |
 | 3 | NormalCase | DEBUG | scenario05_class_inheritance_super |
